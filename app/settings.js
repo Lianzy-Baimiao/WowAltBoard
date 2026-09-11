@@ -113,6 +113,12 @@
       sortColumn: 'mpRating',
       sortDir: 'desc',
 
+      // 周趋势看哪个指标。select 是 index.html 里的静态元素，页面一刷新就回到
+      // 第一项，不存的话「每次都想看金币」的人每次打开都得重新选一遍。
+      // **必须留在默认表里**：hydrate() 只认表内的键，漏了它选择活不过一次
+      // 刷新（和上面 bisLoKind 那条教训是同一个坑）。
+      trendMetric: 'rating',         // 'rating' | 'ilvl' | 'runs' | 'vault' | 'map' | 'gold'
+
       // Learned localized dungeon names, so they survive lockout expiry.
       learnedDungeonNames: {},
 

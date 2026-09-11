@@ -455,9 +455,9 @@
   AE.exportXlsx = function () {
     var snap = snapshot();
     if (!snap.rows.length) { nothingToExport(); return; }
-    var blob = buildXlsx('AlterEgo', snap.headers, snap.rows);
+    var blob = buildXlsx('WowAltBoard', snap.headers, snap.rows);
     var url = URL.createObjectURL(blob);
-    var name = 'AlterEgo-' + stamp() + '.xlsx';
+    var name = 'WowAltBoard-' + stamp() + '.xlsx';
     var a = document.createElement('a');
     a.href = url;
     a.download = name;
@@ -479,7 +479,7 @@
     snap.rows.forEach(function (row) {
       lines.push(row.map(function (c) { return q(c ? c.v : ''); }).join(','));
     });
-    var name = 'AlterEgo-' + stamp() + '.csv';
+    var name = 'WowAltBoard-' + stamp() + '.csv';
     // The BOM is what makes Excel open a UTF-8 CSV without mojibaking the
     // Chinese; without it Excel assumes the system codepage.
     AE.downloadText(name, '﻿' + lines.join('\r\n'), 'text/csv');

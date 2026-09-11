@@ -188,7 +188,22 @@
     doc.getElementById('btn-trends').addEventListener('click', function () { AE.openTrends(); });
     doc.getElementById('btn-vault').addEventListener('click', function () { AE.openVault(); });
     doc.getElementById('btn-bis').addEventListener('click', function () { AE.openBis(); });
-    doc.getElementById('trend-metric').addEventListener('change', AE.rerenderTrends);
+    // 选中的趋势指标要活过刷新：写进设置，history.js 的 render() 打开面板时读回。
+    var trendSel = doc.getElementById('trend-metric');
+    trendSel.addEventListener('change', function () {
+      var s = AE.state && AE.state.settings;
+      if (s) { s.trendMetric = trendSel.value; AE.saveSettings(s); }
+      AE.rerenderTrends();
+    });
+
+    // 筛选全空时主表下方那个空态里的直达按钮：开设置面板并直接落到「筛选」页签。
+    var emptyBtn = doc.getElementById('empty-open-filter');
+    if (emptyBtn) emptyBtn.addEventListener('click', function () {
+      var s = AE.state && AE.state.settings;
+      if (s) { s.panelTab = 'filter'; AE.saveSettings(s); }
+      if (AE.buildSettingsPanel) AE.buildSettingsPanel();
+      AE.openPanel('panel');
+    });
 
     // Click anywhere outside an open panel closes it. The backdrop covers the
     // page while a panel is open, so this needs no hit-testing.

@@ -225,6 +225,19 @@
     ];
 
     var sel = doc.getElementById('trend-metric');
+    /*
+     * 上次选的指标要在打开时回来。select 是 index.html 里的静态元素，页面一
+     * 刷新它的 value 就回到第一个 option —— 不恢复的话「想看金币趋势」的人
+     * 每次打开面板都得重新选一遍，而那个选择明明是可以记住的。
+     * main.js 里那个 change 监听负责写入，这里负责读回；两边用的都是
+     * settings.trendMetric。
+     */
+    var keep = (AE.state && AE.state.settings && AE.state.settings.trendMetric) || '';
+    if (keep && sel && sel.options) {
+      for (var ri = 0; ri < sel.options.length; ri++) {
+        if (sel.options[ri].value === keep) { sel.value = keep; break; }
+      }
+    }
     var active = metrics[0];
     for (var i = 0; i < metrics.length; i++) {
       if (metrics[i].id === sel.value) active = metrics[i];

@@ -51,7 +51,15 @@
 
     if (s.search) {
       var q = s.search.toLowerCase();
-      var hay = (ch.name + ' ' + ch.realm + ' ' + ch.className + ' ' + ch.guildName).toLowerCase();
+      /*
+       * 账号名 / 别名也进搜索范围。设置里专门有「给账号起别名」的功能（比如
+       * 「大号」「小号」），但搜索只认角色 / 服务器 / 职业 / 公会 —— 于是搜
+       * 「大号」一个都搜不到，那个别名功能等于白做。sourceName 是扫描时的
+       * 显示名（账号文件夹名或 config 里的别名），sourceAliases 是页面上
+       * 现改的别名，两个都算。
+       */
+      var hay = (ch.name + ' ' + ch.realm + ' ' + ch.className + ' ' + ch.guildName
+                 + ' ' + (s.sourceAliases[ch.sourceId] || ch.sourceName)).toLowerCase();
       if (hay.indexOf(q) < 0) return false;
     }
 
@@ -175,6 +183,28 @@
     });
 
     state.styleEl.textContent = parts.join('\n');
+
+    /*
+     * 筛选全空时的空态。表头还在、表体全空的表格看不出「筛选空了」和「坏了」
+     * 的区别，footer 那行「显示 0 / N 个角色」又不醒目 —— 明说一句，并给一个
+     * 直达筛选设置的按钮（main.js 里 wiring）。搜索词存在时把它带出来，
+     * 让人一眼看到是哪个词没匹配上。
+     */
+    var hint = doc.getElementById('empty-hint');
+    if (hint) {
+      if (shown === 0 && state.model.characters.length > 0) {
+        var why = doc.getElementById('empty-hint-text');
+        if (why) {
+          why.textContent = s.search
+            ? '搜索词「' + s.search + '」没有匹配到任何角色（也搜账号名 / 别名）。'
+            : '检查最低等级、只看本周活跃，或隐藏的账号 / 角色 / 服务器 / 列。';
+        }
+        hint.style.display = '';
+      } else {
+        hint.style.display = 'none';
+      }
+    }
+
     renderFooter(shown);
   }
 
@@ -583,6 +613,9 @@
 
   AE.isWeeklyActive = isWeeklyActive;
   AE.visibleCharacters = visibleCharacters;
+  // 单个角色的筛选判定。导出给 node 套件做行为测试（搜索范围 / 空态那一组），
+  // 不然只能拿源码做字符串断言 —— 那种断言盯不住「别名其实没进搜索范围」这种错。
+  AE.isVisible = isVisible;
   AE.colById = colById;
 
 })(typeof window !== 'undefined' ? window : globalThis);

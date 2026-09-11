@@ -99,6 +99,14 @@
     <table id="grid"></table>
   </div>
 
+  <!-- 筛选把角色全过滤光时的空态（updateVisibility 切换）。表头还在、表体全空
+       的表格看不出是筛选空了还是坏了；footer 那行小字不够醒目。 -->
+  <div id="empty-hint" style="display:none">
+    <b>当前筛选下一个角色都没有显示</b>
+    <span id="empty-hint-text"></span>
+    <button type="button" id="empty-open-filter">打开筛选设置</button>
+  </div>
+
   <footer>
     <span id="footer-info"></span>
     <span class="spacer"></span>

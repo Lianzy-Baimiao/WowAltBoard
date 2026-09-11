@@ -299,7 +299,7 @@
     searchWrap.appendChild(el('span', null, '搜索'));
     var search = el('input');
     search.type = 'search';
-    search.placeholder = '角色 / 服务器 / 公会';
+    search.placeholder = '角色 / 服务器 / 公会 / 账号';
     search.value = s.search;
     search.addEventListener('input', function () {
       s.search = search.value.trim();
@@ -474,6 +474,22 @@
     }));
     colSec.appendChild(colTop);
 
+    // 60+ 列里找一列全靠滚动（纹章那一组就 30 多列）。按列名过滤一下。
+    var filterRow = el('label', 'field col-filter');
+    filterRow.appendChild(el('span', null, '找列'));
+    var filterIn = el('input');
+    filterIn.type = 'search';
+    filterIn.placeholder = '筛选列名，如：毒牙、金币、专业';
+    filterRow.appendChild(filterIn);
+    colSec.appendChild(filterRow);
+
+    /*
+     * 过滤要能摸到每一行和每个分组块，所以建的时候顺手记下来 ——
+     * 事后 querySelector 也行，但那是「面板结构改一下这里就静默空转」的写法
+     * （和 checkBoxes 那个数组同一个理由）。
+     */
+    var filterIndex = [];   // {box 分组块, rows: [{node 那一行, name 小写列名}]}
+
     AE.GROUPS.forEach(function (g) {
       var groupCols = st.columns.filter(function (c) { return c.group === g.id; });
       if (!groupCols.length) return;
@@ -505,17 +521,37 @@
       box.appendChild(head);
 
       var sub = el('div', 'col-list');
+      var rows = [];
       groupCols.forEach(function (c) {
-        sub.appendChild(check(AE.colLabel(c, st.ctx),
+        var name = AE.colLabel(c, st.ctx);
+        var lab = check(name,
           function () { return !s.hiddenColumns[c.id]; },
           function (v) {
             if (v) delete s.hiddenColumns[c.id];
             else s.hiddenColumns[c.id] = true;
             AE.refresh();
-          }));
+          });
+        rows.push({ node: lab, name: String(name).toLowerCase() });
+        sub.appendChild(lab);
       });
+      filterIndex.push({ box: box, rows: rows });
       box.appendChild(sub);
       colSec.appendChild(box);
+    });
+
+    // 空串 = 全部显示；列名不区分大小写。一个分组里一行都没命中就把整块藏掉，
+    // 免得留一串空标题。
+    filterIn.addEventListener('input', function () {
+      var q = filterIn.value.trim().toLowerCase();
+      filterIndex.forEach(function (gr) {
+        var any = false;
+        gr.rows.forEach(function (r) {
+          var hit = !q || r.name.indexOf(q) >= 0;
+          r.node.style.display = hit ? '' : 'none';
+          if (hit) any = true;
+        });
+        gr.box.style.display = any ? '' : 'none';
+      });
     });
 
     // The 专业 group only exists when BagSync supplied data, so when it is missing
