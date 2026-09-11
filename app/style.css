@@ -667,6 +667,13 @@ table.mini-table td.num { text-align: right; font-variant-numeric: tabular-nums;
 table.mini-table td.empty { color: var(--fg3); }
 table.mini-table td.overtime { color: var(--bad); }
 
+/* 周趋势：周标签（表头）和它下面的数值**同一套对齐**，都居中 —— 原来
+   表头跟 mini-table 走左对齐、数值走右对齐，一列里上下不齐。首列角色名
+   仍左对齐。用 #trend-body 前缀压过 mini-table 的 td.num 规则，只影响
+   周趋势这一张表，角色详情抽屉里的 mini-table 不动。 */
+#trend-body th, #trend-body td { text-align: center; }
+#trend-body th:first-child, #trend-body td:first-child { text-align: left; }
+
 .vault-block, .raid-block { margin-bottom: 8px; }
 .vault-slot {
   font-size: 11.5px;
@@ -1665,6 +1672,9 @@ em.scen.multi { color: var(--accent); opacity: .8; }
 .slot-head .tag.gap { white-space: nowrap; }
 .bis-sum .warn { color: var(--warn); font-weight: 600; }
 .bis-foot { margin-top: 14px; color: var(--fg3); font-size: 11px; line-height: 1.6; }
+/* 脚注下面那个「更新这些数据」入口（details，默认收起）。 */
+.bis-upd { margin-top: 8px; }
+.bis-upd .row-buttons { margin: 6px 0 2px; }
 
 /* 树列分两行（第 20 轮）：英雄自己一行，职业 + 专精一行。
  * 见 app/bis.js 里 renderMrTree 那段注释 —— 让三棵一起 wrap 会排出

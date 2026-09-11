@@ -93,9 +93,12 @@ function auth() {
     var j = JSON.parse(fs.readFileSync(AUTH_FILE, 'utf8'));
     if (j.clientId && j.clientSecret) return j;
   }
-  console.error('没有 WCL 凭证。放一份 tools/.wcl-auth.json：');
-  console.error('  { "clientId": "…", "clientSecret": "…" }');
-  console.error('或者设环境变量 WCL_CLIENT_ID / WCL_CLIENT_SECRET。');
+  console.error('没有 WCL 凭证。申请是免费的，步骤：');
+  console.error('  1. 打开 https://www.warcraftlogs.com/api/clients/（要有 WCL 账号）');
+  console.error('  2. 「Create a Client」→ 名字随便填（如 WowAltBoard）→ 保存');
+  console.error('  3. 复制 Client ID 和 Client Secret，存成 tools/.wcl-auth.json：');
+  console.error('       { "clientId": "…", "clientSecret": "…" }');
+  console.error('  或者设环境变量 WCL_CLIENT_ID / WCL_CLIENT_SECRET。');
   console.error('（那个文件已在 .gitignore 里 —— 凭证不许入库。）');
   process.exit(1);
   return null;

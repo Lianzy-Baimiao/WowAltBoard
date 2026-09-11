@@ -53,7 +53,7 @@ New-Item -ItemType Directory -Path $pkgDir -Force | Out-Null
 
 $include = @(
     'index.html', 'tests.html', 'README.md', 'LICENSE',
-    '启动.bat', $exe.Name
+    '启动.bat', '更新数据.bat', $exe.Name
 )
 foreach ($f in $include) {
     $src = Join-Path $BaseDir $f

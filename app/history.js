@@ -188,11 +188,25 @@
       '共 ' + weeks.length + ' 个游戏周的快照。按 WoW 周重置时间分桶，不是自然周。' +
       (weeks.length === 1 ? '目前只有本周，等下周重置后就能看到变化。' : '')));
 
-    // Union of characters across all weeks, ordered by their latest rating.
+    /*
+     * 趋势的角色集合**跟随主表筛选**：首页不显示的角色（隐藏的账号 / 角色 /
+     * 服务器、搜索词、最低等级、只看本周活跃），这里也不画 —— 否则主表里
+     * 精心筛过的十来个角色，打开趋势又是一整页几十行，筛选等于只管了主表。
+     *
+     * key 是 `sourceId + '/' + guid`，和 model 里 ch.key 同一套（distill 那边
+     * 就是照它拼的），所以直接按 key 求交集。
+     */
+    var visKeys = AE.trendVisibleKeys(AE.state.model, AE.state.settings);
     var keys = {};
     weeks.forEach(function (w) {
-      Object.keys(w.characters).forEach(function (k) { keys[k] = true; });
+      Object.keys(w.characters).forEach(function (k) { if (visKeys[k]) keys[k] = true; });
     });
+    if (!Object.keys(keys).length) {
+      body.appendChild(el('p', 'note',
+        '历史快照里的角色都被主表的筛选挡掉了 —— 这里跟随主表：'
+        + '在首页生效的隐藏账号 / 角色 / 服务器、搜索词，同样作用在这里。'));
+      return;
+    }
     var last = weeks[weeks.length - 1];
     var order = Object.keys(keys).sort(function (a, b) {
       var ra = (last.characters[a] || {}).rating || 0;
@@ -294,6 +308,22 @@
   // 口径能被单独验：趋势里的「本周大秘境本数」必须和主表那一列同一个定义
   // （只数大秘境）。第 20 轮这两处曾经差一个数（主表 4、趋势 5）。
   AE.distillForTest = distill;
+
+  /**
+   * 主表当前筛选下可见的角色 key 集合（趋势只画这些人）。
+   *
+   * 独立成纯函数是为了能在 node 套件里直接测 —— render() 依赖异步加载的
+   * 历史快照，而「隐藏一个账号之后趋势里少了几行」这件事不需要快照就能验。
+   * AE.isVisible 来自 app/render.js（浏览器里它先于本文件加载）。
+   */
+  AE.trendVisibleKeys = function (model, settings) {
+    var out = {};
+    var chars = (model && model.characters) || [];
+    for (var i = 0; i < chars.length; i++) {
+      if (AE.isVisible(chars[i])) out[chars[i].key] = 1;
+    }
+    return out;
+  };
 
   AE.openTrends = function () {
     var view = doc.getElementById('trend');
