@@ -4467,6 +4467,117 @@ VERIFIERS.forEach(function (v) {
     + '并发度 3 实际派出 ' + aSeen + '）');
 })();
 
+// ------------------------------------------------------------------- 主表易用性
+/*
+ * render.js 到这里才第一次在 node 里被真跑 —— 之前整个套件只渲染 bis 面板，
+ * 主表的筛选行为（搜索范围 / 空态）零覆盖。
+ *
+ * 两条盯行为，一条盯持久化：
+ *   ① 搜索要能按账号名 / 别名找到人 —— 设置里专门有「账号别名」功能，
+ *      搜索范围漏了它的话那个功能等于白做。这种错源码字符串断言盯不住
+ *      （「列名写上了但没拼进 hay」长得和正确代码一模一样），所以真调 isVisible。
+ *   ② 筛选全空时 #empty-hint 要亮出来、有可见角色时要藏掉。
+ *   ③ 周趋势的指标选择（settings.trendMetric）两侧都接上了：defaults 表里
+ *      有键（hydrate 只认表内的键），main.js 的 change 监听真的写设置，
+ *      history.js 的 render 真的读回。后两条是锚点式检查 —— 那两处代码
+ *      要在真实浏览器里才会跑（select 的 options 桩里没有）。
+ */
+(function () {
+  if (!haveScan || !model.characters.length) {
+    console.log(pad('主表易用性') + '跳过（没有扫描数据）');
+    return;
+  }
+  var before = problems.length;
+
+  // 渲染主表要的元素 id（桩的 getElementById 只认预建 id；动态建的 tbody 永远
+  // 查不到，所以预建一个替身给 applySort 用 —— 行序断言不在这组管）。
+  ['grid', 'tbody', 'footer-info', 'scan-time', 'season-info', 'version-info',
+   'warnings', 'warning-text', 'warning-close', 'update-banner', 'update-text',
+   'update-link', 'update-close', 'empty-hint', 'empty-hint-text'].forEach(function (id) {
+    if (!env.byId[id]) { var e2 = stub.makeEl('div'); e2.attrs.id = id; env.byId[id] = e2; }
+  });
+  g.getComputedStyle = function () { return { getPropertyValue: function () { return ''; } }; };
+  g.AE.buildSettingsPanel = g.AE.buildSettingsPanel || function () {};
+  if (!load('app/render.js')) { problems.push('主表易用性：render.js 加载失败'); return; }
+
+  var st = g.AE.settingsDefaults();
+  var prevSettings = g.AE.state.settings;
+  g.AE.state.settings = st;
+  st.minLevel = 1;                       // 默认 80 会把低等级角色挡掉，干扰下面的计数
+  try {
+    g.AE.render(model, st);
+  } catch (e) {
+    problems.push('主表易用性：AE.render 在桩里崩了 —— ' + e.message);
+    g.AE.state.settings = prevSettings;
+    return;
+  }
+
+  // ① 搜索按账号名 / 别名能找到人
+  var ch0 = model.characters[0];
+  var checks = 0;
+  st.search = String(ch0.sourceName).toLowerCase().slice(0, 6);
+  if (!g.AE.isVisible(ch0)) {
+    problems.push('主表易用性：搜账号名「' + st.search + '」找不到它自己的角色 '
+      + ch0.name + ' —— 账号名不在搜索范围里');
+  } else checks++;
+  var uniqAlias = '唯一别名_zzzq';
+  st.sourceAliases[ch0.sourceId] = uniqAlias;
+  st.search = uniqAlias;
+  var want = model.characters.filter(function (c) { return c.sourceId === ch0.sourceId; }).length;
+  var got = model.characters.filter(function (c) { return g.AE.isVisible(c); }).length;
+  if (got !== want) {
+    problems.push('主表易用性：搜别名命中的是 ' + got + ' 个角色，该是同账号的 '
+      + want + ' 个 —— 别名没有（或错误地）进搜索范围');
+  } else checks++;
+  st.search = 'zzz-绝对不存在的搜索词';
+  if (model.characters.some(function (c) { return g.AE.isVisible(c); })) {
+    problems.push('主表易用性：乱搜一个不存在的词还有角色可见');
+  } else checks++;
+
+  // ② 空态：全空亮出来（带搜索词），恢复后藏回去
+  var hint = env.byId['empty-hint'];
+  g.AE.refresh();
+  var emptyShown = 0;
+  if (hint.style.display === 'none') {
+    problems.push('主表易用性：筛选全空时 #empty-hint 没有显示');
+  } else {
+    emptyShown++;
+    var why = (env.byId['empty-hint-text'].textContent || '');
+    if (why.indexOf('zzz-绝对不存在的搜索词') < 0) {
+      problems.push('主表易用性：空态文案没把搜索词带出来：「' + why + '」');
+    }
+  }
+  st.search = '';
+  delete st.sourceAliases[ch0.sourceId];
+  g.AE.refresh();
+  if (hint.style.display !== 'none') {
+    problems.push('主表易用性：有可见角色时 #empty-hint 没有藏回去');
+  } else emptyShown++;
+
+  // ③ trendMetric 的两侧
+  var dflt = g.AE.settingsDefaults();
+  if (typeof dflt.trendMetric !== 'string' || !dflt.trendMetric) {
+    problems.push('主表易用性：defaults() 里没有 trendMetric —— hydrate 只认表内的键，'
+      + '趋势指标的选择活不过一次刷新（bisLoKind 那个坑的翻版）');
+  } else checks++;
+  var mainSrc = fs.readFileSync(path.join(ROOT, 'app', 'main.js'), 'utf8');
+  if (!/s\.trendMetric\s*=\s*trendSel\.value/.test(mainSrc)
+      || mainSrc.indexOf('AE.saveSettings(s)') < 0) {
+    problems.push('主表易用性：main.js 的 trend-metric 监听没有把选择写进设置');
+  } else checks++;
+  var histSrc = fs.readFileSync(path.join(ROOT, 'app', 'history.js'), 'utf8');
+  if (histSrc.indexOf('trendMetric') < 0) {
+    problems.push('主表易用性：history.js 没有读回 trendMetric —— 选择存了但打开时不恢复');
+  } else checks++;
+
+  // bis 渲染检查共用 AE.state.settings（那个空对象），换回来别弄脏后面的断言。
+  g.AE.state.settings = prevSettings;
+
+  console.log(pad('主表易用性') + (problems.length > before ? '有问题' : '通过')
+    + '（搜索按账号名 / 别名找到人 ' + checks + ' 项，空态亮 / 灭 '
+    + emptyShown + '/2，趋势指标持久化两侧 ' + (checks >= 6 ? 3 : 0) + ' 项）');
+})();
+
 // ------------------------------------------------------------------- 打包一致性
 // tools/ 是被**整个目录递归复制**进发布包的，.gitignore 管不到它。
 // 所以任何**测试专用**的工具都必须写进 build-release.ps1 的 $dropFromPkg，

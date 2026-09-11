@@ -450,6 +450,22 @@ footer {
 }
 footer .spacer { flex: 1; }
 
+/* 筛选全空时的空态（render.js 的 updateVisibility 切换）。表头还占着、表体
+   全空的表格看不出是筛选空了还是坏了，footer 那行小字又不醒目 —— 给一张
+   居中的说明卡和一个直达筛选页签的按钮。 */
+#empty-hint {
+  flex: none;
+  margin: 30px auto;
+  max-width: 540px;
+  padding: 18px 22px;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  background: var(--bg2);
+  text-align: center;
+}
+#empty-hint b { display: block; margin-bottom: 6px; font-size: 14px; }
+#empty-hint span { display: block; color: var(--fg2); font-size: 12.5px; margin-bottom: 12px; }
+
 #warnings { flex: none; }
 
 /* ---------------------------------------------------------- settings panel */
@@ -547,6 +563,8 @@ label.field {
   padding: 3px 0;
   font-size: 12px;
 }
+/* 「列」页签顶上的找列输入框。 */
+.col-filter input { flex: 1; }
 label.field > span { color: var(--fg2); flex: 1; }
 label.field input, label.field select, .field select {
   background: var(--bg);

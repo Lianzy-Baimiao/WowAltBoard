@@ -37,7 +37,11 @@ var REFLECTED = ['alt', 'title', 'src', 'id', 'type', 'href', 'value', 'width', 
 function makeEl(tag) {
   var e = {
     tagName: String(tag).toUpperCase(),
-    children: [], attrs: {}, style: {}, _text: '',
+    children: [], attrs: {}, _text: '',
+    // style：普通属性照赋值；setProperty / removeProperty 是 render.js 的
+    // applyAppearance 写 CSS 自定义属性用的，桩里无操作（主表测试只断言行为
+    // 和显隐，不断言最终拼出来的 CSS 值）。
+    style: { setProperty: function () {}, removeProperty: function () {} },
     // 滚动容器（#bis-body）。面板重建时要先存后还原，见 app/bis.js 的 render()。
     scrollTop: 0,
     // <details> 的 open 是**布尔属性**：浏览器里 node.open 和 open 属性同步。
