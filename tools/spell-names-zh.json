@@ -1,6 +1,6 @@
 {
  "v": 1,
- "updatedAt": "2026-09-01",
+ "updatedAt": "2026-09-11",
  "source": "app/talent-tree.js 的 entryId → 暴雪 DB2 中文名（天赋） + Wowhead tooltip locale=4（基础技能）",
  "note": "键是 maxroll 正文里 data-wow-id 的值：wow-trait 是天赋 entryId，wow-spell 是 spellId。tools/fetch-maxroll.js 拿它替换正文里的英文技能名，查不到的留英文。",
  "names": {

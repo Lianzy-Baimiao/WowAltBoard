@@ -5,7 +5,7 @@
  */
 window.AE_TALENT_TREE = {
 v:1,
-updatedAt:"2026-08-31",
+updatedAt:"2026-09-11",
 source:"raidbots talents.json（树结构） + 暴雪 DB2 TraitDefinition/SpellName zhCN（中文名）",
 nodeFormat:"[posX, posY, maxRanks, typeIdx, reqPoints, entries[], subTreeId, requiresNode]",
 entryFormat:"[entryId, nameIdx, iconIdx, spellId, maxRanks]",
