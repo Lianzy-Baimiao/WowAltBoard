@@ -3475,10 +3475,13 @@ var VERIFIERS = [
   { label: 'rio 装备分布', script: 'verify-rio-data.js', data: 'rio-data.js' },
   { label: 'maxroll 推荐', script: 'verify-maxroll-data.js', data: 'maxroll-data.js' },
   // 团本天赋串（第 20 轮）。串头能解开 + specID 对得上，是这份数据唯一的硬判据。
-  { label: 'wcl 团本天赋', script: 'verify-wcl-data.js', data: 'wcl-data.js' }
+  { label: 'wcl 团本天赋', script: 'verify-wcl-data.js', data: 'wcl-data.js' },
+  // End-to-end scanner fixture: PowerShell unwraps function results with zero or
+  // one item unless the caller forces an array. That used to emit `accounts: ,`.
+  { label: 'BagSync 扫描', script: 'check-scan-bagsync.js' }
 ];
 VERIFIERS.forEach(function (v) {
-  if (!fs.existsSync(path.join(ROOT, 'app', v.data))) {
+  if (v.data && !fs.existsSync(path.join(ROOT, 'app', v.data))) {
     console.log(pad(v.label) + '跳过（没有 app/' + v.data + '）');
     return;
   }

@@ -920,11 +920,15 @@ try {
         if ($backups.Count -eq 0) { Write-Step 'none found' }
     }
 
-    $bagSync = New-Object System.Collections.ArrayList
+    # Wrap the pipeline result so zero / one / many files all stay an array.
+    # Without @(...), PowerShell turns zero results into $null and unwraps one
+    # result to a PSCustomObject; both make `$bagSync.Count` expand to nothing and
+    # produce invalid JavaScript (`accounts: ,`).
+    $bagSync = @()
     if ($Config.readBagSync) {
         Write-Host ''
         Write-Host 'Looking for BagSync (professions)...'
-        $bagSync = Get-BagSyncSources -Roots $roots
+        $bagSync = @(Get-BagSyncSources -Roots $roots)
         if ($bagSync.Count -eq 0) { Write-Step 'not installed -- profession columns will be off' }
     }
 
