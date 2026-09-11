@@ -166,10 +166,24 @@
    */
   var REMOTE_TIMEOUT = 8000;
 
+  /*
+   * 「在线拉最新数据」按钮临时用的远端地址。**故意不进设置、不落盘**：
+   * 存进 settings 的话，任何一次 saveSettings 都会把它一起写下去，于是下次
+   * 启动 loadDataFile 也会先去试远端 —— 那就成了「程序主动联网」。模块级
+   * 变量只活到页面刷新，正是「点按钮才联网」的语义。
+   * 优先用设置里已有的 remoteDataUrl（用户自己架的源），没有才用默认 CDN。
+   */
+  var onlineBase = '';
+  var DEFAULT_ONLINE_BASE = 'https://cdn.jsdelivr.net/gh/Lianzy-Baimiao/WowAltBoard@main/app';
+
+  function dataBase() {
+    return onlineBase || String(settings().remoteDataUrl || '').trim();
+  }
+
   function loadDataFile(fileName, globalName, done) {
     if (global[globalName]) { done(null); return; }
 
-    var base = String(settings().remoteDataUrl || '').trim();
+    var base = dataBase();
     var tried = [];
     if (base) {
       tried.push(base.replace(/\/+$/, '') + '/' + fileName);
@@ -1962,7 +1976,101 @@
    * 日期、范围、缺什么都不一样。以前这里硬写「数据来自 GearInsight」，
    * 换到 rio 视角后那句话就成了假话。
    */
+  /**
+   * 页面自己所在的目录（E:\…\WowAltBoard 形态）。「复制更新命令」要给一条
+   * 粘进命令行就能跑的完整命令，相对路径在用户随手开的 CWD 下不一定对。
+   * 解不出来就返回空串，那时复制按钮退回相对路径形式。
+   */
+  function localDir() {
+    try {
+      var p = decodeURIComponent(global.location.pathname);
+      // file:///E:/x/y/index.html -> E:\x\y
+      return p.replace(/^\/([A-Za-z]:)/, '$1').replace(/\//g, '\\').replace(/\\[^\\]*$/, '');
+    } catch (e) { return ''; }
+  }
+
+  /**
+   * 「怎么拉最新数据」的入口（第 22 轮用户问的）。参照数据全是打进包里的
+   * 静态文件，不会自己更新 —— 换赛季 / 数据过期之后怎么刷新，界面上原本
+   * 一个字都没说。
+   *
+   * 页面自己跑不了（file:// 禁 fetch），所以这个入口的职责是三件事：
+   * 说清哪份数据从哪来、指路到 更新数据.bat、把完整命令复制到剪贴板。
+   */
+  function renderUpdateHint() {
+    var upd = el('details', 'sec bis-upd');
+    var sum = el('summary');
+    sum.appendChild(el('span', 'ttl', '数据过期了？更新这些数据'));
+    sum.appendChild(el('span', 'note', '　要联网，页面自己拉不了'));
+    sum.setAttribute('data-tip',
+      '这些参照表是打进发布包的静态文件，不会自己更新。\n'
+      + '双击看板文件夹里的 更新数据.bat，或复制下面的命令到命令行运行。\n'
+      + '跑完重启看板（页面加载时才读这些文件）。');
+    upd.appendChild(sum);
+
+    upd.appendChild(el('p', 'note',
+      '两种更新方式：**在线拉取** —— 点上面第一个按钮，本次打开立即生效、'
+      + '不写盘，拉不到自动退回包里的那份；**落盘更新** —— 双击看板文件夹里的 '
+      + '更新数据.bat，按依赖顺序跑全部抓取和转换，重启之后也还是新的。'));
+    // 第二段说明：凭证那一截挂详细申请步骤（悬停）。段落是纯文本拼的，
+    // 这里拆开组装，让「Warcraft Logs 凭证」那几个字带上 tip。
+    var p2 = el('p', 'note');
+    p2.appendChild(doc.createTextNode(
+      '最慢的一步是实战分布（raider.io 限速抓取，约 47 分钟）——'
+      + '不想等就复制第二条命令跳过它。装备 / 天赋参照表要从游戏里装的'
+      + '那个插件转换（没装的话这两步自动跳过，包里旧数据继续用）；'
+      + '团本天赋串需要'));
+    var cred = el('span', null, 'Warcraft Logs 凭证');
+    cred.setAttribute('data-tip',
+      '申请是免费的，一分钟的事：\n'
+      + '1. 打开 https://www.warcraftlogs.com/api/clients/（要有 WCL 账号）\n'
+      + '2. 「Create a Client」→ 名字随便填（如 WowAltBoard）→ 保存\n'
+      + '3. 复制 Client ID 和 Client Secret，存成 tools\\.wcl-auth.json：\n'
+      + '     { "clientId": "…", "clientSecret": "…" }\n'
+      + '   （或设环境变量 WCL_CLIENT_ID / WCL_CLIENT_SECRET）\n'
+      + '那个文件已在 .gitignore 里，不会进仓库、不会进发布包。');
+    p2.appendChild(cred);
+    p2.appendChild(doc.createTextNode('，没有也跳过。'));
+    upd.appendChild(p2);
+
+    var dir = localDir();
+    var act = el('div', 'row-buttons');
+    function copyCmd(extra) {
+      var rel = 'powershell -NoProfile -ExecutionPolicy Bypass -File ';
+      var cmd = dir
+        ? rel + '"' + dir + '\\tools\\update-bis-data.ps1"' + extra
+        : rel + 'tools\\update-bis-data.ps1' + extra;
+      AE.copyWithToast(cmd, '更新命令');
+    }
+    /*
+     * 在线拉取（第 22 轮用户定的方向：页面**可以**联网，只是不主动联）。
+     * file:// 禁的是 fetch/XHR，动态 <script src="https://…"> 不在禁列 ——
+     * remoteDataUrl 那条路一直走的就是它。点这个按钮把远端数据加载进内存：
+     * 本次打开有效、不写盘，拉不到自动回包里的。要真正落盘还是得跑 bat。
+     */
+    var online = button('在线拉最新数据（本次打开有效）', 'mini', function () {
+      AE.bisOnlineUpdate();
+    });
+    online.setAttribute('data-tip',
+      '从远端（jsDelivr 上的仓库副本，或你在设置里填的远端地址）重新加载这些数据。\n'
+      + '只影响本次打开：不写盘、不进设置，刷新后回到包里的那份。\n'
+      + '国内网络对 jsDelivr 时通时不通 —— 拉不到就自动用包里的，等它 8 秒而已。\n'
+      + '要把新数据**落盘**（重启也在），用 更新数据.bat。');
+    act.appendChild(online);
+    act.appendChild(button('复制全量命令', 'mini', function () { copyCmd(''); }));
+    act.appendChild(button('复制跳过实战分布的命令', 'mini', function () { copyCmd(' -SkipRio'); }));
+    upd.appendChild(act);
+    return upd;
+  }
+
   function renderFootnote(s) {
+    var wrap = el('div', 'bis-foot-wrap');
+    wrap.appendChild(renderFootnoteText(s));
+    wrap.appendChild(renderUpdateHint());
+    return wrap;
+  }
+
+  function renderFootnoteText(s) {
     var B = bis();
     var p = el('p', 'note bis-foot');
     // 用**这次真正渲染的视角**，不是 state.view —— 首屏 maxroll 还没加载时
@@ -2568,6 +2676,11 @@
     } else {
       host.appendChild(renderMrTree(s, b, out));
     }
+
+    // 天赋页也挂「更新这些数据」入口 —— 用户问「天赋怎么拉最新数据」时，
+    // 看的正是这一页。装备页那份在 renderFootnote 里，这里单独挂（天赋页
+    // 的数据来源说明在副标题上，不吃装备页的脚注）。
+    host.appendChild(renderUpdateHint());
   }
 
   /**
@@ -2939,6 +3052,8 @@
 
     host.appendChild(renderBuildStats(td));
     host.appendChild(renderEncounters(T, td));
+    // 插件兜底那条路同样要有「更新这些数据」入口（见 renderMrTalents 末尾）。
+    host.appendChild(renderUpdateHint());
   }
 
   /**
@@ -3718,6 +3833,49 @@
   AE.TALENT_TREE_FORMAT = TREE_FORMAT_DOC;
 
   // ------------------------------------------------------------------ 入口
+
+  /*
+   * 「在线拉最新数据」：清掉已加载的参照数据和所有派生缓存，让 openBis 的
+   * 加载链带着 onlineBase 重走一遍 —— 远端拉到就用远端的（**只活在本次会话**，
+   * 不落盘），拉不到 loadDataFile 会自己退回包里的那份，失败无害。
+   *
+   * 要清的东西分三类，漏一类就会出现「新数据配旧缓存」的混搭：
+   *   · global 上的数据文件（loadDataFile 靠它们判「已加载」）；
+   *   · 由数据派生的缓存（byClass / measuredCache / entryNodeMap / heroZhMap）；
+   *   · 加载标志（不清的话 openBis 看到 gearLoaded=true 直接 render，根本不拉）。
+   */
+  function resetOnlineData() {
+    ['AE_BIS', 'AE_ITEM_ICONS', 'AE_ITEM_QUALITY', 'AE_RIO', 'AE_MAXROLL',
+     'AE_TALENT_TREE', 'AE_TALENTS', 'AE_TALENT_DESC', 'AE_WCL'
+    ].forEach(function (k) { delete global[k]; });
+    byClass = null;
+    measuredCache = null;
+    entryNodeMap = null;
+    heroZhMap = null;
+    openSecs = {};
+    gearLoaded = talLoaded = rioLoaded = mrLoaded = false;
+    gearLoading = talLoading = rioLoading = mrLoading = false;
+    wclLoaded = wclLoading = false;
+    descLoaded = descLoading = false;
+    treeLoading = false;
+  }
+
+  AE.bisOnlineUpdate = function () {
+    var s = settings();
+    onlineBase = (s && String(s.remoteDataUrl || '').trim())
+              || DEFAULT_ONLINE_BASE;
+    resetOnlineData();
+    if (AE.toast) {
+      AE.toast({
+        title: '正在从远端拉取最新数据…',
+        body: '来源：' + onlineBase + '\n'
+            + '只对本次打开有效，不写盘；拉不到会自动退回包里的那份。\n'
+            + '图标仍是包里的（新 itemId 没有图会显示占位块）。',
+        ms: 6000
+      });
+    }
+    AE.openBis();
+  };
 
   AE.openBis = function () {
     AE.openPanel('bis');

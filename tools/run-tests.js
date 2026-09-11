@@ -216,6 +216,8 @@ var stats = { renders: 0, imgs: 0, ph: 0, badSrc: 0, trk: 0, trkBad: 0, cov: 0, 
               xcChecked: 0, xcNoGap: 0, xcNote: 0, heroLate: 0,
               // 无障碍
               imgLazy: 0, imgEager: 0,
+              // 「更新这些数据」入口（第 22 轮）：每次渲染该画一个
+              upd: 0,
               // 来源插件的名字漏进界面（第 17 轮：只说「插件参照表」）
               srcLeak: 0,
               a11yImg: 0, a11yBtn: 0, a11yBtnBad: 0, a11yTip: 0, a11yTipBad: 0,
@@ -249,6 +251,9 @@ function loNote(kind, msg) {
 // 全被报成「没有 alt」。桩已经补上映射（见 dom-stub.js 的 REFLECT），
 // 这几条断言才有意义 —— 否则它们量的是桩，不是应用。
 function checkA11y(n, label) {
+  // 「更新这些数据」入口：装备 / 天赋两条渲染路都该画（checkRender 和
+  // checkTalents 的 walk 都过这里，所以计数放这一处两边都吃）。
+  if (n.classList && n.classList.contains('bis-upd')) stats.upd++;
   if (n.tagName === 'IMG') {
     // 装备图标是装饰性的（旁边就是装备中文名），所以正确写法是 alt=""，
     // 也就是「有这个属性、值为空」。缺属性和 alt="" 是两件事：
@@ -507,6 +512,40 @@ function checkRender(label) {
   });
   if (!sawItem) problems.push(label + ' 一件装备都没画出来');
   checkSlotGapTarget(label);
+
+  /*
+   * 更新入口的复制按钮（第 22 轮）：页面自己不能联网（file:// 禁 fetch），
+   * 这个按钮的全部价值就是交给用户一条能跑的命令 —— 复制错了等于没有。
+   * 只在第一次渲染点一次：按钮每次渲染都是新的，点一次就能验出命令对不对。
+   */
+  if (stats.renders === 1) {
+    var updBtn = null;
+    walk(body, function (n) {
+      if (updBtn || !n.classList || !n.classList.contains('mini')) return;
+      if (/复制全量命令/.test(n.textContent || '')) updBtn = n;
+    });
+    if (!updBtn) {
+      problems.push(label + ' 没找到「更新这些数据」的复制按钮 —— 入口画了但命令给不出');
+    } else {
+      updBtn.click();
+      var lastCmd = copied[copied.length - 1];
+      if (!lastCmd || !lastCmd.text || lastCmd.text.indexOf('update-bis-data.ps1') < 0) {
+        problems.push(label + ' 复制出来的更新命令不含 update-bis-data.ps1：'
+          + (lastCmd && lastCmd.text));
+      }
+    }
+    // 在线拉取按钮只验**存在**，不点击：它会把 gearLoading 置起并等待
+    // 远端 <script>，而桩不会触发 onload —— 点了后面 246 次渲染全部早退。
+    // 真点的那条在「主表易用性」⑤（那里是套件的尾巴）。
+    var onlineBtn = null;
+    walk(body, function (n) {
+      if (onlineBtn || !n.classList || !n.classList.contains('mini')) return;
+      if (/在线拉最新数据/.test(n.textContent || '')) onlineBtn = n;
+    });
+    if (!onlineBtn) {
+      problems.push(label + ' 没有「在线拉最新数据」按钮（第 22 轮用户要的：点击才联网）');
+    }
+  }
 }
 
 /**
@@ -2812,6 +2851,11 @@ if (stats.tico !== stats.tnodes) {
   problems.push('天赋图标 ' + stats.tico + ' 个，节点 ' + stats.tnodes + ' 个，不一一对应');
 }
 
+if (stats.upd !== stats.renders) {
+  problems.push('「更新这些数据」入口只画了 ' + stats.upd + ' 次，渲染了 '
+    + stats.renders + ' 次 —— renderFootnote 挂了它，哪次渲染都该有');
+}
+
 console.log(pad('渲染检查') + (problems.length ? problems.length + ' 个问题' : '通过')
   + '（' + stats.renders + ' 次渲染，' + stats.imgs + ' 个图标，占位块 ' + stats.ph
   + '，轨道徽章 ' + stats.trk + '，部位组 ' + stats.slots
@@ -4570,12 +4614,52 @@ VERIFIERS.forEach(function (v) {
     problems.push('主表易用性：history.js 没有读回 trendMetric —— 选择存了但打开时不恢复');
   } else checks++;
 
+  // ④ 周趋势跟随主表筛选：隐藏一个账号，趋势的候选 key 就少那一批
+  //    （trendVisibleKeys 是纯函数，不需要快照就能验「少几行」这件事）。
+  var trendN = 0;
+  var tk = g.AE.trendVisibleKeys(model, st);
+  var wantVis = model.characters.filter(function (c) { return g.AE.isVisible(c); }).length;
+  if (Object.keys(tk).length !== wantVis) {
+    problems.push('主表易用性：趋势候选 ' + Object.keys(tk).length + ' 个，和主表可见的 '
+      + wantVis + ' 个对不上');
+  } else trendN++;
+  var hideSrc = model.characters[0].sourceId;
+  var hideN = model.characters.filter(function (c) { return c.sourceId === hideSrc; }).length;
+  if (hideN < model.characters.length) {         // 全在同一个源的话这半条没意义
+    st.hiddenSources[hideSrc] = true;
+    var tk2 = g.AE.trendVisibleKeys(model, st);
+    if (Object.keys(tk2).length !== wantVis - hideN || tk2[model.characters[0].key]) {
+      problems.push('主表易用性：隐藏账号后趋势候选是 ' + Object.keys(tk2).length
+        + ' 个，该是 ' + (wantVis - hideN) + ' 个 —— 趋势没有跟随主表筛选');
+    } else trendN++;
+    delete st.hiddenSources[hideSrc];
+  } else trendN++;
+
+  // ⑤ 在线拉取（第 22 轮）：点击才联网 —— 远端地址必须只活在闭包变量里，
+  //    写进 settings 的话任何一次 saveSettings 都会把它落盘，下次启动就成了
+  //    「程序主动联网」。另外数据全局必须真被清掉，否则 loadDataFile 一句
+  //    「已加载」直接短路，按钮等于没按。这里真点（bisOnlineUpdate）：
+  //    桩里远端 <script> 的 onload 不触发，加载链停在 gearLoading —— 但那
+  //    正是套件末尾，后面的节全是静态检查，不吃 AE.state。
+  var onlineN = 0;
+  var urlBefore = st.remoteDataUrl;
+  g.AE.bisOnlineUpdate();
+  if (st.remoteDataUrl !== urlBefore) {
+    problems.push('主表易用性：在线拉取把远端地址写进了 settings.remoteDataUrl —— '
+      + '下次启动会主动去连它，违背「点击才联网」');
+  } else onlineN++;
+  if (g.AE_BIS !== undefined || g.AE_MAXROLL !== undefined) {
+    problems.push('主表易用性：在线拉取没有清掉已加载的数据全局 —— '
+      + 'loadDataFile 会认为已加载而根本不拉');
+  } else onlineN++;
+
   // bis 渲染检查共用 AE.state.settings（那个空对象），换回来别弄脏后面的断言。
   g.AE.state.settings = prevSettings;
 
   console.log(pad('主表易用性') + (problems.length > before ? '有问题' : '通过')
     + '（搜索按账号名 / 别名找到人 ' + checks + ' 项，空态亮 / 灭 '
-    + emptyShown + '/2，趋势指标持久化两侧 ' + (checks >= 6 ? 3 : 0) + ' 项）');
+    + emptyShown + '/2，趋势指标持久化两侧 ' + (checks >= 6 ? 3 : 0)
+    + ' 项，趋势跟随主表筛选 ' + trendN + ' 项，在线拉取不落盘 ' + onlineN + ' 项）');
 })();
 
 // ------------------------------------------------------------------- 打包一致性
