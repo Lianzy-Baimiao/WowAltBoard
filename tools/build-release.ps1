@@ -61,7 +61,7 @@ foreach ($f in $include) {
     else { Write-Host "  ! missing, skipped: $f" -ForegroundColor Yellow }
 }
 
-foreach ($d in @('app', 'tools')) {
+foreach ($d in @('app', 'tools', 'docs')) {
     Copy-Item -LiteralPath (Join-Path $BaseDir $d) -Destination $pkgDir -Recurse
 }
 
