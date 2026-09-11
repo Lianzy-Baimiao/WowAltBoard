@@ -61,8 +61,10 @@
     s.async = false;
     s.charset = 'utf-8';
     s.onload = function () { loaded = true; done(null); };
-    // onerror does fire for a missing file:// script.
-    s.onerror = function () { loaded = true; done('data/backups.js 读取失败'); };
+    // **失败不算「加载过了」**（和 bis.js 那边 gearLoaded 同一个规矩）：再开一次
+    // 备份箱会重试，而不是把「正在载入」永久钉在这里。onerror 对 file:// 下
+    // 缺失的脚本确实会触发，所以不会死循环。
+    s.onerror = function () { done('data/backups.js 读取失败'); };
     doc.head.appendChild(s);
   }
 

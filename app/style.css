@@ -1303,8 +1303,10 @@ body[data-theme="light"] #tip { box-shadow: 0 6px 20px rgba(0, 0, 0, .18); }
   border-radius: 2px;
 }
 .chip img { vertical-align: -3px; margin-right: 3px; border-radius: 2px; }
-/* 没有图标数据时的占位块：底色 = 来源分类色，中间一个字。 */
-.item .icon.ph {
+/* 没有图标数据时的占位块：底色 = 来源分类色，中间一个字。
+   作用域放在 .icon 上而不是 .item .icon：格子头那条摘要行的图标容器
+   是 icon sm，图片加载失败同样要换成占位块。 */
+.icon.ph {
   display: inline-flex;
   align-items: center;
   justify-content: center;

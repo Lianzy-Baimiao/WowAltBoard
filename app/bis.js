@@ -599,11 +599,17 @@
     // 换到 rio 视角后这条分支**经常走到**：rio 有 2432 件物品，而包里
     // app/icons/ 只有 462 张图（实测能对上文件的 966/2432 = 39.7%）。
     // 所以图没了以后要把外面那个格子变回占位块，否则会留一个空洞。
+    //
+    // 容器有两种：分布行是 'icon'，格子头那条摘要行是 'icon sm' —— 两个都
+    // 该换占位块。原来只认严格等于 'icon'，摘要行那张缺图时会留一个空格子。
     img.addEventListener('error', function () {
       var p = img.parentNode;
       if (!p) return;
       p.removeChild(img);
-      if (p.className === 'icon') { p.className = 'icon ph'; p.textContent = '?'; }
+      if ((p.className || '').split(/\s+/).indexOf('icon') >= 0) {
+        p.className += ' ph';
+        p.textContent = '?';
+      }
     });
     return img;
   }
@@ -1425,6 +1431,13 @@
     // 是因为这个函数已经有 5 个参数了，再加一个「视角」很容易和 sampleN 打架。
     var mrRows = rows.length && rows[0][3] === -2;
 
+    // 这一格推荐的是第几行。**必须在这里算**：成对的第二格在 renderGear 的
+    // pickFor 里已经跳过了另一格占掉的那件（pickIdx 可能是 1），下面的装等
+    // 差距徽章要用它。原来这一行声明在函数后半段，var 提升让徽章在它之前
+    // 读到 undefined，slotGap 里的兜底于是永远取 rows[0] —— 成对第二格的
+    // 徽章比的是被另一格占掉的那件，和本格显示的推荐件对不上。
+    var pi = (pickIdx > 0 && rows[pickIdx]) ? pickIdx : 0;
+
     if (mrRows) {
       // **既没有样本量也没有覆盖率。** 上面那个 sum 在这里恒等于 0
       // （使用率全是 null），所以走原来那条分支会画出「记录 0.0%」——
@@ -1502,7 +1515,8 @@
 
       // ---- 装等差距。「对上 / 没对上」只说了款式，说不了**差多远** ——
       // 身上这件正好是推荐的第 3 选择、装等却低 20，界面上和「完全穿对了」长得一样。
-      // 判据用这个部位**首选那一件**的装等（rows[0]），因为那是「换到最好」要走的距离。
+      // 判据用**这一格推荐的那一件**（pi，成对去重后不一定是 rows[0]），
+      // 因为那是「换到最好」要走的距离。
       var gap = slotGap(rows, mine, pi);
       if (gap) {
         // 徽章上**同时给出两个原始装等**，不只给差值。
@@ -1554,7 +1568,6 @@
     var flat = mrRows || rows.length <= 4;
     if (flat) wrap.classList.add('flat');
 
-    var pi = (pickIdx > 0 && rows[pickIdx]) ? pickIdx : 0;
     var top = rows[pi] || null;
     if (top && !flat) {
       var tRi = (top[3] === -1 ? rioItem(top[0]) : (top[3] === -2 ? mrItem(top[0]) : null));
