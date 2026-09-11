@@ -77,6 +77,7 @@ $dropFromPkg = @(
     'tools\.wcl-auth.json',      # the user's Warcraft Logs API credentials -- MUST NOT ship
 
     'tools\check-lazyload.js',   # walks the panel's lazy-load chain in a clean env; needs dom-stub.js
+    'tools\check-scan-bagsync.js', # builds 0/1/2-account fake WoW trees; scanner regression test
     'tools\check-anchors.js',    # static anchor check for the mutate-* suites -- which are
                                  # themselves dropped below, so this would find nothing
     'tools\dom-stub.js',         # test harness
