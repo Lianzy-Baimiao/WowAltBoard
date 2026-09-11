@@ -510,31 +510,35 @@ function checkRender(label) {
 }
 
 /**
- * 装等差距**比的是哪一件**：必须是这个部位画在最前面的那一件。
+ * 装等差距**比的是哪一件**：必须是这一格实际推荐的那一件。
  *
  * 为什么单独一条：徽章文字、颜色、提示里的两个数全都出自同一个 `top`，
  * 所以「把 rows[0] 写成 rows[rows.length-1]」这种改动**处处自洽** ——
  * 提示里写「首选那件 312」，徽章按 312 算，三者一致，只是那 312 是列表末尾
  * 那件「可刷替代」的装等。实测这么改一下差距会凭空缩小，用户以为自己快毕业了。
  *
- * 判据只能从 DOM 里另找一个来源：这个部位**第一行**画出来的装等。
- * 它和提示里的「首选那件 X」必须是同一个数。
+ * 「实际推荐的那一件」不是分布的第一行：戒指/饰品成对去重之后（renderGear
+ * 的 pickFor），第二格推荐的是第二件，而完整分布的第一行仍然是第一件。
+ * 判据跟着 **.top** 走 —— renderItem 给 i === pickIdx 的那行加 top 类，
+ * flat 和折叠两种摆法都加。第一版这条拿「第一行」当判据，修 pi 顺序 bug
+ * 之前它永远过（徽章和第一行都读 rows[0]），等于没在验这一条。
  */
 function checkSlotGapTarget(label) {
   walk(body, function (n) {
     if (!n.classList || !n.classList.contains('slot')) return;
-    var head = null, firstItem = null;
+    var head = null, topItem = null;
     n.children.forEach(function (c) {
       if (!c.classList) return;
       if (!head && c.classList.contains('slot-head')) head = c;
     });
     // 部位组里的装备行：第 21 轮改成角色栈之后，行被包进 .slot > .slot-list 里
-    // （默认折起来，点格子头展开），所以不能再假设它们是 .slot 的直接子节点。
-    // 用 walk 找第一个 .item —— 两种结构都吃得住。
+    // （默认折起来，点格子头展开），所以不能假设它们是 .slot 的直接子节点。
+    // 用 walk 找带 top 的 .item —— 两种结构都吃得住。
     walk(n, function (c) {
-      if (!firstItem && c.classList && c.classList.contains('item')) firstItem = c;
+      if (!topItem && c.classList && c.classList.contains('item')
+          && c.classList.contains('top')) topItem = c;
     });
-    if (!head || !firstItem) return;
+    if (!head || !topItem) return;
 
     var tip = '';
     walk(head, function (h) {
@@ -547,22 +551,22 @@ function checkSlotGapTarget(label) {
     if (!m) return;                         // 提示格式那条断言已经在管了
 
     var shownIlvl = null;
-    walk(firstItem, function (x) {
+    walk(topItem, function (x) {
       if (shownIlvl === null && x.classList && x.classList.contains('sub2')
         && !x.classList.contains('iv-none')) {
         var t = (x.textContent || '').match(/^(\d+)/);
         if (t) shownIlvl = Number(t[1]);
       }
     });
-    if (shownIlvl === null) return;         // 第一行没画装等（查不到那 3 行）
+    if (shownIlvl === null) return;         // 推荐件没画装等（两份数据都查不到）
 
     stats.gapTop++;
     if (Number(m[1]) !== shownIlvl) {
       stats.gapTopBad++;
       if (stats.gapTopBad < 4) {
         problems.push(label + ' 装等差距说「首选那件 ' + m[1]
-          + '」，但这个部位第一行画的是 ' + shownIlvl
-          + ' —— 比的不是首选那一件');
+          + '」，但这一格推荐的是 ' + shownIlvl
+          + ' —— 比的不是本格实际推荐的那一件');
       }
     }
   });
@@ -3478,7 +3482,10 @@ var VERIFIERS = [
   { label: 'wcl 团本天赋', script: 'verify-wcl-data.js', data: 'wcl-data.js' },
   // End-to-end scanner fixture: PowerShell unwraps function results with zero or
   // one item unless the caller forces an array. That used to emit `accounts: ,`.
-  { label: 'BagSync 扫描', script: 'check-scan-bagsync.js' }
+  { label: 'BagSync 扫描', script: 'check-scan-bagsync.js' },
+  // Same trap on the backups path (there it only lied in the console, the JS
+  // stayed valid -- but the shape deserves the same pinned guard).
+  { label: '备份扫描', script: 'check-scan-backups.js' }
 ];
 VERIFIERS.forEach(function (v) {
   if (v.data && !fs.existsSync(path.join(ROOT, 'app', v.data))) {

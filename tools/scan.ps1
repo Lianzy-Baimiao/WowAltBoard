@@ -27,7 +27,7 @@ param()
 $ErrorActionPreference = 'Stop'
 
 $SCHEMA_VERSION = 1
-$TOOL_VERSION   = '1.16.1'
+$TOOL_VERSION   = '1.16.2'
 $REPO           = 'Lianzy-Baimiao/WowAltBoard'
 $AUTHOR         = '白描'
 
@@ -912,11 +912,17 @@ try {
 
     Import-DownloadedSettings
 
-    $backups = New-Object System.Collections.ArrayList
+    # Same @(...) discipline as $bagSync below: PowerShell turns a function's
+    # zero-item pipeline into $null and unwraps a single item to a bare
+    # PSCustomObject. foreach tolerates both so the emitted JS stays valid, but
+    # $backups.Count then prints empty in the Write-Step lines and the
+    # "-eq 0" check silently stops working. The ArrayList this used to
+    # initialize here was dead code -- it was overwritten unconditionally.
+    $backups = @()
     if ($Config.collectBackups) {
         Write-Host ''
         Write-Host 'Collecting addon backup payloads...'
-        $backups = Get-BackupSources -Roots $roots
+        $backups = @(Get-BackupSources -Roots $roots)
         if ($backups.Count -eq 0) { Write-Step 'none found' }
     }
 
