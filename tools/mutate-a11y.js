@@ -18,6 +18,7 @@
 var fs = require('fs');
 var path = require('path');
 var cp = require('child_process');
+var MT = require('./mutation-text.js');
 
 var lock = require('./mutate-lock.js');
 
@@ -79,14 +80,14 @@ MUTANTS.forEach(function (m) {
   // String.replace 只换第一处 —— 于是「装备图标有没有 alt」这半边
   // 从来没被变异过，而变异体照样报「抓到」（另一处触发了断言）。
   // 被别的调用点喂饱的变异体，等于没有验证它想验的那一处。
-  var hits = orig.split(from).length - 1;
+  var hits = MT.count(orig, from);
   if (hits !== 1) {
     skipped.push(m[0] + '（锚点出现 ' + hits + ' 次，必须正好 1 次）');
     console.log('  锚点失效  ' + m[0] + '（出现 ' + hits + ' 次：'
       + from.slice(0, 40) + '）');
     return;
   }
-  fs.writeFileSync(file, orig.replace(from, to));
+  fs.writeFileSync(file, MT.replace(orig, from, to));
   var status;
   try { status = run(); } finally { fs.writeFileSync(file, orig); }
   if (status !== 0) { caught++; console.log('  抓到  ' + m[0]); }

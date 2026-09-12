@@ -24,6 +24,7 @@
 var fs = require('fs');
 var path = require('path');
 var cp = require('child_process');
+var MT = require('./mutation-text.js');
 
 var lock = require('./mutate-lock.js');
 
@@ -75,12 +76,12 @@ var caught = 0, missed = [], skipped = [];
 
 MUTANTS.forEach(function (m) {
   var from = m[1], to = m[2], want = m[3];
-  if (orig.indexOf(from) < 0) {
+  if (MT.count(orig, from) !== 1) {
     skipped.push(m[0]);
-    console.log('  锚点失效  ' + m[0] + '（生成的表里找不到：' + from + '）');
+    console.log('  锚点失效  ' + m[0] + '（生成的表里找不到唯一原文：' + from + '）');
     return;
   }
-  fs.writeFileSync(NAMES, orig.replace(from, to));
+  fs.writeFileSync(NAMES, MT.replace(orig, from, to));
   var r;
   try { r = run(); } finally { fs.writeFileSync(NAMES, orig); }
   if (r.status === 0) {

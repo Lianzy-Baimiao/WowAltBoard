@@ -4680,7 +4680,7 @@ VERIFIERS.forEach(function (v) {
 // 而那是**错的**，加进去会砸掉发布包 —— 见下面「随包工具的依赖不许被丢掉」那条。
 // 改成只认真正的 require()：注释怎么写都不影响判定。
 (function () {
-  var HARNESS = ['run-tests.js', 'dom-stub.js'];
+  var HARNESS = ['run-tests.js', 'dom-stub.js', 'check-anchors.js'];
   // require('./x.js') / require("./x") / path.join(__dirname, 'x.js') 都算真依赖；
   // 出现在注释或字符串说明里的不算。
   function requiresHarness(src, self) {
@@ -4697,8 +4697,14 @@ VERIFIERS.forEach(function (v) {
   var blk = /\$dropFromPkg\s*=\s*@\(([\s\S]*?)\)/.exec(txt);
   if (!blk) { problems.push('build-release.ps1 里找不到 $dropFromPkg，打包一致性检查没跑起来'); return; }
   var listed = {};
+  // Most entries are string literals. mutate-lock stays last and is expressed
+  // with Join-Path so mutate-pkg can replace an earlier literal without also
+  // corrupting this safety-net entry.
   (blk[1].match(/'tools\\([^']+)'/g) || []).forEach(function (s) {
     listed[/'tools\\([^']+)'/.exec(s)[1]] = 1;
+  });
+  (blk[1].match(/Join-Path\s+'tools'\s+'([^']+)'/g) || []).forEach(function (s) {
+    listed[/Join-Path\s+'tools'\s+'([^']+)'/.exec(s)[1]] = 1;
   });
   var need = [], miss = [];
   fs.readdirSync(path.join(ROOT, 'tools')).forEach(function (f) {

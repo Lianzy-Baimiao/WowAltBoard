@@ -24,6 +24,7 @@
 var fs = require('fs');
 var path = require('path');
 var cp = require('child_process');
+var MT = require('./mutation-text.js');
 var lock = require('./mutate-lock.js');
 
 var ROOT = path.resolve(__dirname, '..');
@@ -62,12 +63,12 @@ var caught = 0, missed = [], dead = [];
 try {
   MUTANTS.forEach(function (m) {
     var label = m[0], from = m[1], to = m[2];
-    if (orig.indexOf(from) < 0) {
+    if (MT.count(orig, from) !== 1) {
       dead.push(label);
-      console.log('  锚点失效  ' + label + '（找不到 ' + JSON.stringify(from) + '）');
+      console.log('  锚点失效  ' + label + '（找不到唯一原文 ' + JSON.stringify(from) + '）');
       return;
     }
-    fs.writeFileSync(PS, orig.replace(from, to), 'utf8');
+    fs.writeFileSync(PS, MT.replace(orig, from, to), 'utf8');
     var r;
     try { r = suite(); } finally { fs.writeFileSync(PS, orig, 'utf8'); }
     // 必须是「因为打包一致性」而失败，不是因为别的什么坏了。
