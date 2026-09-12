@@ -30,6 +30,11 @@
   --horde: #e06666;
   --row-hover: #262b34;
   --reward: #2a3524;
+  /* Mythic+ completed-key tiers: <10 / 10–11 / 12–15 / 16+. */
+  --mplus-low: #58a6ff;
+  --mplus-mid: #4fd1c5;
+  --mplus-high: #b794f4;
+  --mplus-peak: #f2c94c;
 }
 
 /* Skins tint the neutral surfaces; light/dark stays a separate axis, so four
@@ -56,6 +61,10 @@ body[data-theme="light"] {
   --horde: #b03030;
   --row-hover: #e8ecf2;
   --reward: #eaf5e2;
+  --mplus-low: #1565c0;
+  --mplus-mid: #087f8c;
+  --mplus-high: #7b3fb4;
+  --mplus-peak: #9a6700;
 }
 body[data-theme="light"][data-skin="jade"]   { --bg2: #ffffff; --bg3: #eaf3ee; --line: #cddbd3; --row-hover: #e2efe8; }
 body[data-theme="light"][data-skin="amber"]  { --bg2: #ffffff; --bg3: #f5efe4; --line: #ded2be; --row-hover: #f1e8d8; }
@@ -385,7 +394,17 @@ td.good { color: var(--good); }
 td.todo { color: var(--todo); }
 td.full { color: var(--good); font-weight: 600; }
 td.partial { color: var(--warn); }
-td.overtime { color: var(--bad); }
+/* Per-dungeon M+ cells keep difficulty color even when the run was overtime;
+   the trailing minus and tooltip still carry the timing result. */
+td.mp-level-low { color: var(--mplus-low); }
+td.mp-level-mid { color: var(--mplus-mid); }
+td.mp-level-high { color: var(--mplus-high); }
+td.mp-level-peak { color: var(--mplus-peak); }
+td.mp-level-low .sub, td.mp-level-mid .sub,
+td.mp-level-high .sub, td.mp-level-peak .sub { color: currentColor; opacity: .78; }
+td.overtime:not(.mp-level-low):not(.mp-level-mid):not(.mp-level-high):not(.mp-level-peak) {
+  color: var(--bad);
+}
 td.stale { color: var(--fg3); }
 td.alliance { color: var(--alliance); }
 td.horde { color: var(--horde); }

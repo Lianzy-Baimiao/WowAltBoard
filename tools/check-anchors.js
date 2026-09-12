@@ -24,6 +24,7 @@
 
 var fs = require('fs');
 var path = require('path');
+var MT = require('./mutation-text.js');
 
 var ROOT = path.join(__dirname, '..');
 var TOOLS = path.join(ROOT, 'tools');
@@ -150,7 +151,7 @@ files.forEach(function (f) {
       unread.push(f + ' / ' + c.d + '（目标文件不在）');
       return;
     }
-    var hits = cands.map(function (p) { return read(p).split(c.from).length - 1; });
+    var hits = cands.map(function (p) { return MT.count(read(p), c.from); });
     if (hits.indexOf(1) < 0) {
       bad.push(c.d + '  [' + cands.map(function (p, k) {
         return path.basename(p) + '×' + hits[k];

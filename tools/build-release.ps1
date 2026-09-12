@@ -83,17 +83,18 @@ $dropFromPkg = @(
                                  # themselves dropped below, so this would find nothing
     'tools\dom-stub.js',         # test harness
     'tools\run-tests.js',        # test harness
+    'tools\mutation-text.js',    # cross-platform text-anchor helper used by dev-only suites
     'tools\mutate-a11y.js',     # mutation suite for the a11y assertions; needs run-tests.js
     'tools\mutate-names.js',    # mutation suite for the zhCN name assertions; needs run-tests.js
     'tools\mutate-decode.js',   # mutation suite for the talent-decode assertions
-    'tools\mutate-lock.js',     # the mutex those mutation suites share
     'tools\mutate-pkg.js',     # mutation suite for the packaging guard itself; needs run-tests.js
     'tools\mutate-icons.js',   # mutation suite for the talent-icon assertions
     'tools\mutate-loadout.js', # mutation suite for the talent import-string assertions
     'tools\mutate-rio.js',     # mutation suite for the raider.io data assertions
     'tools\mutate-mrtalents.js', # mutation suite for the maxroll talent-build assertions
     'tools\mutate-ilvlgap.js', # mutation suite for the ilvl / gear-gap / dropped-view assertions
-    'tools\mutate-pool.js'     # mutation suite for the fetch-rio pool() regression test
+    'tools\mutate-pool.js',    # mutation suite for the fetch-rio concurrency regression
+    (Join-Path 'tools' 'mutate-lock.js') # keep last: packaging mutations replace earlier entries
 )
 foreach ($f in $dropFromPkg) {
     Remove-Item -LiteralPath (Join-Path $pkgDir $f) -Force -ErrorAction SilentlyContinue

@@ -25,6 +25,7 @@
 var fs = require('fs');
 var path = require('path');
 var cp = require('child_process');
+var MT = require('./mutation-text.js');
 
 var lock = require('./mutate-lock.js');
 
@@ -91,13 +92,13 @@ try {
       fs.writeFileSync(TRUTH, JSON.stringify(t), 'utf8');
     } else {
       var src = fs.readFileSync(file, 'utf8');
-      if (src.indexOf(from) < 0) {
+      if (MT.count(src, from) !== 1) {
         // 锚点失效 = 这个变异根本没打上，等于没测。必须报成问题，不能算通过。
         deadAnchor.push(label);
-        console.log('  锚点失效  ' + label + '（在 ' + path.basename(file) + ' 里找不到原文）');
+        console.log('  锚点失效  ' + label + '（在 ' + path.basename(file) + ' 里找不到唯一原文）');
         return;
       }
-      fs.writeFileSync(file, src.replace(from, to), 'utf8');
+      fs.writeFileSync(file, MT.replace(src, from, to), 'utf8');
     }
 
     var r = runVerifier();

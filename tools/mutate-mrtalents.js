@@ -33,6 +33,7 @@
 var fs = require('fs');
 var path = require('path');
 var cp = require('child_process');
+var MT = require('./mutation-text.js');
 
 var lock = require('./mutate-lock.js');
 
@@ -59,12 +60,12 @@ function textMutant(desc, file, from, to, want) {
     desc: desc, want: want,
     apply: function () {
       var orig = fs.readFileSync(file, 'utf8');
-      var n = orig.split(from).length - 1;
+      var n = MT.count(orig, from);
       if (n !== 1) {
         console.log('    锚点在文件里出现 ' + n + ' 次（必须正好 1 次）');
         return null;
       }
-      fs.writeFileSync(file, orig.replace(from, to));
+      fs.writeFileSync(file, MT.replace(orig, from, to));
       return function () { fs.writeFileSync(file, orig); };
     }
   };
@@ -86,13 +87,13 @@ function genMutant(desc, from, to, want) {
     desc: desc, want: want, gen: true,
     apply: function () {
       var orig = fs.readFileSync(GEN, 'utf8');
-      var n = orig.split(from).length - 1;
+      var n = MT.count(orig, from);
       if (n !== 1) {
         console.log('    锚点在文件里出现 ' + n + ' 次（必须正好 1 次）');
         return null;
       }
       var prod = fs.readFileSync(PROD);
-      fs.writeFileSync(GEN, orig.replace(from, to));
+      fs.writeFileSync(GEN, MT.replace(orig, from, to));
       return function () {
         fs.writeFileSync(GEN, orig);
         fs.writeFileSync(PROD, prod);

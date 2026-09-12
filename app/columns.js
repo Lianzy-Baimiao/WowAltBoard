@@ -75,6 +75,14 @@
     return L.dungeonShort(cmID, meta, s.dungeonNameOverrides, m.dungeonNames, m.dungeonShortNames);
   }
 
+  /** Visual tier for a completed Mythic+ level: <10 / 10–11 / 12–15 / 16+. */
+  function mplusLevelClass(level) {
+    if (level < 10) return 'mp-level-low';
+    if (level < 12) return 'mp-level-mid';
+    if (level < 16) return 'mp-level-high';
+    return 'mp-level-peak';
+  }
+
   AE.dungeonHeader = dungeonHeader;
 
   // -------------------------------------------------------------- base group
@@ -283,6 +291,7 @@
           var d = ch.mp.byDungeon[cmID];
           if (!d || (!d.level && !d.rating)) return dash(td);
           var lv = el('b', null, String(d.level || '-'));
+          if (d.level) td.className += ' ' + mplusLevelClass(d.level);
           td.appendChild(lv);
           if (d.rating) {
             td.appendChild(el('span', 'sub', String(d.rating)));

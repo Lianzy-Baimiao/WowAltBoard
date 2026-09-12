@@ -28,6 +28,7 @@
 var fs = require('fs');
 var path = require('path');
 var cp = require('child_process');
+var MT = require('./mutation-text.js');
 
 var lock = require('./mutate-lock.js');
 
@@ -50,12 +51,12 @@ function textMutant(desc, file, from, to, want) {
     desc: desc, want: want,
     apply: function () {
       var orig = fs.readFileSync(file, 'utf8');
-      var n = orig.split(from).length - 1;
+      var n = MT.count(orig, from);
       if (n !== 1) {
         console.log('    锚点在文件里出现 ' + n + ' 次（必须正好 1 次）');
         return null;
       }
-      fs.writeFileSync(file, orig.replace(from, to));
+      fs.writeFileSync(file, MT.replace(orig, from, to));
       return function () { fs.writeFileSync(file, orig); };
     }
   };
@@ -136,7 +137,7 @@ var MUTANTS = [
   textMutant('差距拿列表最后一件比，而不是首选那件', BIS,
     '    var top = rows[pickIdx > 0 && rows[pickIdx] ? pickIdx : 0];\n    var want = top[1];',
     '    var top = rows[rows.length - 1];\n    var want = top[1];',
-    '比的不是首选那一件'),
+    '个装等差距比的不是这个部位首选那一件'),
 
   // 提示里不写原始的两个数 —— 差值就没法独立复核了。
   // 这一条盯的是「可核对性」本身：徽章上那个数变成了无法验证的断言。
@@ -198,8 +199,10 @@ var MUTANTS = [
 
   // 折叠块的展开状态不还原。展开「各首领说明」看到一半，点个别的方案就合上了。
   textMutant('折叠块点一下就合上', BIS,
-    "    if (openSecs[k]) node.setAttribute('open', 'open');",
-    '    /* mutant: 不还原展开状态 */',
+    "    if (openSecs[k]) node.setAttribute('open', 'open');\n"
+      + "    else if (openSecs[k] === 0 && node.removeAttribute) node.removeAttribute('open');",
+    "    if (false) node.setAttribute('open', 'open');\n"
+      + "    else if (openSecs[k] === 0 && node.removeAttribute) node.removeAttribute('open');",
     '展开的折叠块在点了一下方案之后合上了'),
 
   // 换专精不归零下标：会落在「别人的第 6 套」上，而界面完全自洽。

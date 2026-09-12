@@ -252,6 +252,33 @@
       return true;
     });
 
+    t('逐本大秘境按层数分成蓝青紫金四档', function () {
+      // 用合成边界值，不依赖当前账号刚好打到哪一层。本机扫描目前只有 10–14，
+      // 如果只拿真实数据测，<10 和 16+ 两档会永远是假绿。
+      var cmID = m.columns.dungeonIds[0];
+      var col = AE.buildColumns(m).filter(function (c) { return c.id === 'mp:' + cmID; })[0];
+      if (!col) return '找不到逐本大秘境列';
+      var cases = [[9, 'mp-level-low'], [10, 'mp-level-mid'], [11, 'mp-level-mid'],
+                   [12, 'mp-level-high'], [15, 'mp-level-high'], [16, 'mp-level-peak']];
+      for (var i = 0; i < cases.length; i++) {
+        var level = cases[i][0], want = cases[i][1];
+        var ch = { mp: { byDungeon: {} } };
+        ch.mp.byDungeon[cmID] = { level: level, rating: 321, timed: i !== 0 };
+        var td = document.createElement('td');
+        col.render(td, ch);
+        if (!td.classList.contains(want)) {
+          return level + ' 层用了 class="' + td.className + '"，预期 ' + want;
+        }
+        if (td.textContent.indexOf('321') < 0 || td.textContent.indexOf(String(level)) < 0) {
+          return level + ' 层着色后丢了层数或分数: ' + td.textContent;
+        }
+        if (level === 9 && (!td.classList.contains('overtime') || td.textContent.indexOf('9−') < 0)) {
+          return '超时格着色后没有保留 overtime class 和减号';
+        }
+      }
+      return true;
+    });
+
     t('本周完成格里只有大秘境本数，史诗和英雄留在提示里', function () {
       // 史诗 / 英雄 are the non-keystone difficulties. They are almost always 0 and
       // answered a different question than the column asks, so the cell shows one

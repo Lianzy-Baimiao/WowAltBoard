@@ -22,6 +22,7 @@
 var fs = require('fs');
 var path = require('path');
 var cp = require('child_process');
+var MT = require('./mutation-text.js');
 
 var lock = require('./mutate-lock.js');
 
@@ -46,9 +47,9 @@ function textMutant(desc, file, from, to, want) {
     desc: desc, want: want,
     apply: function () {
       var orig = fs.readFileSync(file, 'utf8');
-      var hits = orig.split(from).length - 1;
+      var hits = MT.count(orig, from);
       if (hits !== 1) return { dead: true, hits: hits };
-      fs.writeFileSync(file, orig.replace(from, to));
+      fs.writeFileSync(file, MT.replace(orig, from, to));
       return { restore: function () { fs.writeFileSync(file, orig); } };
     }
   };
