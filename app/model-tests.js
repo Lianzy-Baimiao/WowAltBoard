@@ -174,8 +174,9 @@
 
     t('货币表头缩写：指定的几个走覆盖表', function () {
       // Keyed by currencyID, not by name: 3418 and 3513 are different currencies
-      // from different seasons that share the name 晦暗虚空核心.
-      var cases = [[3513, 'R币'], [3418, 'R币'], [3028, '钥匙'],
+      // from different seasons that share the name 晦暗虚空核心. They must NOT
+      // share a header -- see the note in L.currencyShortZh.
+      var cases = [[3418, 'R币'], [3513, 'R币旧'], [3028, '钥匙'],
                    [3310, '钥匙碎片'], [3356, '法力水晶']];
       for (var i = 0; i < cases.length; i++) {
         var got = L.currencyShort(cases[i][0], '不该被用到的名字');
@@ -203,6 +204,44 @@
         }
       }
       return true;
+    });
+
+    t('列表头两两不重名', function () {
+      // 这条是 3418/3513 那次的真正教训。两个 currencyID 的游戏内名字都是
+      // 晦暗虚空核心，缩写表里又都写成 R币，于是「全部显示」之后表格里出现两个
+      // 一模一样的 R币 列，谁也说不出哪个还能花 —— 而且当时没有任何测试会红。
+      //
+      // 检查的是**真实构建出来的列**，不是缩写表本身：重名可以来自缩写表、可以
+      // 来自游戏改名、也可以来自缩略规则把两个名字压成同一个前缀（苏生奇梦 /
+      // 苏生觉醒 就差点这样）。只有在成品列上检查才拦得住全部三种。
+      //
+      // 团本列故意排除在外：潮缚英/潮缚随 这种同本不同难度，表头本来就靠难度那个
+      // 字区分，而难度字已经在 label 里了，所以它们天生不会真重名；真要撞也只会
+      // 撞在 raidShortNames 上，那是另一条测试的事。
+      var ctx = { model: m, settings: AE.loadSettings() };
+      var cols = AE.buildColumns(m);
+      var seen = {}, dup = [];
+      cols.forEach(function (c) {
+        if (c.group === 'raid') return;
+        var label;
+        try {
+          label = typeof c.label === 'function' ? c.label(ctx) : c.label;
+        } catch (e) { return; }
+        if (label == null || label === '') return;
+        label = String(label);
+        if (seen[label]) {
+          dup.push('"' + label + '" 同时是 ' + seen[label] + ' 和 ' + c.id);
+        } else {
+          seen[label] = c.id;
+        }
+      });
+      if (dup.length) {
+        return '这些表头重名了，货币的在 L.currencyShortZh 里给其中一个换个名字: ' +
+               dup.join('; ');
+      }
+      return Object.keys(seen).length > 20
+        ? true
+        : '只检查到 ' + Object.keys(seen).length + ' 个表头，守门测试没真正生效';
     });
 
     t('货币表头缩写：认不出的货币退回原名而不是空', function () {
@@ -295,25 +334,26 @@
     // 上个周期打的 8/8 会一直显示成绿色满进度，看起来像本周清了本。
     // 存档里的锁定快照只在角色上线时更新，所以不上线的号永远停在旧值。
 
-    t('active 与 expires 两个独立判据完全一致', function () {
-      // 判据取的是 locked（游戏直接给的结论），但必须证明它和「过期时间还没到」
-      // 说的是同一件事 —— 否则 active 可能只是恒真/恒假的摆设。
-      // 实测本机 44 条记录只有两种形态，没有中间态。
+    t('active 直接沿用游戏的 locked 标志', function () {
+      // 判据有意取 locked（游戏直接给的结论），而不是 expires：存档里的锁定记录
+      // 只在角色上线时刷新，数据文件整体重扫时，旧角色的 expires 可能已经早于
+      // m.scannedAt，但 locked 仍是该角色最后一次上线时游戏返回的 true。
+      // 这里钉住映射关系，防止以后误改成用全局扫描时间判断，导致刚扫描的角色和
+      // 很久没上线的角色采用两套不同语义。
       var n = 0, bad = [];
       m.characters.forEach(function (ch) {
         var all = ch.raids.dungeonLockouts.concat(
           Object.keys(ch.raids.byKey).map(function (k) { return ch.raids.byKey[k]; }));
         all.forEach(function (r) {
           n++;
-          var byExpiry = r.expires > m.scannedAt;
-          if (r.active !== byExpiry) {
+          if (r.active !== r.locked) {
             bad.push(r.name + '/' + r.difficultyName + ' active=' + r.active
-              + ' expires=' + r.expires + ' scannedAt=' + m.scannedAt);
+              + ' locked=' + r.locked);
           }
         });
       });
       if (!n) return '一条锁定记录都没有，这条断言等于没跑';
-      return bad.length === 0 || (n + ' 条里有 ' + bad.length + ' 条两个判据不一致: '
+      return bad.length === 0 || (n + ' 条里有 ' + bad.length + ' 条没有沿用 locked: '
         + bad.slice(0, 3).join('; '));
     });
 

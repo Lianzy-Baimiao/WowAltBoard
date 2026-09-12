@@ -225,12 +225,15 @@
     2913: '进军奎尔丹纳斯',  // March on Quel'Danas
     2939: '梦境裂隙',        // The Dreamrift
     1592: '孢陨幽境',        // Sporefall
-    // Timewalking instances, which arrive as lockouts like any other. 961 is a
-    // DUNGEON, not a raid -- it is here because this table is keyed by
-    // instanceID and is consulted for any lockout-derived column.
+    // 时空漫游团本（difficultyID 33）。它们和普通团本走同一条锁定记录路径，
+    // 所以会自然长出一列 —— 但只在漫游活动开着、并且真有人进去锁上的时候：
+    // model.js 只给 active（游戏还说它锁着）的记录建列，活动一过整列就消失。
+    //
+    // 这张表**不需要**每次活动手工补：AlterEgo 的 Raids.lua 完全不认识漫游团本
+    // （abbr 只能退化成 #603），中文名是 harvestRaidNames 从锁定记录里学的，
+    // 学到就持久化。下面两行只是名字学到之前 / 锁定过期之后的兜底。
     564: '黑暗神殿',         // Black Temple
-    603: '奥杜尔',           // Ulduar
-    961: '风暴烈酒酿造厂'    // Stormstout Brewery (timewalking dungeon)
+    603: '奥杜尔'            // Ulduar
   };
 
   // ------------------------------------------------------- equipment slots
@@ -327,12 +330,22 @@
     3028: '钥匙',
     3310: '钥匙碎片',
     3356: '法力水晶',
-    // Both of these are literally named 晦暗虚空核心 by the game -- 3513 is the
-    // season 18 one, 3418 the season 17 one, and the addon marks both
-    // currencyType 'bonusroll'. Same mark for both: they are the same thing in
-    // different seasons, and the off-season column is hidden by default anyway.
+    // 3418 和 3513 的游戏内名字都是 晦暗虚空核心（Nebulous Voidcore），
+    // currencyType 都是 'bonusroll'，只有 currencyID 不同：3418 是**当前赛季**
+    // （seasonID 18）那个，3513 是上赛季的残留。
+    //
+    // 判据是扫描数据本身，不是 AlterEgo 的配置表 —— 它把 3418 同时挂在
+    // seasonID 17 和 18 两行，而 3513 一行都没有：
+    //   * 本机唯一在本赛季上过线的角色（lastUpdate 在扫描前 4 小时）持有
+    //     3418 = 2，整条 3513 记录都不存在；
+    //   * 持有 3513 的三个角色最后上线都在上赛季末（8-28 / 8-30）。
+    // 也就是说这个 ID 在两次扫描之间从 3513 换成了 3418，新的那个才是当前赛季。
+    //
+    // 两列必须给**不同**的表头。3513 会被 model.js 的 offSeason 逻辑默认隐藏，
+    // 但用户一按 设置 → 列 里的「全部显示」就会同时看到两列，那时两个都写
+    // R币 的话根本分不出哪个还能花。
     3418: 'R币',
-    3513: 'R币',
+    3513: 'R币旧',
     // Dragonflight tiers are 雏龙的/幼龙的/魔龙的/守护巨龙的 + 酣梦纹章. Only the
     // 守护巨龙 pair is still over 5 characters after the suffix strip, so only
     // that pair is listed; the other three sit at exactly 5 and are left alone.
