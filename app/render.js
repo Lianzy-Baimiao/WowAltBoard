@@ -206,6 +206,7 @@
     }
 
     renderFooter(shown);
+    if (AE.updateOverview) AE.updateOverview(visibleCharacters(), state.model.characters.length);
   }
 
   // Column ids contain ':' and '/', which are not valid unquoted in a selector.
@@ -534,6 +535,7 @@
     if (!c) return;
     var meta = doc.querySelector('meta[name="theme-color"]');
     if (meta) meta.setAttribute('content', c);
+    if (AE.syncDesktopTheme) AE.syncDesktopTheme();
   }
 
 

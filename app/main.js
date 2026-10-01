@@ -119,6 +119,7 @@
 
     if (learnedChanged) AE.saveSettings(loaded.settings);
     wireChrome();
+    if (AE.wireDashboard) AE.wireDashboard();
   }
 
   // Every slide-over panel, so open/close/click-outside is handled in one place
@@ -177,6 +178,7 @@
 
   function wireChrome() {
     doc.getElementById('btn-settings').addEventListener('click', function () {
+      AE.buildSettingsPanel();
       AE.togglePanel('panel');
     });
     doc.getElementById('panel-close').addEventListener('click', function () { closeAll(null); });

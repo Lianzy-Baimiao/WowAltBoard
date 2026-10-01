@@ -9,7 +9,7 @@
  */
 window.AE_DB2_NAMES = {
   v: 1,
-  updatedAt: "2026-09-11",
+  updatedAt: "2026-10-01",
   source: 'Blizzard DB2 ChrClasses / ChrSpecialization (wago.tools, locale=zhCN)',
   cls: {
     DEATHKNIGHT: "死亡骑士",
