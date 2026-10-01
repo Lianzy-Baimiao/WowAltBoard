@@ -17,7 +17,9 @@
 
 [CmdletBinding()]
 param(
-    [switch]$SkipBuild
+    [switch]$SkipBuild,
+    [ValidatePattern('^[a-zA-Z0-9-]*$')]
+    [string]$Suffix = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -46,10 +48,28 @@ if (-not $SkipBuild) {
 $exe = Get-ChildItem -LiteralPath $BaseDir -Filter '*.exe' -File -ErrorAction SilentlyContinue |
        Select-Object -First 1
 if (-not $exe) { throw 'no launcher exe found; run tools\build-launcher.ps1 first' }
+foreach ($file in @('WowAltBoard.Desktop.exe', 'Microsoft.Web.WebView2.Core.dll',
+    'Microsoft.Web.WebView2.WinForms.dll', 'x64\WebView2Loader.dll', 'x86\WebView2Loader.dll',
+    'WebView2-LICENSE.txt', 'WebView2-NOTICE.txt')) {
+    if (!(Test-Path -LiteralPath (Join-Path $ToolsDir ('desktop\' + $file)))) {
+        throw "Desktop component missing: $file; run tools\build-launcher.ps1 first"
+    }
+}
 
 $stage = Join-Path $env:TEMP ("WowAltBoard-" + [guid]::NewGuid().ToString('N').Substring(0, 8))
 $pkgDir = Join-Path $stage 'WowAltBoard'
 New-Item -ItemType Directory -Path $pkgDir -Force | Out-Null
+# All recursive cleanup targets must resolve inside this unique staging tree.
+$stage = [IO.Path]::GetFullPath($stage)
+$tempRoot = [IO.Path]::GetFullPath($env:TEMP).TrimEnd('\') + '\'
+if (!$stage.StartsWith($tempRoot, [StringComparison]::OrdinalIgnoreCase)) { throw 'Unsafe staging root' }
+function Assert-StagePath([string]$path) {
+    $full = [IO.Path]::GetFullPath($path)
+    if ($full -ne $stage -and !$full.StartsWith($stage + '\', [StringComparison]::OrdinalIgnoreCase)) {
+        throw "Unsafe cleanup target: $full"
+    }
+}
+Assert-StagePath $pkgDir
 
 $include = @(
     'index.html', 'tests.html', 'README.md', 'LICENSE',
@@ -76,6 +96,7 @@ $dropFromPkg = @(
     'tools\.maxroll-spell-ids.json', # which spell IDs fetch-maxroll.js needs looked up; a byproduct
     'tools\.wcl-auth.json',      # the user's Warcraft Logs API credentials -- MUST NOT ship
 
+    'tools\check-dashboard.js', # dashboard chrome unit tests
     'tools\check-lazyload.js',   # walks the panel's lazy-load chain in a clean env; needs dom-stub.js
     'tools\check-scan-bagsync.js', # builds 0/1/2-account fake WoW trees; scanner regression test
     'tools\check-scan-backups.js', # same, for the Myslot/edit-mode backup collection path
@@ -117,6 +138,7 @@ $dropDirsFromPkg = @(
 # That is how '.wcl-raw' slipped past the guard once: it sat right after a comment
 # reading '(81 pages, measured)'.
 foreach ($d in $dropDirsFromPkg) {
+    Assert-StagePath (Join-Path $pkgDir $d)
     Remove-Item -LiteralPath (Join-Path $pkgDir $d) -Recurse -Force -ErrorAction SilentlyContinue
 }
 
@@ -129,7 +151,9 @@ New-Item -ItemType Directory -Path $dataDir -Force | Out-Null
     "这个文件夹由启动器自动生成，可以随时整个删掉重扫。`r`n里面是你的角色数据，不要上传到公开仓库。`r`n",
     [System.Text.UTF8Encoding]::new($true))
 
-$zip = Join-Path $BaseDir ("WowAltBoard-v$version.zip")
+$releaseName = "WowAltBoard-v$version"
+if ($Suffix) { $releaseName += "-$Suffix" }
+$zip = Join-Path $BaseDir ($releaseName + ".zip")
 if (Test-Path -LiteralPath $zip) { Remove-Item -LiteralPath $zip -Force }
 
 Add-Type -AssemblyName System.IO.Compression.FileSystem
@@ -138,6 +162,7 @@ Add-Type -AssemblyName System.IO.Compression.FileSystem
     [System.IO.Compression.CompressionLevel]::Optimal,
     $false)
 
+Assert-StagePath $stage
 Remove-Item -LiteralPath $stage -Recurse -Force -ErrorAction SilentlyContinue
 
 $kb = [math]::Round((Get-Item -LiteralPath $zip).Length / 1KB, 1)

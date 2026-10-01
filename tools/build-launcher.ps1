@@ -6,14 +6,14 @@
 
   Why this works without installing anything: the C# compiler ships inside .NET
   Framework, which is part of Windows. Add-Type -OutputAssembly drives it. There
-  is no SDK, no toolchain, no download.
+  is no compiler toolchain to install. The desktop host uses a cached NuGet SDK.
 
   What the exe does:
     * finds its own folder, so it keeps working when the folder is moved
     * shows a small "scanning" window instead of a black console flash
     * runs tools\scan.ps1 hidden and captures its output
     * on failure, shows the message in a dialog rather than vanishing
-    * on success, opens index.html in the default browser
+    * on success, opens the native WebView2 host, with a browser fallback
 
   Run this once. Re-run it only if you edit the C# below.
   启动.bat keeps working either way -- if an antivirus quarantines the exe, the
@@ -1208,9 +1208,8 @@ public static class Launcher
 
     // Chrome/Edge --app= gives a chromeless window with its own taskbar entry,
     // so the dashboard looks like a standalone program while still running on a
-    // real Chromium engine. There is no runtime to install: the WebView2 SDK is
-    // not redistributable from here, and the old WebBrowser control is IE11,
-    // which cannot render this page (CSS variables, flex gap, position sticky).
+    // real Chromium engine. This remains the fallback when the optional
+    // desktop host or the Evergreen WebView2 Runtime is unavailable.
     static string FindBrowser()
     {
         // The user's default browser comes first. The page is hosted by whatever
@@ -1322,6 +1321,31 @@ public static class Launcher
         // Reuse the window if one is already up. Chrome's --app= does not dedupe,
         // so without this every "open" piles on another window.
         if (FocusDashboard()) return;
+
+        // Native WebView2 owns its frame, unlike Chromium's app window.
+        // Probe in a separate process so missing runtime/DLLs cannot crash the tray.
+        string desktop = Path.Combine(BaseDir, "tools\\desktop\\WowAltBoard.Desktop.exe");
+        if (File.Exists(desktop))
+        {
+            try
+            {
+                ProcessStartInfo probeInfo = new ProcessStartInfo(desktop, "--check-runtime");
+                probeInfo.UseShellExecute = false;
+                probeInfo.CreateNoWindow = true;
+                probeInfo.WindowStyle = ProcessWindowStyle.Hidden;
+                using (Process probe = Process.Start(probeInfo))
+                {
+                    if (probe.WaitForExit(5000) && probe.ExitCode == 0)
+                    {
+                        Process.Start(new ProcessStartInfo(desktop) { UseShellExecute = false });
+                        OwnAppWindow = true;
+                        RaiseWhenReady();
+                        return;
+                    }
+                }
+            }
+            catch { /* missing runtime or damaged optional host: browser fallback */ }
+        }
 
         string url = new Uri(PageFile).AbsoluteUri;
         string browser = FindBrowser();
@@ -1754,3 +1778,6 @@ if (Test-Path -LiteralPath $ExePath) {
     Write-Host '  build produced no file' -ForegroundColor Red
     exit 1
 }
+
+# Build the redistributable native host beside the launcher's support files.
+& (Join-Path $ToolsDir 'build-desktop.ps1')

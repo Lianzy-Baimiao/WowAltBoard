@@ -15,7 +15,7 @@
 下载附件里的 `WowAltBoard-vX.Y.Z.zip`（**不是**「Source code」那个压缩包），
 解压到一个**可写**的目录，双击 `魔兽看板.exe`，完事。
 
-不需要安装任何环境：Windows 10/11 自带的 PowerShell、.NET 和 Edge 就够用了。
+Windows 10/11 使用系统 PowerShell 和 .NET。新版优先使用 WebView2 原生窗口；若未安装 WebView2 Runtime，会自动回退到 Chrome / Edge 应用窗口。
 想要桌面图标的话，托盘菜单里有「创建桌面快捷方式」。
 
 ## 快速开始
@@ -102,3 +102,29 @@ tools\build-release.ps1        # 打发布 ZIP
 
 工具免费，没有广告也没有内购。如果它帮你省下了每周翻小号的时间，欢迎请我喝一杯：
 **<https://ifdian.net/a/lianzy>**　（看板里也有入口：设置 → 赞赏）
+
+## 桌面窗口与发布包
+
+新版启动器优先使用 **WebView2 原生桌面窗口**，不再把浏览器应用窗口作为唯一外壳。
+
+- Windows 11：标题栏、边框和标题文字跟随看板的深浅主题与皮肤，保留系统拖动、缩放、贴靠、最小化和最大化。
+- Windows 10：使用系统原生窗口，支持的系统版本会同步标题栏明暗；具体标题栏颜色取决于系统能力，不保证和 Windows 11 完全一致。
+- 未安装 WebView2 Evergreen Runtime，或桌面组件不完整时，启动器回退到原先的 Chrome / Edge 应用窗口。不会静默安装运行时。
+- 外部网页链接交给默认浏览器打开，不在看板窗口内浏览外站。
+- 桌面窗口自己的浏览器缓存保存在 `data/webview2/`，上次窗口颜色保存在 `data/desktop-theme.json`。它们属于个人数据，不进入发布 ZIP。
+
+**首次切换请注意**：原生窗口与普通浏览器不共享 localStorage。要带过浏览器中尚未落盘的布局，先在旧看板「设置」中保存设置到文件，让启动器扫描吸收到 `data/settings.js` 后再切换；不需要的缓存可以在完全退出程序后清理。
+
+发布仍采用绿色 ZIP，不强制引入安装器。解压后的主入口仍是 `魔兽看板.exe`，原生窗口及少量依赖放在 `tools/desktop/`，不要单独移动里面的 EXE。
+
+构建时：
+
+```powershell
+# 同时编译启动器和原生窗口。首次构建会从 NuGet 下载固定版本的 WebView2 SDK。
+.\tools\build-launcher.ps1
+
+# 构建独立预览包，不覆盖同版本的正式 ZIP。
+.\tools\build-release.ps1 -Suffix desktop-preview
+```
+
+SDK 固定为 `Microsoft.Web.WebView2 1.0.2903.40`，构建缓存位于 `%LOCALAPPDATA%\WowAltBoard-build\`；发布包只包含托管桥接 DLL、对应架构的加载器和许可文件，不捆绑整个浏览器。用户运行不需要 NuGet、Node.js 或开发 SDK。ARM64 设备可通过系统的 x64/x86 兼容能力运行，尚未在 ARM64 实机验证。

@@ -64,3 +64,6 @@ tools/.maxroll-spell-ids.json
 Thumbs.db
 desktop.ini
 *.tmp
+
+# Generated native WebView2 host and redistributable SDK binaries
+tools/desktop/

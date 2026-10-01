@@ -3529,7 +3529,8 @@ var VERIFIERS = [
   { label: 'BagSync 扫描', script: 'check-scan-bagsync.js' },
   // Same trap on the backups path (there it only lied in the console, the JS
   // stayed valid -- but the shape deserves the same pinned guard).
-  { label: '备份扫描', script: 'check-scan-backups.js' }
+  { label: '备份扫描', script: 'check-scan-backups.js' },
+  { label: 'Dashboard chrome', script: 'check-dashboard.js', own: true }
 ];
 VERIFIERS.forEach(function (v) {
   if (v.data && !fs.existsSync(path.join(ROOT, 'app', v.data))) {
