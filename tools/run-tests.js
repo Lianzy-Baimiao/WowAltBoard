@@ -3533,7 +3533,8 @@ var VERIFIERS = [
   { label: 'Desktop scan', script: 'check-desktop-scan.js', own: true },
   { label: 'Launcher watch', script: 'check-launcher-watch.js', own: true },
   { label: 'Live refresh', script: 'check-live-refresh.js', own: true },
-  { label: 'Dashboard chrome', script: 'check-dashboard.js', own: true }
+  { label: 'Dashboard chrome', script: 'check-dashboard.js', own: true },
+  { label: 'Update panel', script: 'check-update-panel.js', own: true }
 ];
 VERIFIERS.forEach(function (v) {
   if (v.data && !fs.existsSync(path.join(ROOT, 'app', v.data))) {
