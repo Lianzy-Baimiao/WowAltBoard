@@ -96,6 +96,9 @@ $dropFromPkg = @(
     'tools\.maxroll-spell-ids.json', # which spell IDs fetch-maxroll.js needs looked up; a byproduct
     'tools\.wcl-auth.json',      # the user's Warcraft Logs API credentials -- MUST NOT ship
 
+    'tools\check-desktop-scan.js', # native scan worker and process-lock integration tests
+    'tools\check-launcher-watch.js', # compiled watcher/retry regression harness
+    'tools\check-live-refresh.js', # open-window refresh regression tests
     'tools\check-dashboard.js', # dashboard chrome unit tests
     'tools\check-lazyload.js',   # walks the panel's lazy-load chain in a clean env; needs dom-stub.js
     'tools\check-scan-bagsync.js', # builds 0/1/2-account fake WoW trees; scanner regression test

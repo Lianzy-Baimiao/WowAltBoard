@@ -31,6 +31,6 @@ $refs = @('System.dll', 'System.Core.dll', 'System.Drawing.dll', 'System.Windows
 $arguments = @('/nologo', '/target:winexe', '/platform:anycpu', '/utf8output',
     "/out:$out\WowAltBoard.Desktop.exe", "/win32icon:$PSScriptRoot\launcher.ico")
 foreach ($ref in $refs) { $arguments += "/reference:$ref" }
-& $csc @arguments (Join-Path $PSScriptRoot 'desktop-host.cs')
+& $csc @arguments (Join-Path $PSScriptRoot 'desktop-host.cs') (Join-Path $PSScriptRoot 'desktop-scan.cs')
 if ($LASTEXITCODE -ne 0) { throw 'Desktop host compilation failed' }
 Write-Host "  Desktop host built: $out" -ForegroundColor Green

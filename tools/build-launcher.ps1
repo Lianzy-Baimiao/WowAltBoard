@@ -297,6 +297,8 @@ public static class Launcher
     static NotifyIcon Tray;
     static System.Windows.Forms.Timer Debounce;
     static bool Rescanning;
+    static bool ScanPending;
+    static long LastChangeTicks;
     static string UpdateUrl;
     static System.Windows.Forms.Timer WindowWatch;
     static bool SawWindow;
@@ -1567,59 +1569,66 @@ public static class Launcher
 
     static void OnPollTick(object sender, EventArgs e)
     {
-        bool changed = false;
+        bool changed = ScanPending;
         foreach (string f in WatchFiles)
         {
             string now = Stamp(f);
             string was;
             if (!LastSeen.TryGetValue(f, out was)) was = "-";
-            if (now != was) { LastSeen[f] = now; changed = true; }
+            if (now != was) changed = true;
         }
         if (changed) Rescan(false);
     }
 
     static void OnRenamed(object sender, RenamedEventArgs e)
     {
-        Debounce.Stop();
-        Debounce.Start();
+        OnChanged(sender, e);
     }
 
     static void OnChanged(object sender, FileSystemEventArgs e)
     {
-        // WoW writes SavedVariables in bursts and the file is briefly incomplete,
-        // so coalesce events and give the writer time to finish.
-        Debounce.Stop();
-        Debounce.Start();
+        // Watcher callbacks run on worker threads. Never start/stop a WinForms
+        // timer there: its WM_TIMER would belong to a thread with no message loop.
+        System.Threading.Interlocked.Exchange(ref LastChangeTicks, DateTime.UtcNow.Ticks);
     }
 
     static void OnDebounceTick(object sender, EventArgs e)
     {
-        Debounce.Stop();
+        long pending = System.Threading.Interlocked.Read(ref LastChangeTicks);
+        if (pending == 0 || DateTime.UtcNow.Ticks - pending < TimeSpan.FromSeconds(4).Ticks) return;
+        if (System.Threading.Interlocked.CompareExchange(ref LastChangeTicks, 0, pending) != pending) return;
         Rescan(false);
     }
 
     static void Rescan(bool interactive)
     {
         if (Rescanning) return;
+        ScanPending = true;
         Rescanning = true;
         SetTrayText(T_TRAYBUSY);
         try
         {
             while (true)
             {
+                // Acknowledge only a successful scan, and only the stamps seen
+                // BEFORE it started. A second save during scanning must be retried.
+                var before = new System.Collections.Generic.Dictionary<string, string>();
+                foreach (string f in WatchFiles) before[f] = Stamp(f);
                 string output;
                 bool ok = RunScan(out output);
                 SetTrayText(T_TRAYIDLE);
-                if (ok) break;
+                if (ok)
+                {
+                    foreach (var item in before) LastSeen[item.Key] = item.Value;
+                    ScanPending = false;
+                    break;
+                }
                 // A background rescan that fails is almost always "the game is
                 // mid-write"; the next poll picks it up. Never pop a dialog for it.
                 if (!interactive) return;
                 if (FailScan(output) != DialogResult.Retry) return;
                 SetTrayText(T_TRAYBUSY);
             }
-            // Re-baseline, or the poll would fire again on the same change.
-            foreach (string f in WatchFiles) LastSeen[f] = Stamp(f);
-
             Notify(T_TRAYDONE);
         }
         finally { Rescanning = false; }
@@ -1713,8 +1722,9 @@ public static class Launcher
         };
 
         Debounce = new System.Windows.Forms.Timer();
-        Debounce.Interval = 4000;
+        Debounce.Interval = 500;
         Debounce.Tick += OnDebounceTick;
+        Debounce.Start();
 
         SetupWatchers();
 
