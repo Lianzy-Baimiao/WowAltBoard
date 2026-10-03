@@ -821,39 +821,47 @@
     }
 
     // ---- update ----------------------------------------------------------
-    // A real re-check needs the network, and file:// has none -- fetch and XHR
-    // are both blocked. So the page can only report what the last scan found and
-    // send the user somewhere useful; the actual re-check lives in the tray menu,
-    // which can run scan.ps1 again.
+    // This is a saved scan result, not a live release query. In particular, a
+    // snapshot older than this copy must never be labelled "already latest".
     var up = (m.update || {});
     var upBox = el('div', 'update-box');
-    var line = '当前 v' + (m.toolVersion || '?');
+    var current = String(m.toolVersion || '').replace(/^v/i, '');
+    var line = '当前 v' + (current || '?');
     if (up.checked && up.latestVersion) {
-      var newer = AE.compareVersions(
-        String(up.latestVersion).replace(/^v/, ''),
-        String(up.currentVersion || m.toolVersion || '').replace(/^v/, '')) > 0;
-      line += '　·　最新 ' + up.latestVersion + (newer ? '（有更新）' : '（已是最新）');
+      var knownCurrent = /^\d+(?:\.\d+)*$/.test(current);
+      var comparison = knownCurrent ? AE.compareVersions(
+        String(up.latestVersion).replace(/^v/i, ''), current) : 0;
+      var status = !knownCurrent ? '（当前版本未知）'
+        : comparison > 0 ? '（有更新）'
+        : comparison < 0 ? '（检查记录早于当前版本，请重新检查）'
+        : '（当时未发现更新）';
+      line += '　·　上次检查查到 ' + up.latestVersion + status;
     } else if (up.error) {
       line += '　·　上次检查没成功';
     } else {
       line += '　·　未检查';
     }
     upBox.appendChild(el('div', null, line));
+    if (m.scannedAtLocal) {
+      upBox.appendChild(el('div', 'hint2', '扫描记录时间：' + m.scannedAtLocal));
+    }
+    upBox.appendChild(el('div', 'hint2',
+      '这里显示上次扫描保存的检查结果，不是实时查询。查看最新版本请打开发布页；' +
+      '重新扫描并刷新看板后，这里的记录才会更新。'));
     if (up.error) {
       upBox.appendChild(el('div', 'hint2', String(up.error).slice(0, 120)));
     }
 
     var upBtns = el('div', 'row-buttons');
-    upBtns.appendChild(button('检查更新', null, function () {
-      // Opening an https URL from a file:// page is allowed; fetching is not.
-      var url = (up.url && up.url.indexOf('http') === 0)
-        ? up.url
-        : ('https://github.com/' + (m.repo || 'Lianzy-Baimiao/WowAltBoard') + '/releases');
+    upBtns.appendChild(button('查看最新版本', null, function () {
+      // Never reuse up.url: it pins the release found by an older scan.
+      var url = 'https://github.com/' +
+        (m.repo || 'Lianzy-Baimiao/WowAltBoard') + '/releases/latest';
       global.open(url, '_blank', 'noopener');
       AE.toast({
-        title: '已打开发布页',
-        body: '网页本身不能联网（file:// 下 fetch 被禁）。要让程序重新查一次，' +
-              '用托盘图标右键的「检查更新」。',
+        title: '已打开最新发布页',
+        body: '此按钮不会更新本地检查记录。即时联网检查也可用托盘右键的「检查更新」；' +
+              '要更新面板记录，请重新扫描并刷新看板。',
         ms: 5000
       });
     }));
