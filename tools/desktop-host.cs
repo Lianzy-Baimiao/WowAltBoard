@@ -1,4 +1,4 @@
-// Native frame; only the local dashboard is allowed to send theme messages.
+// Native frame; only the local dashboard may request a scan or change the theme.
 using System;
 using System.IO;
 using System.Drawing;
@@ -18,6 +18,7 @@ internal sealed class DashboardWindow : Form
     readonly JavaScriptSerializer json = new JavaScriptSerializer();
     readonly string themeFile;
     bool dark = true;
+    bool scanning;
     Color surface = Color.FromArgb(20, 22, 26);
     Color foreground = Color.FromArgb(223, 228, 236);
     Color border = Color.FromArgb(47, 53, 63);
@@ -59,7 +60,7 @@ internal sealed class DashboardWindow : Form
                 };
                 view.CoreWebView2.WebMessageReceived += delegate(object s, CoreWebView2WebMessageReceivedEventArgs e) {
                     if (!IsDashboard(e.Source)) return;
-                    try { ApplyTheme(e.WebMessageAsJson, true); } catch { }
+                    HandleWebMessage(e.WebMessageAsJson);
                 };
                 view.Source = page;
             } catch (Exception ex) {
@@ -70,6 +71,34 @@ internal sealed class DashboardWindow : Form
                 Close();
             }
         };
+    }
+    async void HandleWebMessage(string text)
+    {
+        if (text.Length > 1024) return;
+        try
+        {
+            var data = json.Deserialize<Dictionary<string, object>>(text);
+            object type, request;
+            if (data == null || !data.TryGetValue("type", out type) || !(type is string)) return;
+            if ((string)type != "scan") { ApplyTheme(text, true); return; }
+            if (!data.TryGetValue("id", out request) || !(request is string) ||
+                !System.Text.RegularExpressions.Regex.IsMatch((string)request, "^[a-zA-Z0-9-]{1,80}$")) return;
+            string id = (string)request;
+            if (scanning) { SendScanResult(id, "SCAN_BUSY"); return; }
+            scanning = true;
+            string error;
+            try { error = await System.Threading.Tasks.Task.Run(() => DesktopScanner.Run(root)); }
+            finally { scanning = false; }
+            SendScanResult(id, error);
+        }
+        catch { /* malformed messages must not escape an async UI callback */ }
+    }
+    void SendScanResult(string id, string error)
+    {
+        if (IsDisposed || Disposing || view.CoreWebView2 == null || view.Source == null || !IsDashboard(view.Source.AbsoluteUri)) return;
+        view.CoreWebView2.PostWebMessageAsJson(json.Serialize(new {
+            type = "scan-result", id = id, ok = error == null, error = error
+        }));
     }
     bool IsDashboard(string value)
     {

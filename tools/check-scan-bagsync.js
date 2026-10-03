@@ -66,6 +66,35 @@ function runCase(want) {
     vm.runInNewContext(dataText, context, { filename: 'data.js' });
     vm.runInNewContext(bagText, context, { filename: 'bagsync.js' });
 
+    var markerPath = path.join(base, 'data', 'scan-status.js');
+    vm.runInNewContext(fs.readFileSync(markerPath, 'utf8'), context);
+    checks++;
+    if (!/^[a-f0-9]{32}$/.test(context.window.AE_DATA.scanId) ||
+        context.window.AE_SCAN_STATUS.scanId !== context.window.AE_DATA.scanId) {
+      failures.push(want + ' files: completion marker must identify the generated data');
+    }
+    checks++;
+    var committed = fs.statSync(markerPath).mtimeMs;
+    ['data.js', 'bagsync.js', 'backups.js', 'manifest.js'].forEach(function (file) {
+      if (committed < fs.statSync(path.join(base, 'data', file)).mtimeMs) {
+        failures.push(want + ' files: marker was published before ' + file);
+      }
+    });
+    if (want === 1) {
+      var previous = context.window.AE_DATA.scanId;
+      var again = cp.spawnSync(PS,
+        ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(tools, 'scan.ps1')],
+        { cwd: base, encoding: 'utf8' });
+      if (again.error || again.status !== 0) throw Error('second scan failed');
+      vm.runInNewContext(fs.readFileSync(path.join(base, 'data', 'data.js'), 'utf8'), context);
+      vm.runInNewContext(fs.readFileSync(markerPath, 'utf8'), context);
+      checks++;
+      if (context.window.AE_DATA.scanId === previous ||
+          context.window.AE_SCAN_STATUS.scanId !== context.window.AE_DATA.scanId) {
+        failures.push('second scan must publish a new, matching completion marker');
+      }
+    }
+
     checks++;
     if (context.window.AE_DATA.bagSync.accounts !== want) {
       failures.push(want + ' files: data.js says accounts=' + context.window.AE_DATA.bagSync.accounts);
@@ -78,7 +107,9 @@ function runCase(want) {
   } catch (e) {
     failures.push(want + ' files: ' + e.message);
   } finally {
-    fs.rmSync(tmp, { recursive: true, force: true });
+    var full = path.resolve(tmp), prefix = path.resolve(os.tmpdir()) + path.sep;
+    if (full.indexOf(prefix) !== 0 || path.basename(full).indexOf('WowAltBoard-bagsync-') !== 0) throw Error('unsafe cleanup');
+    fs.rmSync(full, { recursive: true, force: true });
   }
 }
 

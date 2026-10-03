@@ -291,21 +291,108 @@
 
   // ---------------------------------------------------------------- refresh
 
-  var REFRESH_MS = 30000;
+  var REFRESH_MS = 5000;
   var refreshTimer = null;
+  var refreshEnabled = false;
+  var refreshRequest = null;
+  var refreshSequence = 0;
+  var manualScan = null;
+  var manualScanSequence = 0;
+  var loadedScanId = global.AE_DATA && global.AE_DATA.scanId;
+
+  function checkForScan() {
+    if (!refreshEnabled || refreshRequest || manualScan || doc.hidden) return;
+    // Script tags work on file:// (fetch does not). Read a tiny completion
+    // marker, not the full payload. Unique URLs bypass WebView2 caches.
+    var script = doc.createElement('script');
+    var timeout;
+    refreshRequest = script;
+    function cleanup() {
+      global.clearTimeout(timeout);
+      script.onload = script.onerror = null;
+      if (script.parentNode) script.parentNode.removeChild(script);
+      if (refreshRequest === script) refreshRequest = null;
+    }
+    script.charset = 'utf-8';
+    script.src = 'data/scan-status.js?t=' + Date.now() + '-' + (++refreshSequence);
+    script.onload = function () {
+      var status = global.AE_SCAN_STATUS;
+      cleanup();
+      if (!refreshEnabled || manualScan || !status || !status.scanId || status.scanId === loadedScanId) return;
+      // Defer while editing or viewing details; the next check applies it.
+      var active = doc.activeElement;
+      if (anyOpen() || (active && (/^(INPUT|TEXTAREA|SELECT)$/.test(active.tagName) || active.isContentEditable))) return;
+      global.location.reload();
+    };
+    script.onerror = cleanup; // missing marker / mid-write: retry next tick
+    timeout = global.setTimeout(cleanup, 10000);
+    doc.head.appendChild(script);
+  }
+
+  function scanFailure(code) {
+    var hints = {
+      NO_WOW: '未找到游戏目录，请在托盘菜单中设置游戏目录。',
+      SV_UNREADABLE: '插件存档暂时无法读取，请等游戏写盘完成后重试。',
+      NO_WRITE: '程序目录不可写，请把整个程序移到可写目录后重试。',
+      SCAN_BUSY: '另一次扫描仍在进行，请稍后重试。',
+      TIMEOUT: '扫描未能及时完成，请稍后重试；也可从托盘菜单手动扫描。',
+      BRIDGE_TIMEOUT: '未收到桌面程序的扫描结果，请确认已退出旧版程序并重新打开新版。',
+      MISSING_SCRIPT: '缺少 tools/scan.ps1，请重新完整解压程序。'
+    };
+    AE.toast({ title: '扫描未完成', body: hints[code] || '请检查插件是否启用，并在游戏中 /reload 后重试。托盘菜单的「立即重新扫描」可查看详细原因。', kind: 'bad', ms: 9000 });
+  }
+
+  function finishManualScan(result) {
+    if (!manualScan || !result || result.type !== 'scan-result' || result.id !== manualScan.id) return;
+    global.clearTimeout(manualScan.timer);
+    var button = doc.getElementById('btn-refresh');
+    button.disabled = false;
+    button.textContent = manualScan.label;
+    button.removeAttribute('aria-busy');
+    manualScan = null;
+    if (result.ok === true) global.location.reload();
+    else scanFailure(result.error);
+  }
+
+  function requestManualScan() {
+    if (manualScan) return;
+    var bridge = global.chrome && global.chrome.webview;
+    if (!bridge || !bridge.postMessage || !bridge.addEventListener) {
+      // A plain file:// browser cannot execute local programs. Be explicit,
+      // rather than silently reloading old output and pretending to scan.
+      AE.toast({ title: '请用桌面程序进行扫描',
+        body: '浏览器页面不能直接扫描游戏文件。请打开「魔兽看板.exe」后点刷新，或在托盘菜单点「立即重新扫描」。', ms: 0,
+        actions: [{ label: '仅重新载入已扫描数据', onClick: function () { global.location.reload(); } }] });
+      return;
+    }
+    var button = doc.getElementById('btn-refresh');
+    var id = 'scan-' + Date.now() + '-' + (++manualScanSequence);
+    manualScan = { id: id, label: button.textContent };
+    button.disabled = true;
+    button.textContent = '扫描中…';
+    button.setAttribute('aria-busy', 'true');
+    manualScan.timer = global.setTimeout(function () {
+      finishManualScan({ type: 'scan-result', id: id, ok: false, error: 'BRIDGE_TIMEOUT' });
+    }, 130000);
+    try { bridge.postMessage({ type: 'scan', id: id }); }
+    catch (e) { finishManualScan({ type: 'scan-result', id: id, ok: false, error: 'BRIDGE_TIMEOUT' }); }
+  }
 
   function wireRefresh() {
-    doc.getElementById('btn-refresh').addEventListener('click', function () {
-      global.location.reload();
+    doc.getElementById('btn-refresh').addEventListener('click', requestManualScan);
+    var bridge = global.chrome && global.chrome.webview;
+    if (bridge && bridge.addEventListener) bridge.addEventListener('message', function (event) {
+      finishManualScan(event.data);
     });
 
     var box = doc.getElementById('autorefresh');
-    // Kept in sessionStorage, not settings: it is a per-tab working mode, and
-    // leaving a reload loop switched on permanently would be a surprise.
-    var on = false;
-    try { on = global.sessionStorage.getItem('AEW:autorefresh') === '1'; } catch (e) { on = false; }
+    // Default on; honor an explicit opt-out. Unchanged scans never reload.
+    var on = true;
+    try { on = global.sessionStorage.getItem('AEW:autorefresh') !== '0'; } catch (e) { /* default on */ }
     box.checked = on;
     if (on) startAutoRefresh();
+    global.addEventListener('focus', checkForScan);
+    doc.addEventListener('visibilitychange', checkForScan);
 
     box.addEventListener('change', function () {
       try {
@@ -318,14 +405,13 @@
 
   function startAutoRefresh() {
     stopAutoRefresh();
-    // A plain reload is the only option: file:// blocks fetch, so the page
-    // cannot pull a fresh data.js without navigating. Re-parsing is ~30 ms.
-    refreshTimer = global.setInterval(function () {
-      global.location.reload();
-    }, REFRESH_MS);
+    refreshEnabled = true;
+    refreshTimer = global.setInterval(checkForScan, REFRESH_MS);
+    checkForScan();
   }
 
   function stopAutoRefresh() {
+    refreshEnabled = false;
     if (refreshTimer) { global.clearInterval(refreshTimer); refreshTimer = null; }
   }
 
