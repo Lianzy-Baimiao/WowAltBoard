@@ -3535,6 +3535,7 @@ var VERIFIERS = [
   { label: 'Live refresh', script: 'check-live-refresh.js', own: true },
   { label: 'Dashboard chrome', script: 'check-dashboard.js', own: true },
   { label: 'Update panel', script: 'check-update-panel.js', own: true },
+  { label: 'Application identity', script: 'check-application-version.js', own: true },
   { label: 'Application updates', script: 'check-app-updates.js', own: true },
   { label: 'Window state', script: 'check-window-state.js', own: true },
   { label: '天赋数据边界', script: 'check-talent-integrity.js', own: true },

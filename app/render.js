@@ -370,12 +370,14 @@
     var ver = doc.getElementById('version-info');
     if (ver) {
       var u = m.update || {};
-      ver.textContent = 'v' + (m.toolVersion || '?');
-      var tip = ['看板 v' + (m.toolVersion || '?')];
+      var application = AE.applicationVersion ? AE.applicationVersion() : '';
+      ver.textContent = application ? 'v' + application : '版本未知';
+      var tip = [application ? '应用 v' + application : '应用版本未知'];
+      tip.push('数据扫描工具 v' + (m.toolVersion || '?'));
       tip.push('AlterEgo 插件 ' + (m.addonVersion || '未知'));
       tip.push('扫描于 ' + (m.scannedAtLocal || '?'));
-      if (u.checked && u.latestVersion) tip.push('最新发布 ' + u.latestVersion);
-      else if (u.error) tip.push('更新检查未完成：' + u.error);
+      if (u.checked && u.latestVersion) tip.push('上次检查查到 ' + u.latestVersion);
+      else if (u.error && u.error !== 'handled by application updater') tip.push('上次更新检查未完成：' + u.error);
       ver.title = tip.join('\n');
     }
 
@@ -445,7 +447,8 @@
     if (!u.checked || !u.latestVersion) { box.style.display = 'none'; return; }
 
     var latest = String(u.latestVersion).replace(/^v/, '');
-    var cur = String(u.currentVersion || m.toolVersion || '').replace(/^v/, '');
+    var cur = AE.applicationVersion ? AE.applicationVersion() : '';
+    if (!cur) { box.style.display = 'none'; return; }
     if (compareVersions(latest, cur) <= 0) { box.style.display = 'none'; return; }
 
     var sig = 'update:' + latest;

@@ -6,7 +6,7 @@
 var assert = require('assert');
 var stub = require('./dom-stub.js');
 var env = stub.makeEnv(['panel-body', 'panel-tabs']);
-['app/labels.js', 'app/settings.js', 'app/render.js', 'app/panel.js'].forEach(env.load);
+['app/version.js', 'app/labels.js', 'app/settings.js', 'app/render.js', 'app/panel.js'].forEach(env.load);
 var AE = env.g.AE;
 var opened = [], toasts = [];
 env.g.open = function (url) { opened.push(url); };
@@ -18,8 +18,9 @@ panel.childNodes = panel.children;
 function render(update, current, repo, scannedAtLocal) {
   // Start with an empty drawer; scroll restoration is outside this regression.
   panel.innerHTML = '';
+  env.g.AE_APP_UPDATE_BOOT = { protocol: 1, currentVersion: current || '1.17.2' };
   AE.state = { settings: settings, model: {
-    toolVersion: current || '1.17.2', repo: repo,
+    toolVersion: '1.0.0', repo: repo,
     scannedAtLocal: scannedAtLocal,
     columns: { dungeonIds: [] }, update: update
   } };

@@ -826,7 +826,7 @@
     // snapshot older than this copy must never be labelled "already latest".
     var up = (m.update || {});
     var upBox = el('div', 'update-box');
-    var current = String(m.toolVersion || '').replace(/^v/i, '');
+    var current = AE.applicationVersion ? AE.applicationVersion() : '';
     var line = '当前 v' + (current || '?');
     if (up.checked && up.latestVersion) {
       var knownCurrent = /^\d+(?:\.\d+)*$/.test(current);
@@ -879,7 +879,7 @@
 
     var about = el('p', 'note');
     about.appendChild(doc.createTextNode(
-      'WowAltBoard v' + (m.toolVersion || '?') + '　作者 ' + (m.author || '白描') + '　'));
+      'WowAltBoard v' + (current || '?') + '　作者 ' + (m.author || '白描') + '　'));
     if (m.repo) {
       var a = el('a', null, m.repo);
       a.href = 'https://github.com/' + m.repo;
