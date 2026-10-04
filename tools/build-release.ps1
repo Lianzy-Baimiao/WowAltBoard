@@ -81,6 +81,15 @@ foreach ($f in $include) {
     else { Write-Host "  ! missing, skipped: $f" -ForegroundColor Yellow }
 }
 
+# The homepage identifies this application package, not the scanner version in personal data/.
+# Stamp the staged HTML from the canonical release version, including -SkipBuild releases.
+$indexPath = Join-Path $pkgDir 'index.html'
+$indexText = [IO.File]::ReadAllText($indexPath)
+$versionMeta = '<meta id="application-version" name="application-version" content="[^"]*">'
+if ([regex]::Matches($indexText, $versionMeta).Count -ne 1) { throw 'Application version metadata missing or duplicated' }
+$indexText = [regex]::Replace($indexText, $versionMeta, ('<meta id="application-version" name="application-version" content="' + $version + '">'))
+[IO.File]::WriteAllText($indexPath, $indexText, [Text.UTF8Encoding]::new($false))
+
 foreach ($d in @('app', 'tools', 'docs')) {
     Copy-Item -LiteralPath (Join-Path $BaseDir $d) -Destination $pkgDir -Recurse
 }
@@ -101,6 +110,8 @@ $dropFromPkg = @(
     'tools\check-live-refresh.js', # open-window refresh regression tests
     'tools\check-dashboard.js', # dashboard chrome unit tests
     'tools\check-app-updates.js', # native application update transaction regression
+    'tools\check-application-version.js', # version identity and release-stamping fixture
+    'tools\check-application-version.cjs', # application identity versus old character snapshots
     'tools\check-app-update-browser.cjs', # application update browser acceptance
     'tools\check-window-state.js', # native geometry lifecycle and tray ownership regression
     'tools\check-talent-integrity.js', # independent talent input/consumer regressions

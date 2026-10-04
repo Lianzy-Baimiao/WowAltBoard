@@ -36,7 +36,7 @@
   }
   function paint(host) {
     host.textContent = ''; host.appendChild(el('h3', '', '应用更新'));
-    if (supported) host.appendChild(el('p', 'note', '当前应用 v' + (state.currentVersion || '未知')));
+    if (supported) host.appendChild(el('p', 'note', '当前应用 v' + ((AE.applicationVersion && AE.applicationVersion()) || '未知')));
     var status = el('p', 'app-update-message', message()); status.setAttribute('role', 'status'); host.appendChild(status);
     if (!supported) return;
     var actions = el('div', 'row-buttons');
