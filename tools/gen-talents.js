@@ -21,23 +21,31 @@
  * ⚠ 天赋「树」的结构（节点坐标 / 图标 / 连线 / 名称）不在插件里 —— 插件是靠游戏
  *   运行时的 C_Traits API 现查的，网页拿不到。这里只产出「哪些 entryID 点了几点」，
  *   要画出树来还需要另一份天赋树数据，见 app/talent-tree.js 的说明。
+ * --tree <路径> 指定核对用的树，--out <路径> 输出候选文件；默认路径保持不变。
  */
 'use strict';
 
 var fs = require('fs');
 var path = require('path');
+var crypto = require('crypto');
 
 var BASE = path.resolve(__dirname, '..');
 var DEFAULT_LUA = 'E:\\World of Warcraft\\_retail_\\Interface\\AddOns\\GearInsight_Talents\\PopularTalents.lua';
-var DEFAULT_TOC = 'E:\\World of Warcraft\\_retail_\\Interface\\AddOns\\GearInsight_Talents\\GearInsight_Talents.toc';
 
 var argv = process.argv.slice(2);
 var luaPath = DEFAULT_LUA;
-var tocPath = DEFAULT_TOC;
+var tocPath = null;
+var outPath = path.join(BASE, 'app', 'talent-data.js');
+var treePath = path.join(BASE, 'app', 'talent-tree.js');
 for (var i = 0; i < argv.length; i++) {
   if (argv[i] === '--lua' && argv[i + 1]) { luaPath = argv[++i]; }
   else if (argv[i] === '--toc' && argv[i + 1]) { tocPath = argv[++i]; }
+  else if (argv[i] === '--out' && argv[i + 1]) { outPath = path.resolve(argv[++i]); }
+  else if (argv[i] === '--tree' && argv[i + 1]) { treePath = path.resolve(argv[++i]); }
+  else throw new Error('未知参数或缺少参数值：' + argv[i]);
 }
+
+tocPath = tocPath || path.join(path.dirname(luaPath), 'GearInsight_Talents.toc');
 
 // -------------------------------------------------------------- 加载解析器
 var AE = {};
@@ -45,6 +53,7 @@ var AE = {};
   var src = fs.readFileSync(path.join(BASE, 'app', 'lua-parser.js'), 'utf8');
   var g = { AE: AE };
   new Function('global', 'window', src).call(g, g, g);
+  new Function('window', fs.readFileSync(path.join(BASE, 'app', 'talent-decode.js'), 'utf8'))(g);
 })();
 
 if (!fs.existsSync(luaPath)) {
@@ -52,7 +61,8 @@ if (!fs.existsSync(luaPath)) {
   console.error('用 --lua <路径> 指定，或先装 GearInsight_Talents 插件。');
   process.exit(1);
 }
-var text = fs.readFileSync(luaPath, 'utf8');
+var sourceBytes = fs.readFileSync(luaPath);
+var text = sourceBytes.toString('utf8');
 if (text.charCodeAt(0) === 0xfeff) text = text.slice(1);
 
 var addonVersion = '';
@@ -103,7 +113,7 @@ function diff(base, cur) {
   return out;
 }
 
-// 还原（生成期自检用，和 app/talents.js 里的实现必须一致）
+// 还原（生成期自检用，和 app/talent-decode.js 里的实现必须一致）
 function apply(base, delta) {
   var m = Object.create(null);
   var k;
@@ -135,7 +145,7 @@ Object.keys(specs).forEach(function (key) {
   var s = AE.asMap(specs[key]);
   var dict = AE.asArray(s.dict).map(Number);
   var pool = AE.asArray(s.pool).map(function (b) { return AE.asArray(b).map(Number); });
-  if (!dict.length || !pool.length) return;
+  if (!dict.length || !pool.length) throw new Error(key + ': empty dictionary or build pool');
 
   stat.specs++;
 
@@ -146,7 +156,10 @@ Object.keys(specs).forEach(function (key) {
     AE.asArray(content[cat]).forEach(function (e) {
       AE.asArray(AE.asMap(e).list).forEach(function (p) {
         var b = AE.asMap(p).b;
-        if (b) used[b] = 1;
+        if (!Number.isInteger(b) || b < 1 || b > pool.length) {
+          throw new Error(key + ': invalid source build reference ' + b);
+        }
+        used[b] = 1;
       });
     });
   });
@@ -158,7 +171,9 @@ Object.keys(specs).forEach(function (key) {
   usedIdx.forEach(function (srcIdx, i) { remap[srcIdx] = i; });
 
   var maps = usedIdx.map(function (srcIdx) {
-    var flat = pool[srcIdx - 1] || [];
+    var flat = pool[srcIdx - 1];
+    var check = AE.TalentData.inspectEncoding({ dict: dict, base: flat, builds: [[]] }, 0);
+    if (check.errors.length) throw new Error(key + ' source build#' + srcIdx + ': ' + JSON.stringify(check.errors));
     stat.rawNums += flat.length;
     return toMap(flat);
   });
@@ -192,7 +207,7 @@ Object.keys(specs).forEach(function (key) {
         stat.players++;
         // [build下标, 英雄天赋池下标, 玩家名, 服务器池下标, 地区]
         return [
-          remap[pm.b] != null ? remap[pm.b] : 0,
+          remap[pm.b],
           heroes.at(pm.hero),
           pm.player || '',
           servers.at(pm.server),
@@ -220,8 +235,28 @@ if (stat.mismatches.length) {
   process.exit(1);
 }
 
+// 先验候选，再发布。跨版本/跨专精的原始样本保留作证据，由同一个 screen 边界隔离。
+// 编码损坏、引用失效、整专精无可核对样本则拒绝整次更新，不覆盖上一份。
+if (!Object.keys(out).length) throw new Error('No referenced talent builds; keeping previous data');
+var treeText = fs.readFileSync(treePath, 'utf8');
+var treeGlobal = {};
+new Function('window', treeText)(treeGlobal);
+var quality = {};
+Object.keys(out).forEach(function (key) {
+  var q = AE.TalentData.screen(out[key], treeGlobal.AE_TALENT_TREE);
+  if (!q.acceptedBuilds || q.badReferences) throw new Error(key + ': no usable samples or invalid references; keeping previous data');
+  if (q.rejected.length) {
+    quality[key] = { rejected: q.rejected, removedRows: q.removedRows };
+    console.warn(key + ': quarantined ' + q.rejected.length + ' builds / ' + q.removedRows + ' rows');
+  }
+});
+function sha256(s) { return crypto.createHash('sha256').update(s).digest('hex'); }
+
 var payload = {
   addonVersion: addonVersion,
+  source: { name: 'GearInsight_Talents/PopularTalents.lua', sha256: sha256(sourceBytes),
+    generatedAt: new Date().toISOString(), treeSha256: sha256(treeText) },
+  quality: quality,
   servers: servers.list,
   heroes: heroes.list,
   specs: out
@@ -232,24 +267,29 @@ var header = [
   ' * WowAltBoard - app/talent-data.js  【自动生成，勿手改】',
   ' *',
   ' * 由 tools\\gen-talents.js 从 GearInsight_Talents 插件的 PopularTalents.lua 转来。',
-  ' * 数据是 WarcraftLogs 顶尖玩家的真实天赋（团本 / 冲分 / 割草，每 boss 前 5）。',
+  ' * 插件标注的 WarcraftLogs 玩家样本（团本 / 冲分 / 割草），不是最优解证明。',
   ' * 插件版本：' + (addonVersion || '(未知)'),
   ' *',
   ' * 编码：每个专精存一套完整基准 base，其余套只存与基准的差异 builds[i]',
-  ' *       （扁平 [dictIdx, rank, ...]，rank=0 表示这套没点）。还原见 app/talents.js',
-  ' *       的 AE.Talents.buildOf()，两边算法必须一致 —— 生成时已自检过一遍。',
+  ' *       （扁平 [dictIdx, rank, ...]，rank=0 表示这套没点）。还原见 app/talent-decode.js',
+  ' *       的 AE.TalentData.decode()，两边算法必须一致 —— 生成时已自检过一遍。',
   ' *',
   ' * 要更新：node tools\\gen-talents.js',
   ' */'
 ].join('\n');
 
 var body = header + '\nwindow.AE_TALENTS = ' + JSON.stringify(payload) + ';\n';
-var outPath = path.join(BASE, 'app', 'talent-data.js');
-fs.writeFileSync(outPath, body, 'utf8');
+var tmpPath = outPath + '.tmp-' + process.pid;
+try {
+  fs.writeFileSync(tmpPath, body, { encoding: 'utf8', flag: 'wx' });
+  fs.renameSync(tmpPath, outPath);
+} finally {
+  if (fs.existsSync(tmpPath)) fs.unlinkSync(tmpPath);
+}
 
 // Buffer.byteLength，不是 .length —— 中文一个字符占 3 字节，按字符数报会少算一大截。
 console.log('源文件        ' + (Buffer.byteLength(text, 'utf8') / 1024).toFixed(1) + ' KB');
-console.log('输出          app/talent-data.js  ' + (Buffer.byteLength(body, 'utf8') / 1024).toFixed(1) + ' KB');
+console.log('输出          ' + outPath + '  ' + (Buffer.byteLength(body, 'utf8') / 1024).toFixed(1) + ' KB');
 console.log('专精          ' + stat.specs);
 console.log('天赋套数      ' + stat.builds + '（含基准 ' + stat.specs + ' 套）');
 console.log('数字          ' + stat.rawNums + ' → ' + stat.encNums +

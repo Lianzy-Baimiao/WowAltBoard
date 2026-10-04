@@ -27,7 +27,7 @@ param()
 $ErrorActionPreference = 'Stop'
 
 $SCHEMA_VERSION = 1
-$TOOL_VERSION   = '1.17.3'
+$TOOL_VERSION   = '1.18.0'
 $REPO           = 'Lianzy-Baimiao/WowAltBoard'
 $AUTHOR         = '白描'
 
@@ -850,6 +850,11 @@ function Get-UpdateInfo {
         url            = "https://github.com/$Repo"
         publishedAt    = ''
         error          = ''
+    }
+    # The installed app updater owns opt-in/throttling. A role-data rescan must not run a second automatic release query.
+    if (Test-Path -LiteralPath (Join-Path $ToolsDir 'desktop\WowAltBoard.Updater.exe')) {
+        $result.error = 'handled by application updater'
+        return $result
     }
     if (-not $Config.checkForUpdates) {
         $result.error = 'disabled in config.json'

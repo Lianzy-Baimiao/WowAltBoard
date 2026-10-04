@@ -67,3 +67,7 @@ desktop.ini
 
 # Generated native WebView2 host and redistributable SDK binaries
 tools/desktop/
+
+# Maintainer-generated whole-application update component assets
+WowAltBoard-v*-updates/
+app-release.json

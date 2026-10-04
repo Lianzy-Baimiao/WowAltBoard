@@ -438,7 +438,13 @@ function writeJs(b, nameMap) {
   out.push('specs:' + JSON.stringify(b.specs));
   out.push('};');
   var src = out.join('\n') + '\n';
-  fs.writeFileSync(OUT_JS, src, 'utf8');
+  var tmp = OUT_JS + '.tmp-' + process.pid;
+  try {
+    fs.writeFileSync(tmp, src, { encoding: 'utf8', flag: 'wx' });
+    fs.renameSync(tmp, OUT_JS);
+  } finally {
+    if (fs.existsSync(tmp)) fs.unlinkSync(tmp);
+  }
   return Buffer.byteLength(src, 'utf8');
 }
 
@@ -469,6 +475,12 @@ ensureSources(function (err) {
   }
 
   var zhPct = s.entries ? (s.zh / s.entries * 100) : 0;
+  // 中文名覆盖率是这份数据的核心价值。低了就是join 出了问题，不能默默通过。
+  if (zhPct < 95) {
+    console.error('错误：中文名覆盖率只有 ' + zhPct.toFixed(1) + '%，低于 95%，' +
+                  '八成是 definitionId 对不上。请检查 TraitDefinition.csv。');
+    process.exit(1);
+  }
   var bytes = writeJs(b, nameMap);
 
   console.log('');
@@ -491,10 +503,5 @@ ensureSources(function (err) {
               '（解导入串要用它，同职业各专精一致已在生成时校验）');
   console.log('app/talent-tree.js  ' + (bytes / 1024).toFixed(1) + ' KB（' + bytes + ' 字节）');
 
-  // 中文名覆盖率是这份数据的核心价值。低了就是join 出了问题，不能默默通过。
-  if (zhPct < 95) {
-    console.error('错误：中文名覆盖率只有 ' + zhPct.toFixed(1) + '%，低于 95%，' +
-                  '八成是 definitionId 对不上。请检查 TraitDefinition.csv。');
-    process.exit(1);
-  }
+
 });

@@ -295,6 +295,7 @@ public static class Launcher
     static string ScanScript;
     static string PageFile;
     static NotifyIcon Tray;
+    static EventWaitHandle UpdateExit;
     static System.Windows.Forms.Timer Debounce;
     static bool Rescanning;
     static bool ScanPending;
@@ -759,6 +760,15 @@ public static class Launcher
     [System.Runtime.InteropServices.DllImport("user32.dll")]
     static extern bool GetWindowPlacement(IntPtr hWnd, ref WINDOWPLACEMENT lpwndpl);
 
+    // Native frames own their geometry, in physical pixels. This process also
+    // supports DPI-unaware browser windows, so it must not move/save native ones.
+    [System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+    static extern IntPtr GetProp(IntPtr hWnd, string name);
+    static bool OwnsGeometry(IntPtr hWnd)
+    {
+        return GetProp(hWnd, "WowAltBoard.NativeWindowState") != IntPtr.Zero;
+    }
+
     static string GeometryFile { get { return Path.Combine(BaseDir, "data\\window.txt"); } }
 
     // Remembered as the RESTORED rect plus a maximized flag, not the current
@@ -768,6 +778,7 @@ public static class Launcher
     {
         try
         {
+            if (OwnsGeometry(hWnd)) return;
             WINDOWPLACEMENT wp = new WINDOWPLACEMENT();
             wp.length = System.Runtime.InteropServices.Marshal.SizeOf(typeof(WINDOWPLACEMENT));
             if (!GetWindowPlacement(hWnd, ref wp)) return;
@@ -821,6 +832,7 @@ public static class Launcher
 
     static void OnWindowWatchTick(object sender, EventArgs e)
     {
+        if (UpdateExit != null && UpdateExit.WaitOne(0)) { if (!Rescanning) QuitApp(); return; }
         IntPtr h = FindDashboardWindow();
         if (h != IntPtr.Zero)
         {
@@ -946,6 +958,13 @@ public static class Launcher
     /// </summary>
     static void CheckUpdate()
     {
+        IntPtr dashboard = FindDashboardWindow();
+        if (dashboard != IntPtr.Zero && OwnsGeometry(dashboard) && File.Exists(Path.Combine(BaseDir, "tools\\desktop\\WowAltBoard.Updater.exe"))) {
+            try {
+                string dir = Path.Combine(BaseDir, "data\\app-update"); Directory.CreateDirectory(dir);
+                File.WriteAllText(Path.Combine(dir, "show.request"), "1"); OpenDashboard(); return;
+            } catch { }
+        }
         string latest, err, pageUrl;
         Splash sp = new Splash(T_UPDCHECKING);
         sp.Show();
@@ -1156,6 +1175,7 @@ public static class Launcher
     {
         try
         {
+            if (OwnsGeometry(hWnd)) return;
             if (!File.Exists(GeometryFile)) return;
             string[] p = File.ReadAllText(GeometryFile).Trim().Split(' ');
             if (p.Length < 4) return;
@@ -1647,6 +1667,23 @@ public static class Launcher
         ScanScript = Path.Combine(BaseDir, "tools\\scan.ps1");
         PageFile = Path.Combine(BaseDir, "index.html");
 
+        string eventHash;
+        using (var sha = System.Security.Cryptography.SHA256.Create()) {
+            eventHash = BitConverter.ToString(sha.ComputeHash(System.Text.Encoding.UTF8.GetBytes(Path.GetFullPath(BaseDir).TrimEnd('\\').ToUpperInvariant()))).Replace("-", "").ToLowerInvariant();
+        }
+        UpdateExit = new EventWaitHandle(false, EventResetMode.ManualReset, "Local\\WowAltBoard.Update." + eventHash);
+        if (UpdateExit.WaitOne(0)) return 0; // another updater is waiting for this application to exit
+
+        // An interrupted update must recover before scanning or opening any possibly mixed app files.
+        string recovery = Path.Combine(BaseDir, "data\\app-update\\recovery.required");
+        if (File.Exists(recovery)) {
+            string worker = Path.Combine(BaseDir, "data\\app-update\\worker.exe");
+            try {
+                Process.Start(new ProcessStartInfo(worker, "--recover \"" + BaseDir + "\" " + Process.GetCurrentProcess().Id) {
+                    UseShellExecute = false, CreateNoWindow = true, WindowStyle = ProcessWindowStyle.Hidden });
+            } catch { Fail("Application update recovery could not start. Keep data/app-update intact and try again.", null); }
+            return 0;
+        }
         if (!File.Exists(ScanScript)) { Fail(T_NOSCRIPT, null); return 1; }
 
         // One instance only. Double-clicking the exe again used to add another

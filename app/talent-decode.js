@@ -183,6 +183,96 @@
     return out;
   }
 
+  // GearInsight 的 base + delta 与游戏导入串是两种编码，不能混着读。
+  // 生成器、校验器和界面共用这个边界；结构通过不代表版本最新或实战最优。
+  function integer(n) { return typeof n === 'number' && isFinite(n) && Math.floor(n) === n; }
+  function readBuild(td, idx) {
+    var errors = [], m = Object.create(null), out = Object.create(null);
+    if (!td || !Array.isArray(td.dict) || !Array.isArray(td.builds)
+        || !integer(idx) || idx < 0 || idx >= td.builds.length) {
+      return { entries: null, errors: [{ code: 'build-reference' }] };
+    }
+    function applyPairs(flat, delta) {
+      if (!Array.isArray(flat) || flat.length % 2) { errors.push({ code: 'pairs' }); return; }
+      var seen = Object.create(null);
+      for (var i = 0; i < flat.length; i += 2) {
+        var k = flat[i], rank = flat[i + 1];
+        if (!integer(k) || k < 1 || k > td.dict.length || seen[k]) {
+          errors.push({ code: 'dictionary-index', index: k }); continue;
+        }
+        seen[k] = true;
+        if (!integer(rank) || rank < (delta ? 0 : 1)) {
+          errors.push({ code: 'rank', index: k }); continue;
+        }
+        if (rank === 0) delete m[k];
+        else m[k] = rank;
+      }
+    }
+    applyPairs(td.base, false);
+    applyPairs(td.builds[idx], true);
+    Object.keys(m).forEach(function (k) {
+      var eid = td.dict[k - 1];
+      if (!integer(eid) || eid <= 0 || out[eid] !== undefined) errors.push({ code: 'entry-id', entryId: eid });
+      else out[eid] = m[k];
+    });
+    if (!Object.keys(out).length) errors.push({ code: 'empty-build' });
+    return { entries: errors.length ? null : out, errors: errors };
+  }
+
+  function screenTalents(td, TR) {
+    var sp = TR && TR.specs && TR.specs[td.specId];
+    var own = Object.create(null), all = Object.create(null);
+    if (sp && TR.nodes) {
+      Object.keys(TR.nodes).forEach(function (nid) {
+        (TR.nodes[nid][5] || []).forEach(function (e) { all[e[0]] = true; });
+      });
+      ['classNodes', 'specNodes', 'heroNodes', 'subNodes'].forEach(function (kind) {
+        (sp[kind] || []).forEach(function (nid) {
+          var n = TR.nodes[nid];
+          if (n) (n[5] || []).forEach(function (e) { own[e[0]] = { id: nid, node: n, entry: e }; });
+        });
+      });
+    }
+    var rejected = [], valid = Object.create(null);
+    (td.builds || []).forEach(function (_, idx) {
+      var result = readBuild(td, idx), errors = result.errors.slice(), byNode = Object.create(null);
+      if (!sp || !TR.nodes) errors.push({ code: 'tree-unavailable' });
+      else if (result.entries) Object.keys(result.entries).forEach(function (eid) {
+        var hit = own[eid], rank = result.entries[eid];
+        if (!hit) { errors.push({ code: all[eid] ? 'cross-spec' : 'unknown-entry', entryId: +eid }); return; }
+        var n = hit.node, type = TR.types[n[3]];
+        if (type === 'subtree' ? rank !== 1
+            : (rank > n[2] || (type !== 'tiered' && rank > hit.entry[4]))) {
+          errors.push({ code: 'rank-limit', entryId: +eid });
+        }
+        if (byNode[hit.id] && (type === 'choice' || type === 'subtree')) errors.push({ code: 'choice-conflict', nodeId: +hit.id });
+        byNode[hit.id] = true;
+      });
+      if (errors.length) rejected.push({ index: idx, errors: errors });
+      else valid[idx] = true;
+    });
+    var removedRows = 0, badReferences = 0, used = Object.create(null), content = {};
+    Object.keys(td.content || {}).forEach(function (cat) {
+      content[cat] = (td.content[cat] || []).map(function (enc) {
+        var copy = Object.assign({}, enc);
+        copy.p = (enc.p || []).filter(function (p) {
+          var idx = p && p[0];
+          if (!integer(idx) || idx < 0 || idx >= (td.builds || []).length) badReferences++;
+          if (!integer(idx) || !valid[idx]) { removedRows++; return false; }
+          used[idx] = true; return true;
+        });
+        return copy;
+      });
+    });
+    return { data: Object.assign({}, td, { content: content }), rejected: rejected,
+      removedRows: removedRows, badReferences: badReferences, acceptedBuilds: Object.keys(used).length };
+  }
+  AE.TalentData = {
+    decode: function (td, idx) { return readBuild(td, idx).entries; },
+    inspectEncoding: readBuild,
+    screen: screenTalents
+  };
+
   AE.TalentDecode = { decode: decode, toBits: toBits };
   // Node 侧（tools/verify-talent-decode.js）用 new Function('window', …) 加载这个
   // 文件再取这里，所以挂在传进来的 window 上就够，不用管 module.exports。

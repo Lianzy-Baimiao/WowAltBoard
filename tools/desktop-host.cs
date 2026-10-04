@@ -1,4 +1,4 @@
-// Native frame; only the local dashboard may request a scan or change the theme.
+﻿// Native frame; only the local dashboard may request a scan or change the theme.
 using System;
 using System.IO;
 using System.Drawing;
@@ -19,6 +19,13 @@ internal sealed class DashboardWindow : Form
     readonly string themeFile;
     bool dark = true;
     bool scanning;
+    AppUpdates appUpdates;
+    System.Threading.CancellationTokenSource updateCancel;
+    bool updating;
+    readonly System.Windows.Forms.Timer updateRequests = new System.Windows.Forms.Timer();
+    bool openingUpdatePanel;
+    string updateBootScript;
+    AppUpdates.Result updateState;
     Color surface = Color.FromArgb(20, 22, 26);
     Color foreground = Color.FromArgb(223, 228, 236);
     Color border = Color.FromArgb(47, 53, 63);
@@ -42,6 +49,20 @@ internal sealed class DashboardWindow : Form
         view.DefaultBackgroundColor = surface;
         view.Dock = DockStyle.Fill;
         Controls.Add(view);
+        new DesktopWindowState(this, root);
+        updateRequests.Interval = 1000;
+        updateRequests.Tick += async delegate {
+            if (openingUpdatePanel || IsDisposed || view.CoreWebView2 == null || view.Source == null || !IsDashboard(view.Source.AbsoluteUri)) return;
+            openingUpdatePanel = true;
+            try {
+                string request = AppUpdates.Safe(root, "data/app-update/show.request");
+                if (File.Exists(request)) {
+                    string opened = await view.CoreWebView2.ExecuteScriptAsync("Boolean(window.AE && AE.AppUpdates && AE.AppUpdates.open())");
+                    if (opened == "true") File.Delete(request);
+                }
+            } catch { } finally { openingUpdatePanel = false; }
+        };
+        updateRequests.Start();
         Shown += async delegate {
             try {
                 var env = await CoreWebView2Environment.CreateAsync(null, Path.Combine(root, "data", "webview2"));
@@ -62,6 +83,11 @@ internal sealed class DashboardWindow : Form
                     if (!IsDashboard(e.Source)) return;
                     HandleWebMessage(e.WebMessageAsJson);
                 };
+                // A failed updater must never prevent opening the dashboard.
+                try {
+                    appUpdates = await System.Threading.Tasks.Task.Run(() => new AppUpdates(root));
+                    await SetUpdateBoot(appUpdates.Current());
+                } catch { appUpdates = null; }
                 view.Source = page;
             } catch (Exception ex) {
                 try { File.WriteAllText(Path.Combine(root, "data", "desktop-error.log"), ex.ToString()); } catch { }
@@ -80,10 +106,12 @@ internal sealed class DashboardWindow : Form
             var data = json.Deserialize<Dictionary<string, object>>(text);
             object type, request;
             if (data == null || !data.TryGetValue("type", out type) || !(type is string)) return;
+            if ((string)type == "app-update") { await HandleUpdateMessage(data); return; }
             if ((string)type != "scan") { ApplyTheme(text, true); return; }
             if (!data.TryGetValue("id", out request) || !(request is string) ||
                 !System.Text.RegularExpressions.Regex.IsMatch((string)request, "^[a-zA-Z0-9-]{1,80}$")) return;
             string id = (string)request;
+            if (updating) { SendScanResult(id, "SCAN_BUSY"); return; }
             if (scanning) { SendScanResult(id, "SCAN_BUSY"); return; }
             scanning = true;
             string error;
@@ -92,6 +120,62 @@ internal sealed class DashboardWindow : Form
             SendScanResult(id, error);
         }
         catch { /* malformed messages must not escape an async UI callback */ }
+    }
+    async System.Threading.Tasks.Task SetUpdateBoot(AppUpdates.Result state)
+    {
+        updateState = state;
+        if (updateBootScript != null) view.CoreWebView2.RemoveScriptToExecuteOnDocumentCreated(updateBootScript);
+        updateBootScript = await view.CoreWebView2.AddScriptToExecuteOnDocumentCreatedAsync(
+            "window.AE_APP_UPDATE_BOOT=" + json.Serialize(state) + ";");
+    }
+    async System.Threading.Tasks.Task HandleUpdateMessage(Dictionary<string, object> data)
+    {
+        object request, action, auto;
+        if (appUpdates == null || !data.TryGetValue("id", out request) || !(request is string) ||
+            !System.Text.RegularExpressions.Regex.IsMatch((string)request, "^[a-zA-Z0-9-]{1,80}$") ||
+            !data.TryGetValue("action", out action) || !(action is string)) return;
+        string id = (string)request, command = (string)action;
+        if (command == "cancel") { if (updateCancel != null) updateCancel.Cancel(); return; }
+        if (Array.IndexOf(new[] { "status", "check", "download", "preferences", "auto", "apply", "rollback" }, command) < 0) return;
+        if (updating) {
+            SendUpdateResult(id, UpdateError("BUSY"), true);
+            return;
+        }
+        if (command == "apply" || command == "rollback") {
+            if (scanning) { SendUpdateResult(id, UpdateError("SCAN_BUSY"), true); return; }
+            if (MessageBox.Show(this, command == "rollback" ? "退出并恢复上一次应用版本？角色数据与设置会保留，自动下载将关闭。" : "退出看板并安装已下载的新版本？角色数据与设置会保留，完成后自动重开。",
+                "应用更新", MessageBoxButtons.OKCancel, MessageBoxIcon.Question) != DialogResult.OK) {
+                SendUpdateResult(id, appUpdates.Current(), true); return;
+            }
+            updating = true;
+            try { await System.Threading.Tasks.Task.Run(() => appUpdates.LaunchWorker(command == "rollback")); Close(); }
+            catch { SendUpdateResult(id, UpdateError("INSTALL_FAILED"), true); }
+            finally { updating = false; }
+            return;
+        }
+        bool automatic = data.TryGetValue("automatic", out auto) && auto is bool && (bool)auto;
+        updating = true;
+        updateCancel = new System.Threading.CancellationTokenSource();
+        try {
+            var result = await System.Threading.Tasks.Task.Run(() => appUpdates.Run(command, automatic, updateCancel.Token,
+                progress => {
+                    if (!IsDisposed && IsHandleCreated) BeginInvoke(new Action(() => SendUpdateResult(id, progress, false)));
+                }));
+            if (!IsDisposed && view.CoreWebView2 != null) {
+                await SetUpdateBoot(result);
+                SendUpdateResult(id, result, true);
+            }
+        } finally { updating = false; updateCancel.Dispose(); updateCancel = null; }
+    }
+    AppUpdates.Result UpdateError(string error) {
+        var result = updateState == null ? new AppUpdates.Result() : json.Deserialize<AppUpdates.Result>(json.Serialize(updateState));
+        result.phase = "error"; result.error = error; return result;
+    }
+    void SendUpdateResult(string id, AppUpdates.Result state, bool done)
+    {
+        updateState = state;
+        if (IsDisposed || Disposing || view.CoreWebView2 == null || view.Source == null || !IsDashboard(view.Source.AbsoluteUri)) return;
+        view.CoreWebView2.PostWebMessageAsJson(json.Serialize(new { type = "app-update-result", id = id, state = state, done = done }));
     }
     void SendScanResult(string id, string error)
     {
@@ -142,6 +226,7 @@ internal sealed class DashboardWindow : Form
         DwmSetWindowAttribute(Handle, 35, ref bg, 4);
         DwmSetWindowAttribute(Handle, 36, ref fg, 4);
     }
+    protected override void OnFormClosed(FormClosedEventArgs e) { updateRequests.Stop(); updateRequests.Dispose(); if (updateCancel != null) updateCancel.Cancel(); base.OnFormClosed(e); }
     protected override void OnHandleCreated(EventArgs e) { base.OnHandleCreated(e); PaintFrame(); }
     [STAThread] static int Main(string[] args)
     {
@@ -153,6 +238,9 @@ internal sealed class DashboardWindow : Form
         Application.EnableVisualStyles();
         Application.SetCompatibleTextRenderingDefault(false);
         string root = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", ".."));
+        if (File.Exists(Path.Combine(root, "data", "app-update", "recovery.required"))) {
+            MessageBox.Show("应用更新需要恢复，请从「魔兽看板.exe」启动。", "应用更新"); return 4;
+        }
         if (!File.Exists(Path.Combine(root, "index.html"))) return 3;
         Application.Run(new DashboardWindow(root));
         return 0;

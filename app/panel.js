@@ -211,7 +211,7 @@
     { id: 'data',   label: '数据', title: '数据源 / 服务器 / 角色' },
     { id: 'cols',   label: '列',   title: '每一列的显隐' },
     { id: 'look',   label: '外观', title: '皮肤、明暗、字体、字号' },
-    { id: 'misc',   label: '其他', title: '外部主页、副本名称、配置、赞赏' }
+    { id: 'misc',   label: '其他', title: '应用更新、外部主页、副本名称、配置、赞赏' }
   ];
 
   function activeTab(s) {
@@ -642,6 +642,7 @@
   }
 
   function tabMisc(panel, st, s, m) {
+    if (AE.AppUpdates) panel.appendChild(AE.AppUpdates.render());
     // ---- external links --------------------------------------------------
     var links = section('links', '外部主页');
     links.appendChild(el('p', 'note',
@@ -668,7 +669,7 @@
     // window.AE_BIS = {...};
     var bisSec = section('bis-data', '毕业装备数据源');
     bisSec.appendChild(el('p', 'note',
-      '装备表和天赋表已经在安装包里，平时不用填这两栏。' +
+      '装备表和天赋表已经在安装包里，普通用户在「应用更新」更新看板即可，不用填下面两栏。' +
       '换赛季、或者你自己架了一份更新的数据时，在这里填目录地址，' +
       '面板会优先读远端，读不到再退回包里的那份。'));
     bisSec.appendChild(el('p', 'note',
@@ -688,7 +689,7 @@
       '这一栏留空即可。填了就改成「前缀 + 图标名 + .jpg」去别处取图，' +
       '只有你自己架了图床才需要。'));
     bisSec.appendChild(el('p', 'note',
-      '两栏改动都会保存；**重新打开「毕业装备」面板**才会按新地址加载' +
+      '两栏改动都会保存；刷新页面后才会按新地址加载' +
       '（已加载进内存的数据不会重新去取）。'));
     panel.appendChild(bisSec);
 
@@ -836,6 +837,8 @@
         : comparison < 0 ? '（检查记录早于当前版本，请重新检查）'
         : '（当时未发现更新）';
       line += '　·　上次检查查到 ' + up.latestVersion + status;
+    } else if (up.error === 'handled by application updater') {
+      line += '　·　更新检查已由应用更新管理';
     } else if (up.error) {
       line += '　·　上次检查没成功';
     } else {
@@ -846,9 +849,10 @@
       upBox.appendChild(el('div', 'hint2', '扫描记录时间：' + m.scannedAtLocal));
     }
     upBox.appendChild(el('div', 'hint2',
+      up.error === 'handled by application updater' ? '请使用本页上方的「应用更新」。下方完整发布页是手动升级的备用入口。' :
       '这里显示上次扫描保存的检查结果，不是实时查询。查看最新版本请打开发布页；' +
       '重新扫描并刷新看板后，这里的记录才会更新。'));
-    if (up.error) {
+    if (up.error && up.error !== 'handled by application updater') {
       upBox.appendChild(el('div', 'hint2', String(up.error).slice(0, 120)));
     }
 
@@ -869,7 +873,9 @@
       AE.copyWithToast('https://github.com/' + (m.repo || 'Lianzy-Baimiao/WowAltBoard'), null);
     }));
     upBox.appendChild(upBtns);
-    cfg.appendChild(upBox);
+    var legacyUpdate = el('details');
+    legacyUpdate.appendChild(el('summary', null, '完整包下载与旧版检查记录'));
+    legacyUpdate.appendChild(upBox); cfg.appendChild(legacyUpdate);
 
     var about = el('p', 'note');
     about.appendChild(doc.createTextNode(

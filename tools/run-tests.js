@@ -396,7 +396,7 @@ function checkRender(label) {
     if (n.classList && n.classList.contains('sub2')
       && n.parentNode && n.parentNode.classList
       && n.parentNode.classList.contains('im')) {
-      var t = n.textContent;
+      var t = n.textContent.replace(/(榜单均值|实测最高)$/, '');
       if (n.classList.contains('iv-none')) {
         stats.ivNone++;
         if (t !== '装等 ?') {
@@ -540,10 +540,10 @@ function checkRender(label) {
     var onlineBtn = null;
     walk(body, function (n) {
       if (onlineBtn || !n.classList || !n.classList.contains('mini')) return;
-      if (/在线拉最新数据/.test(n.textContent || '')) onlineBtn = n;
+      if (/重新加载远端副本/.test(n.textContent || '')) onlineBtn = n;
     });
     if (!onlineBtn) {
-      problems.push(label + ' 没有「在线拉最新数据」按钮（第 22 轮用户要的：点击才联网）');
+      problems.push(label + ' 没有「重新加载远端副本」按钮（第 22 轮用户要的：点击才联网）');
     }
   }
 }
@@ -3534,7 +3534,11 @@ var VERIFIERS = [
   { label: 'Launcher watch', script: 'check-launcher-watch.js', own: true },
   { label: 'Live refresh', script: 'check-live-refresh.js', own: true },
   { label: 'Dashboard chrome', script: 'check-dashboard.js', own: true },
-  { label: 'Update panel', script: 'check-update-panel.js', own: true }
+  { label: 'Update panel', script: 'check-update-panel.js', own: true },
+  { label: 'Application updates', script: 'check-app-updates.js', own: true },
+  { label: 'Window state', script: 'check-window-state.js', own: true },
+  { label: '天赋数据边界', script: 'check-talent-integrity.js', own: true },
+  { label: '天赋更新保护', script: 'check-talent-update.js', own: true }
 ];
 VERIFIERS.forEach(function (v) {
   if (v.data && !fs.existsSync(path.join(ROOT, 'app', v.data))) {
