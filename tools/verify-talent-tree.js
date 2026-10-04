@@ -13,13 +13,14 @@
  *   1. 格式（换数据源时最先崩的东西）：字段在不在、类型对不对、下标越不越界、
  *      连线两端是否都在本专精内、坐标是否在合理范围。
  *   2. 交叉验证：talent-data.js 里每个 entryID 是否真的属于本专精的树。
- *      这一条能抓出上游 WCL 的专精误标 —— 本机实测防战有 1 套其实是武器战的天赋。
+ *      这一条能抓出样本与本专精的树不匹配；不能单凭这个判定哪一方源头出错。
  *
  * 用法
  * ----
  *   node tools\verify-talent-tree.js
  *   node tools\verify-talent-tree.js --tree <路径>   # 校验候选文件
  *   node tools\verify-talent-tree.js --quiet
+ *   node tools\verify-talent-tree.js --strict-data # 被隔离的源样本也算失败
  *
  * 退出码 0 = 通过，1 = 有硬错误。警告不影响退出码。
  */
@@ -50,6 +51,7 @@ var SCHEMA = {
   names:       { type: 'arr', desc: '中文名字典，条目里存的是下标' },
   icons:       { type: 'arr', desc: '图标名字典，条目里存的是下标' },
   subTrees:    { type: 'obj', desc: 'subTreeId → [名字下标, atlas, [节点id…], 英文名]' },
+  nodeOrder:   { type: 'obj', desc: '职业 → 导入串节点顺序' },
   nodes:       { type: 'obj', desc: 'nodeId → 节点数组，全局共享一份' },
   specs:       { type: 'obj', desc: 'specId → 专精' }
 };
@@ -423,68 +425,46 @@ function verifyTree() {
 // ---------------------------------------------------------------- 交叉验证
 
 // 用树去验 talent-data.js：每套天赋的 entryID 是否真的属于本专精。
-// 这一条不是格式检查，是**内容检查** —— 它抓的是上游 WCL 的专精误标。
+// 这一条检查节点归属/存在性；发现不匹配不等于能判定是哪一个源头出错。
 function crossCheck() {
   var D = loadGlobal(DATA_PATH, 'AE_TALENTS');
   if (!D || !T) return null;
 
-  // 两种毛病要分开报，因为诊断完全不同：
-  //   · 越界（dirty）  = entryID 在树里存在，但属于**别的专精**的树。
-  //                      本机实测防战有 1 套是武器专精的天赋（WCL 把专精标错了）。
-  //   · 查不到（missing）= entryID 在整份 raidbots 数据里都不存在。
-  //                      可能是上游还没收录的新节点，也可能是坏记录。
-  // 一开始我用一个临时脚本量，把这两类混成了「织雾 4 套越界」——
-  // 其实织雾那 4 套不是跨专精污染，而是引用了一个 raidbots 没有的 entryID。
-  var out = { specs: 0, builds: 0, dirty: 0, missing: 0,
+  var g = { AE: {} };
+  new Function('window', fs.readFileSync(path.join(ROOT, 'app', 'talent-decode.js'), 'utf8'))(g);
+  var out = { specs: 0, builds: 0, dirty: 0, missing: 0, rejected: 0, removedRows: 0,
               dirtySpecs: [], missSpecs: [], unknownIds: {} };
-
   Object.keys(D.specs).forEach(function (key) {
     var sd = D.specs[key];
-    var sp = T.specs[String(sd.specId)];
     ck();
-    if (!sp) {
-      fail('talent-data.js 的 ' + key + ' specId=' + sd.specId + ' 在树里找不到');
-      return;
-    }
+    var result = g.AE.TalentData.screen(sd, T);
     out.specs++;
-
-    // dict 是 1-based 的 entryID 表
+    // 空 delta 也是一套完整的 base。不能跳过，也不能把 rank 当成字典下标。
+    out.builds += (sd.builds || []).length;
+    out.rejected += result.rejected.length;
+    out.removedRows += result.removedRows;
     var dirtyBuilds = 0, missBuilds = 0;
-    (sd.builds || []).forEach(function (b) {
-      if (!b || !b.length) return;
-      out.builds++;
-      var bad = 0, miss = 0;
-      b.forEach(function (pair) {
-        var idx = Array.isArray(pair) ? pair[0] : pair;
-        var entryId = sd.dict[idx - 1];
-        if (!entryId) return;
-        // entryId → 节点。用树里的反查。
-        if (entryToNode[entryId] === undefined) {
-          miss++; out.unknownIds[entryId] = 1; return;
-        }
-        if (!sp._own[entryToNode[entryId]]) bad++;
+    result.rejected.forEach(function (b) {
+      var bad = false, miss = false;
+      b.errors.forEach(function (e) {
+        if (e.code === 'cross-spec') bad = true;
+        else if (e.code === 'unknown-entry') { miss = true; out.unknownIds[e.entryId] = 1; }
+        else fail(key + ' build#' + b.index + ': ' + e.code);
       });
       if (bad) { dirtyBuilds++; out.dirty++; }
       if (miss) { missBuilds++; out.missing++; }
     });
-    if (dirtyBuilds) {
-      out.dirtySpecs.push(key + ' ' + dirtyBuilds + '/' + (sd.builds || []).length);
-    }
-    if (missBuilds) {
-      out.missSpecs.push(key + ' ' + missBuilds + '/' + (sd.builds || []).length);
-    }
+    if (result.badReferences) fail(key + ': ' + result.badReferences + ' 个失效的玩家方案引用');
+    if (!result.acceptedBuilds) fail(key + ': 没有可核对的天赋样本');
+    if (dirtyBuilds) out.dirtySpecs.push(key + ' ' + dirtyBuilds + '/' + sd.builds.length);
+    if (missBuilds) out.missSpecs.push(key + ' ' + missBuilds + '/' + sd.builds.length);
   });
-
+  if (out.rejected) {
+    var msg = '原始样本有 ' + out.rejected + ' 套无法核对，界面隔离 ' + out.removedRows
+      + ' 条记录；这不是完整性/时效性全部通过。';
+    if (flag('--strict-data')) fail(msg); else warn(msg);
+  }
   return out;
-}
-
-// entryId → nodeId 的反查表
-var entryToNode = {};
-if (T && T.nodes) {
-  Object.keys(T.nodes).forEach(function (id) {
-    var ents = T.nodes[id][5] || [];
-    ents.forEach(function (e) { entryToNode[e[0]] = id; });
-  });
 }
 
 // ---------------------------------------------------------------- 跑
@@ -512,7 +492,7 @@ if (!QUIET) {
                 '，跨专精污染 ' + cc.dirty + ' 套，引用未知 entryID ' + cc.missing +
                 ' 套（' + Object.keys(cc.unknownIds).length + ' 个 ID）');
     // 两种毛病的病因完全不同，混在一起报会误导：
-    //   · 跨专精污染 = 这套天赋根本不是这个专精的（WCL 把专精标错了）
+    //   · 跨专精污染 = 选中的条目不属于当前树里的该专精
     //   · 未知 entryID = 树里没有这个节点（上游 talents.json 比插件旧，或那条记录是脏的）
     if (cc.dirtySpecs.length) {
       console.log('    跨专精污染：' + cc.dirtySpecs.join('，'));

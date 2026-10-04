@@ -48,7 +48,7 @@ if (-not $SkipBuild) {
 $exe = Get-ChildItem -LiteralPath $BaseDir -Filter '*.exe' -File -ErrorAction SilentlyContinue |
        Select-Object -First 1
 if (-not $exe) { throw 'no launcher exe found; run tools\build-launcher.ps1 first' }
-foreach ($file in @('WowAltBoard.Desktop.exe', 'Microsoft.Web.WebView2.Core.dll',
+foreach ($file in @('WowAltBoard.Desktop.exe', 'WowAltBoard.Updater.exe', 'Microsoft.Web.WebView2.Core.dll',
     'Microsoft.Web.WebView2.WinForms.dll', 'x64\WebView2Loader.dll', 'x86\WebView2Loader.dll',
     'WebView2-LICENSE.txt', 'WebView2-NOTICE.txt')) {
     if (!(Test-Path -LiteralPath (Join-Path $ToolsDir ('desktop\' + $file)))) {
@@ -100,6 +100,15 @@ $dropFromPkg = @(
     'tools\check-launcher-watch.js', # compiled watcher/retry regression harness
     'tools\check-live-refresh.js', # open-window refresh regression tests
     'tools\check-dashboard.js', # dashboard chrome unit tests
+    'tools\check-app-updates.js', # native application update transaction regression
+    'tools\check-app-update-browser.cjs', # application update browser acceptance
+    'tools\check-window-state.js', # native geometry lifecycle and tray ownership regression
+    'tools\check-talent-integrity.js', # independent talent input/consumer regressions
+    'tools\check-talent-update.js', # isolated publication/update regressions
+    'tools\check-talent-browser.cjs', # optional Playwright browser regression
+    'tools\check-bis-visual.cjs', # optional fixed-width visual regression
+    'tools\check-bis-tabs.cjs', # optional shared tab skin/selection browser regression
+    'tools\check-bis-usability.cjs', # optional tree-copy, compact layout and source-status checks
     'tools\check-update-panel.js', # saved update result and latest-release link regression
     'tools\check-lazyload.js',   # walks the panel's lazy-load chain in a clean env; needs dom-stub.js
     'tools\check-scan-bagsync.js', # builds 0/1/2-account fake WoW trees; scanner regression test
@@ -152,8 +161,30 @@ $dataDir = Join-Path $pkgDir 'data'
 New-Item -ItemType Directory -Path $dataDir -Force | Out-Null
 [System.IO.File]::WriteAllText(
     (Join-Path $dataDir '说明.txt'),
-    "这个文件夹由启动器自动生成，可以随时整个删掉重扫。`r`n里面是你的角色数据，不要上传到公开仓库。`r`n",
+    "这个文件夹保存角色数据、历史、设置和应用更新恢复文件，不要上传到公开仓库。`r`n更新或恢复期间不要删除；清理前请先退出程序并备份个人数据。`r`n",
     [System.Text.UTF8Encoding]::new($true))
+
+# Maintainer-only distribution artifacts. Do not ship local game paths/config in a release.
+[IO.File]::WriteAllText((Join-Path $pkgDir 'tools\config.json'), '{}', [Text.UTF8Encoding]::new($false))
+$updateName = "WowAltBoard-v$version"
+if ($Suffix) { $updateName += "-$Suffix" }
+$updateDir = Join-Path $BaseDir ($updateName + "-updates")
+if (Test-Path -LiteralPath $updateDir) { throw "Update output already exists: $updateDir. Use a new release version or move it aside after review." }
+New-Item -ItemType Directory -Path $updateDir | Out-Null
+$updater = Join-Path $ToolsDir 'desktop\WowAltBoard.Updater.exe'
+$pack = Start-Process -FilePath $updater -ArgumentList @('--build', ('"' + $pkgDir + '"'), $version, ('"' + $updateDir + '"')) -WindowStyle Hidden -PassThru -Wait
+if ($pack.ExitCode -ne 0) { throw "Incremental update package generation failed; see $updateDir\build-error.txt" }
+
+# Full packages and incremental packages must cover the same release-owned files.
+# Fail the build rather than silently omitting an asset when the whitelist evolves.
+$manifest = Get-Content -LiteralPath (Join-Path $updateDir 'app-release.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+$managed = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+foreach ($part in $manifest.parts) { foreach ($entry in $part.files) { [void]$managed.Add($entry.path) } }
+foreach ($file in Get-ChildItem -LiteralPath $pkgDir -Recurse -File) {
+    $relative = $file.FullName.Substring($pkgDir.Length + 1).Replace('\', '/')
+    if ($relative -in @('app-release.json', 'tools/config.json', 'data/说明.txt')) { continue }
+    if (!$managed.Contains($relative)) { throw "Release file missing from incremental manifest: $relative" }
+}
 
 $releaseName = "WowAltBoard-v$version"
 if ($Suffix) { $releaseName += "-$Suffix" }
@@ -172,4 +203,4 @@ Remove-Item -LiteralPath $stage -Recurse -Force -ErrorAction SilentlyContinue
 $kb = [math]::Round((Get-Item -LiteralPath $zip).Length / 1KB, 1)
 Write-Host "  $zip  ($kb KB)"
 Write-Host ''
-Write-Host 'Done. Attach this zip to the GitHub Release.' -ForegroundColor Green
+Write-Host "Done. Attach this zip AND every file in $updateDir to a draft GitHub Release, then publish the completed release." -ForegroundColor Green

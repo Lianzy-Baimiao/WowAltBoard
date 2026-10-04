@@ -136,6 +136,14 @@
     return b;
   }
 
+  // 页签、筛选和方案选择共用外观与选中语义；复制/更新等动作不走这里。
+  // 保留原生 button 的 Enter/空格操作，不冒充尚未实现方向键导航的 ARIA tab。
+  function choiceButton(label, cls, onClick) {
+    var b = button(label, 'bis-choice' + (cls ? ' ' + cls : ''), onClick);
+    b.setAttribute('aria-pressed', b.classList.contains('on') ? 'true' : 'false');
+    return b;
+  }
+
   function pct(n) {
     if (n == null) return '';
     return (Math.round(n * 10) / 10) + '%';
@@ -167,7 +175,7 @@
   var REMOTE_TIMEOUT = 8000;
 
   /*
-   * 「在线拉最新数据」按钮临时用的远端地址。**故意不进设置、不落盘**：
+   * 「重新加载远端副本」按钮临时用的远端地址。**故意不进设置、不落盘**：
    * 存进 settings 的话，任何一次 saveSettings 都会把它一起写下去，于是下次
    * 启动 loadDataFile 也会先去试远端 —— 那就成了「程序主动联网」。模块级
    * 变量只活到页面刷新，正是「点按钮才联网」的语义。
@@ -180,10 +188,75 @@
     return onlineBase || String(settings().remoteDataUrl || '').trim();
   }
 
+  var dataLoads = {};
+  var DATA_SOURCES = [
+    ['AE_BIS', '装备参照', 'bis-data.js'],
+    ['AE_RIO', 'raider.io 榜单', 'rio-data.js'],
+    ['AE_MAXROLL', 'maxroll 攻略快照', 'maxroll-data.js'],
+    ['AE_WCL', 'Warcraft Logs 天赋', 'wcl-data.js'],
+    ['AE_TALENTS', '插件天赋', 'talent-data.js'],
+    ['AE_TALENT_TREE', '天赋树结构', 'talent-tree.js'],
+    ['AE_TALENT_DESC', '天赋说明', 'talent-desc.js'],
+    ['AE_ITEM_ICONS', '装备图标映射', 'item-icons.js']
+  ];
+  var LOAD_LABELS = {
+    loading: '加载中', remote: '远端副本已载入', bundled: '包内文件',
+    fallback: '远端失败，已回退包内', failed: '加载失败', memory: '已在内存（加载位置未知）'
+  };
+  function dataLoadSummary() {
+    var fallback = 0, failed = 0, loading = 0, remote = 0;
+    Object.keys(dataLoads).forEach(function (k) {
+      var status = dataLoads[k];
+      if (status === 'fallback') fallback++;
+      if (status === 'failed') failed++;
+      if (status === 'loading') loading++;
+      if (status === 'remote') remote++;
+    });
+    return '　' + (loading ? loading + ' 项加载中 · ' : '')
+      + (fallback ? fallback + ' 项远端失败，已回退包内 · ' : '')
+      + (failed ? failed + ' 项加载失败 · ' : '')
+      + (remote ? remote + ' 项远端副本已载入 · ' : '')
+      + '查看各源日期与加载状态';
+  }
+  function fillSourceList(list) {
+    list.textContent = '';
+    DATA_SOURCES.forEach(function (source) {
+      var data = global[source[0]];
+      var status = dataLoads[source[0]] || (data ? 'memory' : 'unloaded');
+      var row = el('li');
+      row.setAttribute('data-source', source[0]);
+      row.setAttribute('data-status', status);
+      var name = el('b', 'source-name', source[1]);
+      name.setAttribute('data-tip', source[2] + (data && data.source ? '\n' + data.source : ''));
+      row.appendChild(name);
+      row.appendChild(el('span', 'source-status' + (status === 'fallback' || status === 'failed' ? ' source-caution' : ''),
+        LOAD_LABELS[status] || '尚未按需加载'));
+      row.appendChild(el('span', 'note', data
+        ? '数据标注日期：' + (data.updatedAt || '未提供')
+          + (data.addonVersion ? ' · 插件版本 ' + data.addonVersion : '')
+        : '数据日期：未读取'));
+      if (source[0] === 'AE_MAXROLL') row.appendChild(el('span', 'source-caution', '本地更新器保留快照，不自动抓取源站'));
+      list.appendChild(row);
+    });
+  }
+  // Only refresh the status area; a late optional-file result must not steal focus or redraw the tree.
+  function refreshDataStatus() {
+    if (!doc.querySelectorAll) return;
+    var lists = doc.querySelectorAll('#bis .bis-source-list');
+    for (var i = 0; i < lists.length; i++) fillSourceList(lists[i]);
+    var summaries = doc.querySelectorAll('#bis .bis-load-summary');
+    for (var j = 0; j < summaries.length; j++) summaries[j].textContent = dataLoadSummary();
+  }
+
   function loadDataFile(fileName, globalName, done) {
-    if (global[globalName]) { done(null); return; }
+    if (global[globalName]) {
+      if (!dataLoads[globalName]) dataLoads[globalName] = 'memory';
+      done(null); return;
+    }
 
     var base = dataBase();
+    dataLoads[globalName] = 'loading';
+    refreshDataStatus();
     var tried = [];
     if (base) {
       tried.push(base.replace(/\/+$/, '') + '/' + fileName);
@@ -191,7 +264,11 @@
     tried.push('app/' + fileName);
 
     (function attempt(i) {
-      if (i >= tried.length) { done(fileName + ' 读取失败'); return; }
+      if (i >= tried.length) {
+        dataLoads[globalName] = 'failed';
+        refreshDataStatus();
+        done(fileName + ' 读取失败'); return;
+      }
       var s = doc.createElement('script');
       var settled = false, timer = null;
       // 只有远端那一条需要超时；包内的 file:// 读取要么立刻成要么立刻错。
@@ -201,7 +278,11 @@
         settled = true;
         if (timer && global.clearTimeout) global.clearTimeout(timer);
         if (err) attempt(i + 1);
-        else done(null);
+        else {
+          dataLoads[globalName] = isRemote ? 'remote' : (base ? 'fallback' : 'bundled');
+          refreshDataStatus();
+          done(null);
+        }
       }
       if (isRemote && global.setTimeout) {
         timer = global.setTimeout(function () { next(true); }, REMOTE_TIMEOUT);
@@ -879,7 +960,7 @@
   function renderTabs() {
     var wrap = el('div', 'bis-tabs');
     [['gear', '毕业装备'], ['talents', '天赋']].forEach(function (t) {
-      var b = button(t[1], 'tab' + (state.tab === t[0] ? ' on' : ''), function () {
+      var b = choiceButton(t[1], 'tab' + (state.tab === t[0] ? ' on' : ''), function () {
         state.tab = t[0];
         persist({ bisTab: t[0] });
         if (t[0] === 'talents') ensureTalents(render);
@@ -899,19 +980,14 @@
     var cur = currentSpec();
     Object.keys(byClass).sort().forEach(function (cls) {
       var on = cur && cur.cls === cls;
-      var b = button(L.classLabel(cls, settings().learnedClassNames), 'cls' + (on ? ' on' : ''), function () {
+      var b = choiceButton(L.classLabel(cls, settings().learnedClassNames), 'cls' + (on ? ' on' : ''), function () {
         state.key = byClass[cls][0];
         resetPicks();
         persist({ bisSpec: state.key });
         render();
       });
-      b.style.borderColor = L.classColor(cls);
-      if (on) {
-        b.style.background = L.classColor(cls);
-        b.style.color = '#12161c';
-      } else {
-        b.style.color = L.classColor(cls);
-      }
+      // 职业色只用于色标，按钮本身使用统一的选中样式（浅色主题也可读）。
+      b.style.setProperty('--class-color', L.classColor(cls));
       classRow.appendChild(b);
     });
     wrap.appendChild(classRow);
@@ -923,7 +999,7 @@
         var s = B.specs[key];
         var on = key === state.key;
         var label = specLabel(s);
-        var b = button(label, 'spec' + (on ? ' on' : ''), function () {
+        var b = choiceButton(label, 'spec' + (on ? ' on' : ''), function () {
           state.key = key;
           resetPicks();
           persist({ bisSpec: key });
@@ -1006,7 +1082,7 @@
       // 画一个点不下去的按钮比不画更糟。
       if (v[0] === 'rio' && !rioSpec(s.specId)) return;
       if (v[0] === 'maxroll' && !mrPick(s.specId)) return;
-      var b = button(v[1], state.view === v[0] ? 'on' : null, function () {
+      var b = choiceButton(v[1], state.view === v[0] ? 'on' : null, function () {
         state.view = v[0];
         persist({ bisView: v[0] });
         render();
@@ -1758,7 +1834,7 @@
     // 真查不到就**什么都不写**，而不是写一个 0 让人以为这件装备装等是 0。
     if (ilvl) {
       var sub = el('span', 'sub2');
-      sub.textContent = String(ilvl) + (mx && mx > ilvl ? '→' + mx : '');
+      sub.appendChild(el('span', 'iv-value', String(ilvl) + (mx && mx > ilvl ? '→' + mx : '')));
       if (isMr) {
         // maxroll 视角的装等是借来的，得说清是谁测的 —— 两个来源不是同一个量。
         sub.classList.add(ivSrc === 'r' ? 'iv-rio' : 'iv-gi');
@@ -1769,6 +1845,7 @@
             + '这件的「最高」装等'
             + (mx && mx > ilvl ? '，还能升到 ' + mx : ''));
       }
+      sub.appendChild(el('small', 'iv-label', isRio || (isMr && ivSrc === 'r') ? '榜单均值' : '实测最高'));
       main.appendChild(sub);
     } else if (isMr) {
       var noiv = el('span', 'sub2 iv-none', '装等 ?');
@@ -1994,24 +2071,25 @@
    * 静态文件，不会自己更新 —— 换赛季 / 数据过期之后怎么刷新，界面上原本
    * 一个字都没说。
    *
-   * 页面自己跑不了（file:// 禁 fetch），所以这个入口的职责是三件事：
-   * 说清哪份数据从哪来、指路到 更新数据.bat、把完整命令复制到剪贴板。
+   * 在线只重新载入仓库/自定义副本；本地脚本才写盘。每份数据独立报告日期与结果。
    */
   function renderUpdateHint() {
     var upd = el('details', 'sec bis-upd');
     var sum = el('summary');
-    sum.appendChild(el('span', 'ttl', '数据过期了？更新这些数据'));
-    sum.appendChild(el('span', 'note', '　要联网，页面自己拉不了'));
-    sum.setAttribute('data-tip',
-      '这些参照表是打进发布包的静态文件，不会自己更新。\n'
-      + '双击看板文件夹里的 更新数据.bat，或复制下面的命令到命令行运行。\n'
-      + '跑完重启看板（页面加载时才读这些文件）。');
+    sum.appendChild(el('span', 'ttl', '数据来源与更新'));
+    sum.appendChild(el('span', 'note bis-load-summary', dataLoadSummary()));
+    sum.setAttribute('data-tip', '展开查看各源自己的数据日期、加载结果及更新方式。远端载入不等于源站有更新。');
     upd.appendChild(sum);
-
+    var sources = el('ul', 'bis-source-list');
+    fillSourceList(sources);
+    upd.appendChild(sources);
+    upd.appendChild(el('p', 'note', '普通用户请到「设置 → 应用更新」更新整个看板（包含参照数据）。下方为高级手动数据维护工具，不是应用升级。'));
     upd.appendChild(el('p', 'note',
-      '两种更新方式：**在线拉取** —— 点上面第一个按钮，本次打开立即生效、'
-      + '不写盘，拉不到自动退回包里的那份；**落盘更新** —— 双击看板文件夹里的 '
-      + '更新数据.bat，按依赖顺序跑全部抓取和转换，重启之后也还是新的。'));
+      '在线重新加载：读取仓库或自定义地址的数据副本，仅本次会话有效，不写入本地；'
+      + '远端失败会回退包内。这里显示的是数据文件标注日期，不是刚才点击按钮的时间，也不保证源站最新。'));
+    upd.appendChild(el('p', 'note',
+      '本地更新：运行 更新数据.bat，成功的步骤写入本地，失败或跳过的步骤保留旧文件，完成后重启看板。'
+      + 'maxroll 自动抓取已停用，本地更新保留现有快照；不会绕过源站访问限制。'));
     // 第二段说明：凭证那一截挂详细申请步骤（悬停）。段落是纯文本拼的，
     // 这里拆开组装，让「Warcraft Logs 凭证」那几个字带上 tip。
     var p2 = el('p', 'note');
@@ -2048,14 +2126,14 @@
      * remoteDataUrl 那条路一直走的就是它。点这个按钮把远端数据加载进内存：
      * 本次打开有效、不写盘，拉不到自动回包里的。要真正落盘还是得跑 bat。
      */
-    var online = button('在线拉最新数据（本次打开有效）', 'mini', function () {
+    var online = button('重新加载远端副本（仅本次会话）', 'mini', function () {
       AE.bisOnlineUpdate();
     });
     online.setAttribute('data-tip',
       '从远端（jsDelivr 上的仓库副本，或你在设置里填的远端地址）重新加载这些数据。\n'
       + '只影响本次打开：不写盘、不进设置，刷新后回到包里的那份。\n'
       + '国内网络对 jsDelivr 时通时不通 —— 拉不到就自动用包里的，等它 8 秒而已。\n'
-      + '要把新数据**落盘**（重启也在），用 更新数据.bat。');
+      + '要把更新写入本地（重启也在），用 更新数据.bat。');
     act.appendChild(online);
     act.appendChild(button('复制全量命令', 'mini', function () { copyCmd(''); }));
     act.appendChild(button('复制跳过实战分布的命令', 'mini', function () { copyCmd(' -SkipRio'); }));
@@ -2513,7 +2591,7 @@
     var seg = el('span', 'seg');
     [['mplus', '大秘境'], ['raid', '团本']].forEach(function (k) {
       if (pick.kinds.indexOf(k[0]) < 0) return;
-      var btn = button(k[1], pick.kind === k[0] ? 'on' : null, function () {
+      var btn = choiceButton(k[1], pick.kind === k[0] ? 'on' : null, function () {
         state.mrKind = k[0];
         state.mrBuild = 0;      // 换类型必须归零：两边套数不一样，留着下标会越界
         state.mrSub = 0;
@@ -2532,7 +2610,7 @@
     pickBox.setAttribute('aria-label', '天赋方案，共 ' + pick.list.length + ' 套');
     var shortNames = mrShortNames(pick.list);
     pick.list.forEach(function (t, i) {
-      var btn = button('', 'mrb' + (i === pick.idx ? ' on' : ''), function () {
+      var btn = choiceButton('', 'mrb' + (i === pick.idx ? ' on' : ''), function () {
         state.mrBuild = i;
         state.mrSub = 0;        // 换方案，英雄树的选择跟着重置
         render();
@@ -2578,27 +2656,7 @@
     host.appendChild(pickBox);
 
 
-    // 为什么这里**不给** maxroll 的串。
-    //
-    // 一开始是给的（显示 + 复制 + 一句「没验证过能不能导入」）。后来量过一遍：
-    // 串头第一个字节是序列化版本号，maxroll 那批 167 条全是 130，而本机游戏
-    // 导出的 103 条、raider.io 的 306 条全是 2。版本对不上游戏会直接拒 ——
-    // 那不是「没验证过」，是「确定不能用」。给一个粘进去必然报错的串比不给更糟，
-    // 所以现在只用它画树，能导入的串在下面 raider.io 那一块。
-    // 这句话的措辞很要紧。上一版写的是「要能一键导入的串，用下面 raider.io 那一块」——
-    // 读起来像「下面那串就是上面这套的可导入版本」，而**它们根本不是同一套天赋**：
-    // 下面那块是 raider.io 榜上最多人用的串，和你在上面选的这套方案没有关系
-    // （实测拿一个专精比过：7 个节点树上有而串里没有，8 个反过来）。
-    // 所以这里只说「这套没有可导入的串」，不把用户往一个他会以为等价的地方引。
-    // ---- 这一套的导入串。
-    //
-    // 上一轮这里写的是「maxroll 这套没有可导入的串」，**那个结论是错的**。
-    // 我当时只看了页面里 data-wow-data 那个 blob（版本字节 130，游戏确实拒），
-    // 没注意每张天赋卡片下面还有一个 Export 按钮 —— 那个按钮给的串版本字节是 2。
-    // 用户导出一条惩戒骑 AOE 过来，逐位比完发现两串的节点位逐位相同，
-    // 差别只有串头两个字段（版本 130→2、treeHash→全 0）。生成器现在照着做，
-    // 产出的 g 和用户那条 Export 串逐字符相同（见 tools/fetch-maxroll.js
-    // 的 toGameLoadout）。
+    // g 是现有快照的游戏格式原串；保留原值，多英雄打包必须明确提示。
     if (b.g) host.appendChild(renderMrLoadout(b, pick));
     else {
       host.appendChild(el('p', 'mr-nostr',
@@ -2638,16 +2696,16 @@
     var loOut = null;
     if (wantLo && AE.TalentDecode) {
       loOut = AE.TalentDecode.decode(selT.str, tree());
-      if (!loOut || loOut.err) loOut = null;
+      if (!loOut || loOut.err || loOut.spec !== Number(s.specId)) loOut = null;
     }
 
     if (selT && selT.str) {
       var tbar = el('div', 'tree-src');
-      tbar.appendChild(el('span', 'lb', '下面的树画哪一套'));
+      tbar.appendChild(el('span', 'lb', '天赋树来源'));
       [['mr', 'maxroll 方案'],
        ['lo', '榜上 #' + (selT.idx + 1) + '·' + selT.count + '人']].forEach(function (k) {
         var on = (k[0] === 'lo') === !!wantLo;
-        var btn = button(k[1], on ? 'on' : null, function () {
+        var btn = choiceButton(k[1], on ? 'on' : null, function () {
           state.treeSrc = k[0];
           state.mrSub = 0;      // 两套的英雄树不一样，下标留着会指错
           persist({ bisTreeSrc: k[0] });
@@ -2667,6 +2725,8 @@
     }
 
     if (loOut) {
+      host.appendChild(renderCurrentTree('榜上 #' + (selT.idx + 1) + ' · ' + selT.cur.label
+        + ' · ' + selT.count + ' 人', selT.str, loOut.subs.length > 1, 'lo'));
       host.appendChild(renderLoTree(s, selT, loOut));
     } else if (out.err) {
       var w = el('div', 'bis-warn');
@@ -2674,6 +2734,8 @@
       w.appendChild(el('p', null, out.err + ' —— 树画不出来。'));
       host.appendChild(w);
     } else {
+      host.appendChild(renderCurrentTree('maxroll · ' + (b.n || '当前攻略方案'),
+        b.g, (b.h || []).length > 1, 'mr'));
       host.appendChild(renderMrTree(s, b, out));
     }
 
@@ -2730,6 +2792,25 @@
     return box;
   }
 
+  function renderCurrentTree(label, str, bundled, source) {
+    var bar = el('div', 'tree-current');
+    bar.setAttribute('data-source', source);
+    var identity = el('div', 'tree-identity');
+    identity.appendChild(el('b', null, '当前树：' + label));
+    identity.appendChild(el('span', 'note', !str
+      ? '此树没有对应导入串，不能用榜单串代替。'
+      : bundled ? '原串包含多条英雄天赋；当前只展示其中一条，不是单英雄导出。'
+      : '复制内容与当前树同源；来源记录不代表最优解。'));
+    bar.appendChild(identity);
+    if (str) {
+      bar.appendChild(button(bundled ? '复制来源原串（含多英雄）' : '复制当前树天赋', 'primary tree-copy', function () {
+        if (AE.copyWithToast) AE.copyWithToast(str, bundled ? '含多英雄的来源原串' : '当前树天赋');
+        else if (AE.toast) AE.toast({ title: '请在对应来源展开原串，选中后按 Ctrl+C', kind: 'bad' });
+      }));
+    }
+    return bar;
+  }
+
   /**
    * maxroll 这一套的**游戏导入串**。
    *
@@ -2763,7 +2844,7 @@
         'maxroll 把这一套配了 ' + b.h.length + ' 条英雄天赋打包在一个串里（'
         + b.p + ' 点），而游戏里一个角色只能选一条。\n'
         + '它的 Export 按钮导出来就是这样 —— 不是面板改坏的。\n'
-        + '导进游戏之后自己把不要的那条英雄天赋清掉；上面的树已经按你选的那条画了。');
+        + '导进游戏之后自己把不要的那条英雄天赋清掉；攻略树只显示当前选择的那条。');
       head.appendChild(warn);
     }
     box.appendChild(head);
@@ -2777,27 +2858,30 @@
     ta.readOnly = true;
     ta.rows = 2;
     ta.setAttribute('aria-label', '天赋导入串，' + b.g.length + ' 个字符，只读');
-    box.appendChild(ta);
+    var details = el('details', 'lo-details mr-details');
+    details.appendChild(el('summary', null, '查看原串与导入说明'));
+    details.appendChild(ta);
 
     var act = el('div', 'lo-act');
-    var copy = button('复制', 'primary mr-copy', function () {
+    var copy = button('复制攻略原串', 'primary mr-copy', function () {
       if (AE.copyWithToast) AE.copyWithToast(b.g, '天赋导入串');
-      else if (AE.toast) AE.toast({ title: '请手动选中上面的串按 Ctrl+C', kind: 'bad' });
+      else if (AE.toast) AE.toast({ title: '请展开「查看原串与导入说明」，选中原串按 Ctrl+C', kind: 'bad' });
     });
     copy.setAttribute('data-tip',
       '复制后在游戏里打开天赋界面，右下角「导入」粘贴。\n'
       + (bundled
         ? '这一套带着 ' + b.h.length + ' 条英雄天赋，导进去后自己清掉不要的那条。'
-        : '这一套只有一条英雄天赋，导进去就是上面画的样子。'));
+        : '这一套只有一条英雄天赋，对应当前选择的 maxroll 攻略方案。'));
     act.appendChild(copy);
     act.appendChild(el('span', 'n', mrPtsText(b)
       + (bundled ? '（串里合计 ' + b.p + ' 点）' : '')));
     box.appendChild(act);
 
-    box.appendChild(el('p', 'note',
+    details.appendChild(el('p', 'note',
       '这一串是 maxroll 页面里那个 blob 改了串头得到的（版本字节 130→2、'
       + 'treeHash 全 0），和它每张卡片下面 Export 按钮给的串逐字符相同 —— '
       + '节点位一个都没动。'));
+    box.appendChild(details);
     return box;
   }
 
@@ -2898,7 +2982,7 @@
       var sbar = el('div', 'tree-pick');
       sbar.appendChild(el('span', 'lb', '英雄天赋'));
       subs.forEach(function (sid, i) {
-        var btn = button(subTreeName(sid), i === si ? 'on' : null, function () {
+        var btn = choiceButton(subTreeName(sid), i === si ? 'on' : null, function () {
           state.mrSub = i;
           render();
         });
@@ -2997,7 +3081,15 @@
       return;
     }
 
-    setSub(specLabel(s) + '　共 ' + td.builds.length + ' 套');
+    // 所有统计 / 默认选择 / 来源玩家都从同一份筛选视图读取，不删节点伪装成完整方案。
+    var quality = AE.TalentData.screen(td, tree());
+    td = quality.data;
+    setSub(specLabel(s) + '　共 ' + quality.acceptedBuilds + ' 套可核对样本');
+    if (quality.removedRows) {
+      host.appendChild(el('p', 'bis-warn', '已隔离 ' + quality.removedRows
+        + ' 条无法核对的天赋记录（跨专精、节点缺失或引用异常），不计入下方统计。'
+        + '原始数据保留；不会猜着补齐。'));
+    }
 
     // 为什么这一页长得和别的专精不一样，得说清楚。
     //
@@ -3036,7 +3128,7 @@
     var seg = el('span', 'seg');
     TCAT.forEach(function (c) {
       if (!td.content[c[0]]) return;
-      var b = button(c[1], state.tcat === c[0] ? 'on' : null, function () {
+      var b = choiceButton(c[1], state.tcat === c[0] ? 'on' : null, function () {
         state.tcat = c[0];
         persist({ bisTalentCat: c[0] });
         render();
@@ -3173,7 +3265,7 @@
       // 的反面。**「和下面 maxroll 的方案不是同一套」这半句要留着**：maxroll 方案列表
       // 仍然在下面、仍然是另一套，而且 run-tests 的「方位词指空」那条断言认这句话。
       var warn = el('span', 'lo-warn', '和下面 maxroll 的方案不是同一套'
-        + (state.treeSrc === 'lo' ? '（最下面那三棵树现在画的是这一串）' : ''));
+        + '（实际来源见树旁标题）');
       warn.setAttribute('data-tip',
         '这一块是排行榜上真实角色的天赋串，能一键导入。\n'
         + '和下面 maxroll 那些方案不是同一套：拿一个专精逐节点比过，'
@@ -3187,7 +3279,7 @@
     // 不只是开关。少画的话用户不知道自己看的是哪一类。
     var kbar = el('div', 'lo-kind');
     kinds.forEach(function (kd, i) {
-      var b = button(kd.label + '　' + kd.lo.total + ' 人',
+      var b = choiceButton(kd.label + '　' + kd.lo.total + ' 人',
         i === ki ? 'on' : null, function () {
           state.loKind = kd.k;
           state.loadout = 0;          // 换类之后 #4 指的是另一串，回到 #1
@@ -3210,7 +3302,7 @@
     // 选串。只列前 6 种 —— 再往后都是 1 人用的，列出来只是噪音。
     var bar = el('div', 'lo-pick');
     lo.list.slice(0, 6).forEach(function (t, i) {
-      var b = button('#' + (i + 1) + '·' + lo.count[t] + '人',
+      var b = choiceButton('#' + (i + 1) + '·' + lo.count[t] + '人',
         i === idx ? 'on' : null, function () {
           state.loadout = i;
           render();
@@ -3231,12 +3323,14 @@
     ta.setAttribute('rows', '3');
     ta.setAttribute('spellcheck', 'false');
     ta.setAttribute('aria-label', '天赋导入串，' + str.length + ' 个字符，只读');
-    box.appendChild(ta);
+    var details = el('details', 'lo-details ranked-details');
+    details.appendChild(el('summary', null, '查看原串与导入说明'));
+    details.appendChild(ta);
 
     var act = el('div', 'lo-act');
-    var copy = button('复制', 'primary lo-copy', function () {
+    var copy = button('复制榜单原串', 'primary lo-copy', function () {
       if (AE.copyWithToast) AE.copyWithToast(str, '天赋导入串');
-      else if (AE.toast) AE.toast({ title: '请手动选中下面的串按 Ctrl+C', kind: 'bad' });
+      else if (AE.toast) AE.toast({ title: '请展开「查看原串与导入说明」，选中原串按 Ctrl+C', kind: 'bad' });
     });
     copy.setAttribute('data-tip', '复制后在游戏里打开天赋界面，右下角「导入」粘贴');
     act.appendChild(copy);
@@ -3245,7 +3339,7 @@
       + str.length + ' 个字符'));
     box.appendChild(act);
 
-    box.appendChild(el('p', 'note',
+    details.appendChild(el('p', 'note',
       (cur.k === 'raid'
         ? '这几串取自 Warcraft Logs 上 ' + ((global.AE_WCL && global.AE_WCL.raid) || '当前团本')
           + '（史诗）首领榜玩家的战斗记录，原样转发，面板没有改动一个字符。'
@@ -3253,6 +3347,7 @@
           + '面板没有改动一个字符。')
       + '导入的位置：游戏里 N 打开天赋界面，右下角「导入/导出」→「导入」。'
       + '串里带着它自己的专精编号，导错专精游戏会直接拒绝。'));
+    box.appendChild(details);
     return box;
   }
 
@@ -3264,26 +3359,13 @@
 
   /** 把一套 build 还原成 {entryID: 点数}。和 tools\gen-talents.js 的 apply() 必须一致。 */
   function decodeBuild(td, idx) {
-    var m = Object.create(null);
-    var i;
-    for (i = 0; i < td.base.length; i += 2) m[td.base[i]] = td.base[i + 1];
-    var d = td.builds[idx] || [];
-    for (i = 0; i < d.length; i += 2) {
-      if (d[i + 1] === 0) delete m[d[i]];
-      else m[d[i]] = d[i + 1];
-    }
-    // dict 下标 -> 真正的 entryID
-    var out = Object.create(null);
-    Object.keys(m).forEach(function (k) {
-      var eid = td.dict[k - 1];
-      if (eid != null) out[eid] = m[k];
-    });
-    return out;
+    return AE.TalentData.decode(td, idx);
   }
   AE.decodeTalentBuild = decodeBuild;
 
   function buildPoints(td, idx) {
     var b = decodeBuild(td, idx);
+    if (!b) return 0;
     var n = 0;
     Object.keys(b).forEach(function (k) { n += b[k]; });
     return n;
@@ -3295,8 +3377,7 @@
     var p = el('p', null,
       '发布包里本来带着 app/talent-tree.js（约 415 KB）。没读到它的话，'
       + '要么文件被删了，要么你是从源码跑的但没生成它 —— 跑 tools\\fetch-talent-tree.js 就行。'
-      + '没有它，下面仍然能给出「谁在用哪套、每套多少点、英雄天赋怎么分布」，'
-      + '因为那些只需要插件那份数据；但画不出树。');
+      + '没有树就无法核对样本是否完整、是否属于本专精，因此暂不展示未核对的统计。');
     box.appendChild(p);
     var p2 = el('p', null,
       '也可以自己做一份放成 app/talent-tree.js。它的格式就是生成器写出来的那个：');
@@ -3642,7 +3723,7 @@
     Object.keys(use).sort(function (a, b) { return use[b] - use[a]; })
       .slice(0, 8).forEach(function (k) {
         var idx = Number(k);
-        var b = button('#' + idx + '·' + use[k] + '人', idx === bi ? 'on' : null, function () {
+        var b = choiceButton('#' + idx + '·' + use[k] + '人', idx === bi ? 'on' : null, function () {
           state.build = idx;
           render();
         });
@@ -3650,6 +3731,7 @@
         bar.appendChild(b);
       });
     box.appendChild(bar);
+    box.appendChild(renderCurrentTree('插件套路 #' + bi, null, false, 'plugin'));
 
     var info = el('p', 'note',
       '画的是套路 #' + bi + '（' + (use[bi] || 0) + ' 人用，共 ' + total + ' 点）。'
@@ -3835,7 +3917,7 @@
   // ------------------------------------------------------------------ 入口
 
   /*
-   * 「在线拉最新数据」：清掉已加载的参照数据和所有派生缓存，让 openBis 的
+   * 「重新加载远端副本」：清掉已加载的参照数据和所有派生缓存，让 openBis 的
    * 加载链带着 onlineBase 重走一遍 —— 远端拉到就用远端的（**只活在本次会话**，
    * 不落盘），拉不到 loadDataFile 会自己退回包里的那份，失败无害。
    *
@@ -3845,6 +3927,7 @@
    *   · 加载标志（不清的话 openBis 看到 gearLoaded=true 直接 render，根本不拉）。
    */
   function resetOnlineData() {
+    dataLoads = {};
     ['AE_BIS', 'AE_ITEM_ICONS', 'AE_ITEM_QUALITY', 'AE_RIO', 'AE_MAXROLL',
      'AE_TALENT_TREE', 'AE_TALENTS', 'AE_TALENT_DESC', 'AE_WCL'
     ].forEach(function (k) { delete global[k]; });
@@ -3867,7 +3950,7 @@
     resetOnlineData();
     if (AE.toast) {
       AE.toast({
-        title: '正在从远端拉取最新数据…',
+        title: '正在重新加载远端数据副本…',
         body: '来源：' + onlineBase + '\n'
             + '只对本次打开有效，不写盘；拉不到会自动退回包里的那份。\n'
             + '图标仍是包里的（新 itemId 没有图会显示占位块）。',

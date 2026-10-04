@@ -17,11 +17,11 @@
   Steps and their inputs:
     class-names    net, fast        wago.tools DB2
     bis            local addon      GearInsight\core\BisData.lua
-    talents        local addon      GearInsight_Talents\PopularTalents.lua
-    tree           net, fast        raidbots + wago.tools
-    maxroll        net, cached      maxroll.gg (pass 1: collect spell IDs)
+    tree           net/cache        raidbots + wago.tools
+    talents        local addon      GearInsight_Talents\PopularTalents.lua (checked against tree)
+    maxroll        disabled         source access policy; keep bundled snapshot
     spell-names    net, fast        uses maxroll's HTML cache
-    maxroll-2      net, cached      maxroll.gg (pass 2: swap in zhCN names)
+    maxroll-2      disabled         source access policy; keep bundled snapshot
     rio            net, ~47 min     raider.io, rate-limited on purpose
     icons          net              needs bis + rio outputs
     talent-icons   net              needs tree output
@@ -97,19 +97,19 @@ $wclAuth  = Join-Path $ToolsDir '.wcl-auth.json'
 
 # ---- the step table: name, args, pre-flight check ---------------------------
 # A step whose Check returns a string is skipped with that reason. The two
-# maxroll passes are one command run twice on purpose: pass 1 harvests the
-# spell-ID list into its HTML cache, fetch-spell-names turns that into a zhCN
-# table, pass 2 swaps the names in (mostly cache hits, so it is quick).
+# Keep the historical Maxroll step names, but do not fetch a source that
+# disallows automated AI access. Bundled guide data remains unchanged.
 $steps = @(
     @{ Name = 'class-names';  Args = @('tools\fetch-class-names.js');  Check = {} },
     @{ Name = 'bis';          Args = @('tools\gen-bis.js');           Check = {
         if (-not $bisLua) { return 'GearInsight addon not found (bis-data.js keeps the bundled copy)' } } },
+    @{ Name = 'tree';         Args = @('tools\fetch-talent-tree.js', '--refresh');  Check = {} },
     @{ Name = 'talents';      Args = @('tools\gen-talents.js');       Check = {
+        if ($failed -contains 'tree') { return 'tree refresh failed; keeping previous talent samples' }
         if (-not $talLua) { return 'GearInsight_Talents addon not found (talent-data.js keeps the bundled copy)' } } },
-    @{ Name = 'tree';         Args = @('tools\fetch-talent-tree.js');  Check = {} },
-    @{ Name = 'maxroll';      Args = @('tools\fetch-maxroll.js');      Check = {} },
+    @{ Name = 'maxroll';      Args = @('tools\fetch-maxroll.js');      Check = { return 'automated Maxroll retrieval disabled by source access policy; bundled data kept' } },
     @{ Name = 'spell-names';  Args = @('tools\fetch-spell-names.js');  Check = {} },
-    @{ Name = 'maxroll-2';    Args = @('tools\fetch-maxroll.js');      Check = {} },
+    @{ Name = 'maxroll-2';    Args = @('tools\fetch-maxroll.js');      Check = { return 'automated Maxroll retrieval disabled by source access policy; bundled data kept' } },
     @{ Name = 'rio';          Args = @('tools\fetch-rio.js');          Check = {
         if ($SkipRio) { return 'skipped via -SkipRio' } } },
     @{ Name = 'icons';        Args = @('tools\fetch-icons.js');        Check = {} },
@@ -190,3 +190,5 @@ if ($failed.Count)  { Write-Host ("  failed:  " + ($failed -join ', ')) }
 Write-Host ''
 Write-Host 'Verify with:  node tools\run-tests.js   (all green before shipping)'
 Write-Host 'Then restart the dashboard (the page reads these files at load time).'
+
+if ($failed.Count) { exit 1 }

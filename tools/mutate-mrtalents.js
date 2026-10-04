@@ -147,8 +147,8 @@ var MUTANTS = [
   // 复制按钮没了：串在框里但复制不走。那是个 100+ 字符的 base64，
   // 手选很容易漏头漏尾，粘进游戏只会说「无效」。
   textMutant('复制按钮不画', BIS,
-    "var copy = button('复制', 'primary mr-copy', function () {",
-    "var copy = button('复制', 'primary mr-copy-x', function () {",
+    "var copy = button('复制攻略原串', 'primary mr-copy', function () {",
+    "var copy = button('复制攻略原串', 'primary mr-copy-x', function () {",
     '复制按钮 0 个'),
 
   // **框里放版本 130 的原始串。** 界面上一切正常，复制也「成功」，
@@ -169,8 +169,8 @@ var MUTANTS = [
   // 高亮错一行。这是这一组存在的理由：界面完全自洽，用户照着「Sunfury」那一行
   // 点开，得到的却是「Spellslinger」那一套的树。
   textMutant('方案列表高亮错一行', BIS,
-    "var btn = button('', 'mrb' + (i === pick.idx ? ' on' : ''), function () {",
-    "var btn = button('', 'mrb' + (i === (pick.idx + 1) % pick.list.length ? ' on' : ''), function () {",
+    "var btn = choiceButton('', 'mrb' + (i === pick.idx ? ' on' : ''), function () {",
+    "var btn = choiceButton('', 'mrb' + (i === (pick.idx + 1) % pick.list.length ? ' on' : ''), function () {",
     '但画出来的树和它不一致'),
 
   // 名字取错行。名字是用户唯一用来选方案的信息。

@@ -26,11 +26,16 @@ foreach ($file in @('LICENSE.txt', 'NOTICE.txt')) {
 }
 $csc = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
 if (!(Test-Path -LiteralPath $csc)) { $csc = Join-Path $env:WINDIR 'Microsoft.NET\Framework\v4.0.30319\csc.exe' }
-$refs = @('System.dll', 'System.Core.dll', 'System.Drawing.dll', 'System.Windows.Forms.dll', 'System.Web.Extensions.dll',
+$refs = @('System.dll', 'System.Core.dll', 'System.Drawing.dll', 'System.Windows.Forms.dll', 'System.Web.Extensions.dll', 'System.IO.Compression.dll', 'System.IO.Compression.FileSystem.dll',
     (Join-Path $out 'Microsoft.Web.WebView2.Core.dll'), (Join-Path $out 'Microsoft.Web.WebView2.WinForms.dll'))
 $arguments = @('/nologo', '/target:winexe', '/platform:anycpu', '/utf8output',
     "/out:$out\WowAltBoard.Desktop.exe", "/win32icon:$PSScriptRoot\launcher.ico")
 foreach ($ref in $refs) { $arguments += "/reference:$ref" }
-& $csc @arguments (Join-Path $PSScriptRoot 'desktop-host.cs') (Join-Path $PSScriptRoot 'desktop-scan.cs')
+& $csc @arguments (Join-Path $PSScriptRoot 'desktop-host.cs') (Join-Path $PSScriptRoot 'desktop-scan.cs') (Join-Path $PSScriptRoot 'desktop-window-state.cs') (Join-Path $PSScriptRoot 'app-updates.cs')
 if ($LASTEXITCODE -ne 0) { throw 'Desktop host compilation failed' }
 Write-Host "  Desktop host built: $out" -ForegroundColor Green
+
+$workerArgs = @('/nologo', '/target:winexe', '/platform:anycpu', '/utf8output', "/out:$out\WowAltBoard.Updater.exe")
+foreach ($ref in @('System.dll', 'System.Core.dll', 'System.Web.Extensions.dll', 'System.Windows.Forms.dll', 'System.IO.Compression.dll', 'System.IO.Compression.FileSystem.dll')) { $workerArgs += "/reference:$ref" }
+& $csc @workerArgs (Join-Path $PSScriptRoot 'app-updates.cs') (Join-Path $PSScriptRoot 'app-update-package.cs') (Join-Path $PSScriptRoot 'app-update-worker.cs')
+if ($LASTEXITCODE -ne 0) { throw 'Application updater compilation failed' }

@@ -1074,53 +1074,67 @@ body[data-theme="light"] #tip { box-shadow: 0 6px 20px rgba(0, 0, 0, .18); }
   contain: content;
 }
 
-#bis-body .bis-tabs {
+/* 所有横向选择组用相同间距；组间距离仍由各自布局决定。 */
+#bis :is(.bis-tabs, .bis-row, .bis-bar .seg, .lo-kind, .lo-pick, .tree-pick, .tree-src) {
   display: flex;
-  gap: 2px;
-  border-bottom: 1px solid var(--line);
-  margin: -4px 0 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
 }
-#bis-body .bis-tabs button.tab {
-  background: none;
+#bis .bis-bar .seg {
   border: 0;
-  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  overflow: visible; /* 不裁切键盘焦点环。 */
+}
+#bis-body .bis-tabs {
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 0;
+  margin: -4px 0 10px;
+}
+/* 轻页签：文字 + 底部选中线。与复制/更新等实体按钮区分，不再用描边盒子。 */
+#bis .bis-choice {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  box-sizing: border-box;
+  min-height: 30px;
+  padding: 5px 10px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   color: var(--fg2);
-  padding: 5px 12px;
-  font-size: 12.5px;
-  cursor: pointer;
-}
-#bis-body .bis-tabs button.tab:hover { color: var(--fg); background: var(--bg3); }
-#bis-body .bis-tabs button.tab.on {
-  color: var(--fg);
-  border-bottom-color: var(--accent);
+  font: inherit;
+  font-size: 12px;
   font-weight: 600;
+  line-height: 20px;
+  cursor: pointer;
+  box-shadow: none;
 }
+#bis .bis-choice:hover {
+  color: var(--fg);
+  background: var(--row-hover);
+}
+#bis .bis-choice.on {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+#bis .bis-choice:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* 职业名直接用职业色；浅色底混入前景色，避免牧师等浅色字消失。 */
+#bis .bis-choice.cls { color: color-mix(in srgb, var(--class-color) 65%, var(--fg)); }
+body[data-theme="light"] #bis .bis-choice.cls {
+  color: color-mix(in srgb, var(--class-color) 35%, var(--fg));
+}
+#bis .bis-choice.mrb { justify-content: flex-start; padding-block: 7px; }
 
 /* ---- 职业 / 专精选择 */
-.bis-pick { margin-bottom: 8px; }
+.bis-pick { margin-bottom: 10px; }
 .bis-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 3px;
-  margin-bottom: 4px;
-}
-.bis-row button {
-  background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: 3px;
-  padding: 3px 7px;
-  font-size: 11.5px;
-  cursor: pointer;
-  color: var(--fg2);
-}
-.bis-row button:hover { background: var(--bg3); }
-/* 职业按钮的描边/文字色由 JS 按职业色设置，这里只管形状。 */
-.bis-row button.cls { font-weight: 600; }
-.bis-row button.spec.on {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #0f1319;
-  font-weight: 600;
+  gap: 4px;
+  margin-bottom: 5px;
 }
 
 /* ---- 视角切换 + 对照角色 */
@@ -1130,23 +1144,6 @@ body[data-theme="light"] #tip { box-shadow: 0 6px 20px rgba(0, 0, 0, .18); }
   gap: 12px;
   flex-wrap: wrap;
   margin-bottom: 8px;
-}
-.bis-bar .seg { display: inline-flex; }
-.bis-bar .seg button {
-  background: var(--bg);
-  border: 1px solid var(--line);
-  color: var(--fg2);
-  padding: 3px 10px;
-  font-size: 12px;
-  cursor: pointer;
-}
-.bis-bar .seg button:first-child { border-radius: 3px 0 0 3px; }
-.bis-bar .seg button:last-child { border-radius: 0 3px 3px 0; border-left: 0; }
-.bis-bar .seg button.on {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #0f1319;
-  font-weight: 600;
 }
 .bis-bar .pick { display: inline-flex; align-items: center; gap: 5px; }
 .bis-bar .pick label { color: var(--fg2); font-size: 11.5px; }
@@ -1232,10 +1229,10 @@ body[data-theme="light"] #tip { box-shadow: 0 6px 20px rgba(0, 0, 0, .18); }
 /* ---- 每格第二行：首选 / 最热那一件 */
 .slot-top {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 6px;
-  padding: 4px 8px;
-  font-size: 11.5px;
+  padding: 5px 10px;
+  font-size: 12px;
   min-width: 0;
 }
 .slot-top .star { color: var(--accent); flex: none; }
@@ -1248,9 +1245,9 @@ body[data-theme="light"] #tip { box-shadow: 0 6px 20px rgba(0, 0, 0, .18); }
   min-width: 0;
 }
 .slot-top .sub { color: var(--fg2); flex: none; }
-/* 摘要行里的小图标。装备行里那个是 30px，这里 20px —— 一行只有 ~22px 高。 */
-.slot-top .icon.sm { width: 20px; height: 20px; flex: none; line-height: 0; }
-.slot-top .icon.sm img { width: 20px; height: 20px; border-radius: 3px; display: block; }
+/* 收起时仍保留清晰的游戏图标，完整条目用 36px，摘要用 24px。 */
+.slot-top .icon.sm { width: 24px; height: 24px; flex: none; line-height: 0; }
+.slot-top .icon.sm img { width: 24px; height: 24px; border-radius: 3px; display: block; }
 .slot-top .tag { font-size: 10px; padding: 0 5px; border-radius: 8px; border: 1px solid var(--line); color: var(--fg2); flex: none; }
 
 /* ---- 完整分布：默认收起来，点格子头展开。
@@ -1263,7 +1260,7 @@ body[data-theme="light"] #tip { box-shadow: 0 6px 20px rgba(0, 0, 0, .18); }
 .slot.open { box-shadow: 0 0 0 1px var(--accent) inset; }
 .slot {
   border: 1px solid var(--line);
-  border-radius: 4px;
+  border-radius: 6px;
   background: var(--bg);
   overflow: hidden;
 }
@@ -1287,12 +1284,12 @@ body[data-theme="light"] #tip { box-shadow: 0 6px 20px rgba(0, 0, 0, .18); }
      而这一行有部位名 + 样本量 + 你身上那件 + 装等差距四样东西。 */
   cursor: pointer;
   flex-wrap: wrap;
-  gap: 8px;
-  padding: 4px 8px;
+  gap: 6px 8px;
+  padding: 6px 10px;
   background: var(--bg3);
   border-bottom: 1px solid var(--line);
 }
-.slot-head b { font-size: 12px; }
+.slot-head b { font-size: 13px; font-weight: 600; }
 .slot-head .sub { color: var(--fg2); font-size: 11px; }
 .slot-head .tag {
   margin-left: auto;
@@ -1321,7 +1318,7 @@ body[data-theme="light"] #tip { box-shadow: 0 6px 20px rgba(0, 0, 0, .18); }
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 5px 8px;
+  padding: 6px 10px;
   border-top: 1px solid var(--line);
 }
 .item:first-child { border-top: 0; }
@@ -1329,16 +1326,16 @@ body[data-theme="light"] #tip { box-shadow: 0 6px 20px rgba(0, 0, 0, .18); }
 /* 使用率最高的那一件。左边一道竖线，不改底色 —— 底色留给 .have，
    两个同时命中时才看得出区别。 */
 .item.top { box-shadow: inset 2px 0 0 var(--accent); }
-.item.top .im .n { font-weight: 600; }
+.item.top .im > b { font-weight: 600; }
 .item .icon {
-  width: 30px;
-  height: 30px;
+  width: 36px;
+  height: 36px;
   flex: none;
   border-radius: 3px;
   border: 1px solid var(--line);
   object-fit: cover;
 }
-/* 图标文件是 56×56，缩到 30 显示。图标本身是 <img>，外面那个 .icon 是 span，
+/* 图标文件是 56×56，缩到 36 显示。图标本身是 <img>，外面那个 .icon 是 span，
    所以边框走外层、尺寸两层都要给，否则加载完成前会撑出一格空白。 */
 .item .icon img {
   width: 100%;
@@ -1359,9 +1356,12 @@ body[data-theme="light"] #tip { box-shadow: 0 6px 20px rgba(0, 0, 0, .18); }
   color: #0f1319;
 }
 .item .im { flex: 1; min-width: 0; }
-.item .im .n {
+/* 名称实际是直接子元素 b，不是 .n；与使用率里的 .n 分开。 */
+.item .im > b {
   display: block;
-  font-size: 12px;
+  font-size: 13px;
+  line-height: 1.45;
+  font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1372,7 +1372,10 @@ body[data-theme="light"] #tip { box-shadow: 0 6px 20px rgba(0, 0, 0, .18); }
    的记号，不然两种数混在一列里看着是同一种。 */
 .item .im .sub2.iv-rio { border-bottom: 1px dashed var(--line); display: inline-block; }
 .item .im .sub2.iv-none { color: var(--fg3); font-style: italic; }
-.item .im .stats { color: var(--fg3); font-size: 10.5px; }
+.item .im .stats {
+  display: inline-flex; flex-wrap: wrap; gap: 2px 6px;
+  margin-left: 4px; color: var(--fg2); font-size: 11px;
+}
 .item .usage { flex: none; width: 92px; }
 /* 同 .bar-row .track：这两个也是 span，不声明 display 就都是 0×0（实测）。 */
 .item .usage .track {
@@ -1499,7 +1502,7 @@ table.bis-tbl th { color: var(--fg2); font-weight: 600; }
   border: 1px solid var(--warn);
   border-radius: 3px;
   color: var(--warn);
-  white-space: nowrap;
+  white-space: normal;
 }
 
 /* 团本 / 大秘境（第 20 轮）。和 .lo-pick 分开一个类，是因为它俩层级不同：
@@ -1528,7 +1531,29 @@ table.bis-tbl th { color: var(--fg2); font-weight: 600; }
   overflow-wrap: anywhere;
   word-break: break-all;
 }
-.lo-act { display: flex; align-items: center; gap: 8px; margin-top: 5px; }
+.lo-act { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 5px; }
+/* 关闭的原串详情与复制同一行，展开后占满本块；不改变面板宽度。 */
+.bis-loadout, .mr-loadout { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px; }
+:is(.bis-loadout, .mr-loadout) > :is(.lo-head, .lo-kind, .lo-pick) { grid-column: 1 / -1; }
+:is(.bis-loadout, .mr-loadout) > .lo-details { align-self: center; }
+:is(.bis-loadout, .mr-loadout) > .lo-details[open] { grid-column: 1 / -1; }
+@media (max-width: 760px) {
+  :is(.bis-loadout, .mr-loadout) > :is(.lo-act, .lo-details) { grid-column: 1 / -1; }
+}
+.lo-details { margin-top: 5px; color: var(--fg2); font-size: 11px; }
+.lo-details > summary { cursor: pointer; padding: 3px 0; }
+.lo-details > summary:focus-visible { outline: 2px solid var(--accent); }
+.tree-current { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; margin: 8px 0; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.tree-current .tree-identity { flex: 1 1 260px; min-width: 0; }
+.tree-current .tree-identity b { font-size: 12px; overflow-wrap: anywhere; }
+.tree-current .note { display: block; margin: 2px 0 0; }
+.bis-source-list { list-style: none; padding: 0; margin: 8px 0; }
+.bis-source-list li { display: flex; flex-wrap: wrap; gap: 4px 12px; padding: 5px 0; border-bottom: 1px solid var(--line); font-size: 11px; }
+.bis-source-list .source-name { min-width: 150px; }
+.bis-source-list .source-status { color: var(--fg2); }
+.bis-source-list .source-caution { color: var(--warn); }
+#bis .iv-label { margin-left: 6px; color: var(--fg2); font-size: 10px; font-weight: normal; }
+
 .lo-act .n { color: var(--fg3); font-size: 11px; }
 
 /* 「maxroll 这套不给导入串」那句说明。
@@ -1550,17 +1575,9 @@ table.bis-tbl th { color: var(--fg2); font-weight: 600; }
 .mrb {
   display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
   text-align: left;
-  padding: 5px 8px;
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  background: var(--bg);
-  color: var(--fg2);
-  cursor: pointer;
-  font-size: 12px;
+  /* 长名称仍独占一行；颜色、边框、选中态由 .bis-choice 统一管理。 */
 }
-.mrb:hover { border-color: var(--accent); }
-.mrb.on { border-color: var(--accent); background: var(--bg3); color: var(--fg); }
-.mrb .nm { flex: 1 1 auto; }
+.mrb .nm { flex: 1 1 auto; overflow-wrap: anywhere; }
 .mrb .mt { display: flex; gap: 6px; flex-wrap: wrap; flex: 0 0 auto; }
 .mrb .mt em { font-style: normal; color: var(--fg3); font-size: 11px; }
 .mrb .mt em.hero { color: var(--accent); }
@@ -1654,7 +1671,7 @@ em.scen.multi { color: var(--accent); opacity: .8; }
   border-radius: 2px;
   display: block; flex: 0 0 auto;
   /* 没点的天赋压暗，和游戏里一致；点了的恢复原色。 */
-  filter: grayscale(1) brightness(.55);
+  filter: grayscale(1) brightness(.7);
 }
 .tnode.on .ti { filter: none; }
 .tnode .nm {
@@ -1702,3 +1719,64 @@ em.scen.multi { color: var(--accent); opacity: .8; }
  * 行间距用 margin 不用父级的 gap：.bis-tree 里还有别的东西（点数说明那一行），
  * 统一 gap 会把那些也顶开。 */
 .tree-cols.main-row { margin-top: 14px; }
+
+/* ---- 1.17.3 原布局上的显示优化：不改变面板宽度、装备栏顺序或天赋节点几何。 */
+#bis button:focus-visible,
+#bis [role="button"]:focus-visible,
+#bis summary:focus-visible,
+#bis select:focus-visible,
+#bis textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+#bis .slot-head:focus-visible { outline-offset: -3px; }
+#bis .slot-head[role="button"]::before {
+  content: "";
+  width: 5px; height: 5px;
+  flex: none; align-self: center;
+  border-right: 1.5px solid var(--fg2);
+  border-bottom: 1.5px solid var(--fg2);
+  transform: rotate(-45deg);
+}
+#bis .slot-head[aria-expanded="true"]::before { transform: rotate(45deg); }
+#bis .slot-head[role="button"]:hover { background: var(--row-hover); }
+#bis .item:not(.have):hover { background: var(--row-hover); }
+#bis .item .icon {
+  box-shadow: 0 1px 3px #0003;
+  border-color: color-mix(in srgb, var(--fg2) 45%, var(--line));
+}
+/* 插槽与装等共用次行，避免名称独占一行后把每件装备撑成四行。 */
+#bis .item .im > .tag.sock { float: right; margin-left: 4px; }
+#bis .item .im .sub2 + .stats { margin-left: 0; }
+#bis .item .im .sub2 { line-height: 1.5; font-variant-numeric: tabular-nums; }
+#bis .item .usage { font-variant-numeric: tabular-nums; }
+#bis .item .usage .n { margin-top: 3px; }
+#bis .item .tag.bis { background: color-mix(in srgb, var(--good) 8%, var(--bg)); }
+#bis .item .tag.alt { color: var(--fg2); }
+#bis .bis-loadout, #bis .mr-loadout { border-radius: 6px; }
+#bis .lo-head { line-height: 1.6; }
+#bis .lo-head > b { font-size: 13px; }
+#bis .lo-head .n, #bis .lo-act .n { color: var(--fg2); }
+#bis .mr-text, #bis .lo-text { line-height: 1.5; }
+#bis .mrb .mt em { color: var(--fg2); }
+#bis .mrb .mt em.hero { color: var(--accent); }
+#bis .mrb .mt em.scen.st { color: var(--warn); }
+#bis .mrb .mt em.scen.aoe, #bis .mrb .mt em.scen.multi { color: var(--accent); }
+#bis .mrb .mt em.scen.cleave { color: var(--good); }
+#bis .tree-src { padding: 8px 0; border-top: 1px solid var(--line); }
+#bis .tree-grid-head { padding: 4px 0; }
+#bis .tree-canvas { border-radius: 6px; }
+#bis .tnode { color: var(--fg2); }
+#bis .tnode.on {
+  color: var(--fg);
+  background: color-mix(in srgb, var(--accent) 9%, var(--bg2));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+#bis .tnode:hover { border-color: var(--fg2); }
+#bis .tnode.on:hover { border-color: var(--accent); }
+#bis .tnode.on .r { background: var(--bg); font-weight: 600; }
+
+/* Application updater stays within the existing settings width. */
+.app-updates { padding: 12px 0; border-block: 1px solid var(--line); margin: 10px 0; }
+.app-updates .update-auto { display:flex; align-items:center; gap:6px; margin-top:10px; font-size:12px; }
+.app-updates .row-buttons { flex-wrap:wrap; }
