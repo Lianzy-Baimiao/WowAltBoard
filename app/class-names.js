@@ -9,7 +9,7 @@
  */
 window.AE_DB2_NAMES = {
   v: 1,
-  updatedAt: "2026-10-01",
+  updatedAt: "2026-10-21",
   source: 'Blizzard DB2 ChrClasses / ChrSpecialization (wago.tools, locale=zhCN)',
   cls: {
     DEATHKNIGHT: "死亡骑士",
@@ -80,7 +80,6 @@ window.AE_DB2_NAMES = {
     1467: ["湮灭", 13],
     1468: ["恩护", 13],
     1473: ["增辉", 13],
-    1478: ["冒险者", 14],
     1480: ["噬灭", 12]
   }
 };

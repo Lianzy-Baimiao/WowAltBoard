@@ -1,6 +1,6 @@
 # 魔兽多角色看板（WowAltBoard）
 
-[简体中文](README.md) | [English](README.en.md)
+[简体中文](README.md) | [English](docs/README.en.md)
 
 [![许可 MIT](https://img.shields.io/badge/许可-MIT-blue?style=flat-square)](LICENSE)
 [![赞赏 爱发电](https://img.shields.io/badge/赞赏-爱发电-946ce6?style=flat-square)](https://ifdian.net/a/lianzy)

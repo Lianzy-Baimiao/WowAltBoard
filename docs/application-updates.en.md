@@ -123,7 +123,11 @@ Component address:
 Only HTTPS and qualified redirects from GitHub Releases to their asset CDN are
 allowed. Widening the file whitelist or changing the protocol in the future must
 consider compatibility with old updaters; an incompatible manifest must never be
-silently served to old clients.
+silently served to old clients. `tools/build-release.ps1` checks every path of a
+new manifest against a frozen copy of the v1.18.0–v1.19.0 whitelist and fails the
+build on any path those clients would reject (v1.20.0/v1.20.1 shipped
+`README.en.md` at the root, and those clients reported "The update manifest is
+invalid").
 
 ## Modules and verification
 

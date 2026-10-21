@@ -156,7 +156,11 @@ if ($Only) {
 Write-Host ''
 Write-Host 'WowAltBoard reference-data update'
 Write-Host ('-' * 62)
-if (-not $bisLua) { Write-Info 'GearInsight not found under the configured wowPaths - bis/talents steps will be skipped.' }
+if (-not $bisLua) {
+    Write-Info 'GearInsight is not installed in the game AddOns folder - not an error.'
+    Write-Info 'The bis/talents steps keep the copies bundled with the release. To read another'
+    Write-Info 'AddOns folder, pass  -Lua "<AddOns>\GearInsight\core\BisData.lua"  to this .bat.'
+}
 else { Write-Info "GearInsight: $bisLua" }
 Write-Host ''
 

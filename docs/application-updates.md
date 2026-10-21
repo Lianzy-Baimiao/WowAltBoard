@@ -55,7 +55,7 @@
 组件地址：
 `https://github.com/Lianzy-Baimiao/WowAltBoard/releases/download/vX.Y.Z/update-<sha256>.zip`
 
-仅允许 HTTPS 及 GitHub Release 到其资产 CDN 的限定跳转。未来扩大文件白名单或变更协议时需考虑旧更新器的兼容性，不能把不兼容清单静默发给旧客户端。
+仅允许 HTTPS 及 GitHub Release 到其资产 CDN 的限定跳转。未来扩大文件白名单或变更协议时需考虑旧更新器的兼容性，不能把不兼容清单静默发给旧客户端。`tools/build-release.ps1` 会用冻结的 v1.18.0–v1.19.0 白名单逐条检查新清单，有旧客户端不认识的路径就直接打包失败（v1.20.0/v1.20.1 把 `README.en.md` 放在根目录，导致这些客户端报「更新清单不合法」）。
 
 ## 模块与验证
 

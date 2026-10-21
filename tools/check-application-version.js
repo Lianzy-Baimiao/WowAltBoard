@@ -39,7 +39,9 @@ if (process.platform === 'win32') {
       'tools/desktop/Microsoft.Web.WebView2.Core.dll', 'tools/desktop/Microsoft.Web.WebView2.WinForms.dll',
       'tools/desktop/x64/WebView2Loader.dll', 'tools/desktop/x86/WebView2Loader.dll',
       'tools/desktop/WebView2-LICENSE.txt', 'tools/desktop/WebView2-NOTICE.txt']) put(name, 'fixture');
-    put('app/version.js', code); fs.mkdirSync(path.join(dir, 'docs'));
+    // The root README.en.md above is a stale v1.20.0/v1.20.1 copy: it must not ship, because the
+    // v1.18.0-v1.19.0 updaters reject the whole manifest over it. The English README is docs/README.en.md.
+    put('app/version.js', code); put('docs/README.en.md', 'fixture');
     put('tools/build-release.ps1', fs.readFileSync(path.join(root, 'tools/build-release.ps1')));
     const compiler = path.join(process.env.WINDIR, 'Microsoft.NET/Framework64/v4.0.30319/csc.exe');
     run(compiler, ['/nologo', '/target:winexe', '/out:' + path.join(dir, 'tools/desktop/WowAltBoard.Updater.exe'),
@@ -51,8 +53,9 @@ if (process.platform === 'win32') {
     const entries = manifest.parts.flatMap(p => p.files), stamped = oldIndex.replace('1.17.3', '9.8.7');
     assert.equal(entries.find(e => e.path === 'index.html').sha256, crypto.createHash('sha256').update(stamped).digest('hex'));
     assert.ok(entries.some(e => e.path === 'app/version.js'));
-    assert.ok(entries.some(e => e.path === 'README.en.md') && entries.some(e => e.path === 'app/i18n.js') && entries.some(e => e.path === 'app/i18n-en.js'),
+    assert.ok(entries.some(e => e.path === 'docs/README.en.md') && entries.some(e => e.path === 'app/i18n.js') && entries.some(e => e.path === 'app/i18n-en.js'),
       'English readme and i18n catalog ship in the incremental manifest');
+    assert.ok(!entries.some(e => e.path === 'README.en.md'), 'root README.en.md must not reach the manifest old updaters parse');
     assert.equal(fs.readFileSync(path.join(dir, 'index.html'), 'utf8'), oldIndex, 'stamp release copy, not source or character data');
     const zip = path.join(dir, 'WowAltBoard-v9.8.7.zip').replace(/'/g, "''");
     const actualIndex = run('powershell', ['-NoProfile', '-Command', "$ErrorActionPreference='Stop'; Add-Type -AssemblyName System.IO.Compression.FileSystem; $z=[IO.Compression.ZipFile]::OpenRead('" + zip + "'); try { $entry=@($z.Entries | Where-Object { $_.FullName.Replace([char]92,[char]47) -eq 'WowAltBoard/index.html' })[0]; $r=[IO.StreamReader]::new($entry.Open()); try { [Console]::Write($r.ReadToEnd()) } finally { $r.Dispose() } } finally { $z.Dispose() }"]);

@@ -47,6 +47,9 @@
  *   node tools\fetch-class-names.js --refresh   # 强制重下
  *   node tools\fetch-class-names.js --offline   # 只用缓存
  *   node tools\fetch-class-names.js --proxy http://127.0.0.1:7897
+ *
+ *   --raw-dir <目录> / --out <文件> 只给 tools/check-class-names.js 用：
+ *   拿一份假的 DB2 跑一遍，不碰真缓存，也不碰 app/class-names.js。
  */
 'use strict';
 
@@ -55,15 +58,15 @@ var path = require('path');
 var https = require('https');
 var http = require('http');
 
-var ROOT = path.resolve(__dirname, '..');
-var RAW_DIR = path.join(__dirname, '.db2-names');
-var OUT_JS = path.join(ROOT, 'app', 'class-names.js');
-var LABELS = path.join(ROOT, 'app', 'labels.js');
-var TREE_JS = path.join(ROOT, 'app', 'talent-tree.js');
-
 var argv = process.argv.slice(2);
 function flag(n) { return argv.indexOf(n) >= 0; }
 function opt(n, d) { var i = argv.indexOf(n); return i >= 0 ? argv[i + 1] : d; }
+
+var ROOT = path.resolve(__dirname, '..');
+var RAW_DIR = path.resolve(opt('--raw-dir', path.join(__dirname, '.db2-names')));
+var OUT_JS = path.resolve(opt('--out', path.join(ROOT, 'app', 'class-names.js')));
+var LABELS = path.join(ROOT, 'app', 'labels.js');
+var TREE_JS = path.join(ROOT, 'app', 'talent-tree.js');
 
 var PROXY = opt('--proxy', '');
 var REFRESH = flag('--refresh');
@@ -212,49 +215,61 @@ function build() {
     var file = String(r.Filename || '').trim().toUpperCase();
     if (!id || !zh || !file) return;
     // ChrClasses 里有「冒险者」/「旅行者」这种非玩家职业（ID 14/15），
-    // 它们没有专精，下面按「有专精的职业」过滤，不在这里凭名字判断。
+    // 下面按「有带精通的专精」过滤，不在这里凭名字判断。
     byId[id] = { file: file, zh: zh };
     byFile[file] = zh;
   });
 
   // ---- 专精：ID → {classId, zh}
-  var specOut = {}, specCount = {}, dropped = 0;
+  if (specs.length && !('MasterySpellID_0' in specs[0])) {
+    throw new Error('ChrSpecialization.csv 没有 MasterySpellID_0 列 —— DB2 结构变了，先看清楚再生成');
+  }
+  var specAll = {}, masteryCount = {}, dropped = 0;
   specs.forEach(function (r) {
     var id = Number(r.ID);
     var cid = Number(r.ClassID);
     var zh = String(r.Name_lang || '').trim();
     if (!id || !zh) return;
     if (!cid) { dropped++; return; }   // ClassID 0 = 宠物/非玩家专精
-    specOut[id] = { c: cid, zh: zh };
-    specCount[cid] = (specCount[cid] || 0) + 1;
+    specAll[id] = { c: cid, zh: zh };
+    if (Number(r.MasterySpellID_0) > 0) masteryCount[cid] = (masteryCount[cid] || 0) + 1;
   });
 
-  // 「玩家职业」得有个可测的定义，不能靠名字猜（也不能用「有专精」——
-  // ChrClasses 里 ID 14「冒险者」有一个专精 1478，实测会混进来）。
+  // 「玩家职业」得有个可测的定义，不能靠名字猜，也不能靠专精数 ——
+  // ID 14「冒险者」有 1 个专精，ID 15「旅行者」实测有 4 个（「初始」+ 三个
+  // 名字还没本地化的 Witch / Slayer / Inquisitor），原来的「专精数 >= 3」被它骗过。
   // 用两条**互相独立**的定义，并要求它们给出同一个集合：
-  //   ① 专精数 >= 3。实测 13 个真职业各有 4~5 个（含一个「初始」起始专精），
-  //      冒险者只有 1 个。
+  //   ① 至少 2 个专精带精通法术（MasterySpellID_0 > 0）。实测 13 个真职业各 3~4 个
+  //      （「初始」起始专精没有精通），冒险者 / 旅行者的专精一个都没有。
   //   ② app/talent-tree.js 那 40 个专精所跨的职业。
-  // 单用①会依赖「专精数」这个数字，单用②会依赖树数据存在；两条对上才生成。
+  // 单用①会依赖 DB2 的精通列，单用②会依赖树数据存在；两条对上才生成。
   var clsById = {};
   Object.keys(byId).forEach(function (id) {
-    if ((specCount[id] || 0) >= 3) clsById[id] = 1;
+    if ((masteryCount[id] || 0) >= 2) clsById[id] = 1;
+  });
+  // 只留玩家职业的专精：旅行者那几个专精的名字是英文占位，留着会让下面的
+  // 「每个名字都得是中文」误报，而且没有任何角色会带着这些 specID。
+  var specOut = {}, droppedNpc = 0;
+  Object.keys(specAll).forEach(function (id) {
+    if (clsById[specAll[id].c]) specOut[id] = specAll[id];
+    else droppedNpc++;
   });
   var treeSpecs = specIdsFromTree();
   if (treeSpecs) {
     var byTree = {};
+    // 查 specAll 而不是 specOut：specOut 已经按①过滤过，用它②就不独立了。
     treeSpecs.forEach(function (sid) {
-      if (specOut[sid]) byTree[specOut[sid].c] = 1;
+      if (specAll[sid]) byTree[specAll[sid].c] = 1;
     });
     var onlyA = Object.keys(clsById).filter(function (k) { return !byTree[k]; });
     var onlyB = Object.keys(byTree).filter(function (k) { return !clsById[k]; });
     if (onlyA.length || onlyB.length) {
-      throw new Error('两条「玩家职业」定义不一致：只满足「专精>=3」的 '
+      throw new Error('两条「玩家职业」定义不一致：只满足「带精通的专精>=2」的 '
         + (onlyA.map(function (k) { return byId[k] ? byId[k].file : k; }).join('、') || '无')
         + '，只被天赋树覆盖的 '
         + (onlyB.map(function (k) { return byId[k] ? byId[k].file : k; }).join('、') || '无'));
     }
-    console.log('职业集合：两条独立定义（专精数>=3 / 天赋树覆盖）给出同一个 '
+    console.log('职业集合：两条独立定义（带精通的专精>=2 / 天赋树覆盖）给出同一个 '
       + Object.keys(byTree).length + ' 职业集合');
   }
   var clsOut = {};
@@ -302,7 +317,7 @@ function build() {
     console.log('（没有 app/talent-tree.js，跳过覆盖校验）');
   }
 
-  return { cls: clsOut, spec: specOut, dropped: dropped };
+  return { cls: clsOut, spec: specOut, dropped: dropped, droppedNpc: droppedNpc };
 }
 
 function write(data) {
@@ -338,9 +353,12 @@ function write(data) {
   lines.push('');
   var out = lines.join('\n');
   fs.writeFileSync(OUT_JS, out, 'utf8');
-  console.log('写出 app/class-names.js　' + (Buffer.byteLength(out, 'utf8') / 1024).toFixed(1)
+  var shown = path.relative(ROOT, OUT_JS);
+  if (/^\.\./.test(shown) || path.isAbsolute(shown)) shown = OUT_JS;
+  console.log('写出 ' + shown.replace(/\\/g, '/') + '　' + (Buffer.byteLength(out, 'utf8') / 1024).toFixed(1)
     + ' KB　职业 ' + ck.length + '　专精 ' + sk.length
-    + '（另有 ' + data.dropped + ' 个 ClassID=0 的非玩家专精被丢掉）');
+    + '（另有 ' + data.dropped + ' 个 ClassID=0 的宠物专精、'
+    + data.droppedNpc + ' 个非玩家职业的专精被丢掉）');
 }
 
 ensureSources(function (err) {

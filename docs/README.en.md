@@ -1,8 +1,8 @@
 # WoW Alt Board (WowAltBoard)
 
-[简体中文](README.md) | **English**
+[简体中文](../README.md) | **English**
 
-[![License MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
+[![License MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](../LICENSE)
 [![Donate Afdian](https://img.shields.io/badge/donate-Afdian-946ce6?style=flat-square)](https://ifdian.net/a/lianzy)
 
 Turns the data saved by an in-game addon into a local web page: mythic+,
@@ -10,7 +10,7 @@ the Great Vault, delves, treasure maps, raids, crests, prey, gear, gold and
 professions for **every character on every Battle.net account**, side by side in
 one table. Screenshots use anonymized sample data.
 
-![Main board](docs/images/dashboard.png)
+![Main board](images/dashboard.png)
 
 ## Download and install
 
@@ -41,7 +41,7 @@ application files; keep the existing `data/` and `tools/config.json` instead of
 overwriting them with the empty config from the package. After that, use the
 built-in updater and there is no need to download the `update-*.zip` component
 packages by hand. Maintainers must upload the manifest and component packages
-with each Release; see [application updates and release notes](docs/application-updates.en.md).
+with each Release; see [application updates and release notes](application-updates.en.md).
 
 ## Quick start
 
@@ -63,7 +63,7 @@ edit `includeFlavors` in `tools/config.json`.
 * **Export**: Excel / CSV / print to PDF; the export matches exactly the columns and rows on screen
 * **Runs locally**: copy the whole folder to a USB drive or another PC and it still works; reference data is readable offline; the optional updater only contacts the official release source
 
-![Best gear and talents](docs/images/bis-talents.png)
+![Best gear and talents](images/bis-talents.png)
 
 In the talent panel, click "Copy" to get the official import string, then press
 `N` in game → "Import/Export" at the lower right → "Import" and paste it.

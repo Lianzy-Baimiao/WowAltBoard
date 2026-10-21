@@ -12,7 +12,7 @@
 
 ### 文档与发布
 
-- 新增英文 README（[README.en.md](../README.en.md)），中英文顶部都有切换链接；新增英文版应用更新说明（[docs/application-updates.en.md](application-updates.en.md)）。
+- 新增英文 README（[README.en.md](README.en.md)），中英文顶部都有切换链接；新增英文版应用更新说明（[docs/application-updates.en.md](application-updates.en.md)）。
 - 发布包同时包含 `README.md` 和 `README.en.md`；应用更新清单也覆盖这两个文件，更新后不会丢。
 - `data/说明.txt` 改为中英双语。
 
@@ -42,7 +42,7 @@
 
 ### Documentation and packaging
 
-- Added an English README ([README.en.md](../README.en.md)) with a language switcher at the top of both versions, plus an English application-updates guide ([docs/application-updates.en.md](application-updates.en.md)).
+- Added an English README ([README.en.md](README.en.md)) with a language switcher at the top of both versions, plus an English application-updates guide ([docs/application-updates.en.md](application-updates.en.md)).
 - Releases now include both `README.md` and `README.en.md`; the application update manifest covers both, so updates keep them in sync.
 - `data/说明.txt` is now bilingual.
 

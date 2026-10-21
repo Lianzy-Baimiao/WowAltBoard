@@ -71,8 +71,11 @@ function Assert-StagePath([string]$path) {
 }
 Assert-StagePath $pkgDir
 
+# The English README lives in docs\ and ships with that folder. A root-level
+# README.en.md is rejected by the v1.18.0-v1.19.0 updaters - see the legacy
+# whitelist guard after the manifest is generated.
 $include = @(
-    'index.html', 'tests.html', 'README.md', 'README.en.md', 'LICENSE',
+    'index.html', 'tests.html', 'README.md', 'LICENSE',
     '启动.bat', '更新数据.bat', $exe.Name
 )
 foreach ($f in $include) {
@@ -118,6 +121,7 @@ $dropFromPkg = @(
     'tools\check-window-state.js', # native geometry lifecycle and tray ownership regression
     'tools\check-talent-integrity.js', # independent talent input/consumer regressions
     'tools\check-talent-update.js', # isolated publication/update regressions
+    'tools\check-class-names.js', # fake-DB2 regression for the playable-class rule
     'tools\check-talent-browser.cjs', # optional Playwright browser regression
     'tools\check-bis-visual.cjs', # optional fixed-width visual regression
     'tools\check-bis-tabs.cjs', # optional shared tab skin/selection browser regression
@@ -198,6 +202,22 @@ foreach ($file in Get-ChildItem -LiteralPath $pkgDir -Recurse -File) {
     $relative = $file.FullName.Substring($pkgDir.Length + 1).Replace('\', '/')
     if ($relative -in @('app-release.json', 'tools/config.json', 'data/说明.txt')) { continue }
     if (!$managed.Contains($relative)) { throw "Release file missing from incremental manifest: $relative" }
+}
+
+# Installed v1.18.0-v1.19.0 clients parse the new app-release.json with THEIR
+# OWN whitelist, and one unknown path makes the whole manifest MANIFEST_INVALID.
+# v1.20.0/v1.20.1 shipped README.en.md at the root and broke in-app updates for
+# every one of those clients. This is a frozen copy of their AppUpdates.Allowed
+# in tools\app-updates.cs, identical in v1.18.0, v1.18.1 and v1.19.0. Never widen
+# it to make a build pass: put new files under a folder it already accepts, or
+# raise the manifest protocol so old clients report APP_UPDATE_REQUIRED instead.
+$legacyRoots = @('index.html', 'tests.html', 'README.md', 'LICENSE', '启动.bat', '更新数据.bat', '魔兽看板.exe')
+$legacyPattern = '^(app/[a-zA-Z0-9_-]+\.(js|css|svg)|app/(icons|talent-icons)/[a-z0-9_-]+\.jpg|docs/[a-zA-Z0-9_.-]+\.md|docs/images/[a-zA-Z0-9_-]+\.(png|jpg|svg)|tools/[a-zA-Z0-9_-]+\.(js|ps1|cs)|tools/(spell-names-zh|talent-truth)\.json|tools/desktop/[a-zA-Z0-9_.-]+\.(exe|dll|txt)|tools/desktop/(x86|x64|arm64)/WebView2Loader\.dll)$'
+foreach ($entryPath in $managed) {
+    # Case-sensitive on purpose: C# string equality and Regex.IsMatch are.
+    $legacyOk = ($entryPath -and $entryPath.Length -le 180 -and !$entryPath.Contains('..') -and !$entryPath.Contains(':') -and
+        !$entryPath.Contains('\') -and (($legacyRoots -ccontains $entryPath) -or ($entryPath -cmatch $legacyPattern)))
+    if (!$legacyOk) { throw "Manifest path rejected by the v1.18.0-v1.19.0 updaters: $entryPath" }
 }
 
 $releaseName = "WowAltBoard-v$version"
