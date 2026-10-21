@@ -14,6 +14,10 @@
   var AE = global.AE = global.AE || {};
   var doc = global.document;
 
+  function tr(s, ctx) { return AE.t ? AE.t(s, ctx) : s; }
+  function tn(s, vars) { return AE.tn ? AE.tn(s, vars) : s; }
+  function ts(s) { return AE.ts ? AE.ts(s) : s; }
+
   function host() {
     var h = doc.getElementById('toasts');
     if (!h) {
@@ -27,7 +31,9 @@
   function el(tag, cls, text) {
     var n = doc.createElement(tag);
     if (cls) n.className = cls;
-    if (text != null) n.textContent = text;
+    // ts, not t: toast bodies can carry character/filename data. Only exact
+    // UI phrases in the catalog are replaced; everything else passes through.
+    if (text != null) n.textContent = ts(text);
     return n;
   }
 
@@ -95,7 +101,10 @@
   /** Copy text, with a toast either way. */
   AE.copyWithToast = function (text, label) {
     function ok() {
-      AE.toast({ title: '已复制' + (label ? '：' + label : ''), kind: 'good', ms: 2000 });
+      AE.toast({
+        title: label ? tn('已复制：{label}', { label: ts(label) }) : tr('已复制'),
+        kind: 'good', ms: 2000
+      });
     }
     function fail() {
       AE.toast({ title: '复制失败', body: '可以手动选中文本后按 Ctrl+C。', kind: 'bad', ms: 4000 });

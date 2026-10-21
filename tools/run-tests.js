@@ -47,6 +47,10 @@ var env = stub.makeEnv(['bis', 'bis-sub', 'bis-body']);
 var g = env.g;
 var doc = env.doc;
 
+// 现有断言全部按中文写。Node 24 自带 navigator，系统语言不是 zh 时会让
+// i18n 解析成英文；force 钩子把语言钉死，和系统/浏览器设置无关。
+g.__AE_FORCE_LANG = 'zh';
+
 function load(f) {
   var p = path.join(ROOT, f);
   if (!fs.existsSync(p)) return false;
@@ -58,7 +62,8 @@ function load(f) {
 // class-names.js 必须在 labels.js 前面：labels.js 的 classLabel / specLabel
 // 读 window.AE_DB2_NAMES。缺了它会静默退回旧的兜底表（4 个职业显英文、
 // 死骑冰霜显 FROST），测试照样全绿 —— 所以它是硬依赖，不是可选项。
-['app/class-names.js', 'app/lua-parser.js', 'app/parser-tests.js', 'app/labels.js',
+['app/i18n.js', 'app/i18n-en.js',
+ 'app/class-names.js', 'app/lua-parser.js', 'app/parser-tests.js', 'app/labels.js',
  'app/model.js',
  'app/settings.js', 'app/columns.js', 'app/layouts.js', 'app/model-tests.js',
  'app/export.js', 'app/talent-decode.js',

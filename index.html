@@ -18,8 +18,8 @@
   ============================================================================
 -->
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta id="application-version" name="application-version" content="1.19.0">
-<title>魔兽多角色看板</title>
+<meta id="application-version" name="application-version" content="1.20.0">
+<title>WowAltBoard</title>
 <!-- Chromium uses the page favicon as the --app= window's own icon, which is
      what the taskbar button and the title bar show. Without one, that window
      falls back to a generic browser icon. -->
@@ -224,6 +224,10 @@ window.__AE_PROBE.storage = (function () {
 
 <!-- Application, in dependency order. Classic scripts only. -->
 <script src="app/version.js" charset="utf-8"></script>
+<!-- 界面语言：引擎先加载，英文目录随后；两者都在任何渲染发生之前。
+     目录文件只赋值 window.AE_I18N_EN，不依赖加载顺序以外的约定。 -->
+<script src="app/i18n.js" charset="utf-8"></script>
+<script src="app/i18n-en.js" charset="utf-8"></script>
 <script src="app/lua-parser.js" charset="utf-8"></script>
 <script src="app/toast.js" charset="utf-8"></script>
 <script src="app/tip.js" charset="utf-8"></script>

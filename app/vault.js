@@ -32,10 +32,15 @@
   var loaded = false;
   var loading = false;
 
+  function tr(s, ctx) { return AE.t ? AE.t(s, ctx) : s; }
+  function tn(s, vars) { return AE.tn ? AE.tn(s, vars) : s; }
+  function ts(s) { return AE.ts ? AE.ts(s) : s; }
+  function locale() { return AE.i18n ? AE.i18n.locale() : undefined; }
+
   function el(tag, cls, text) {
     var n = doc.createElement(tag);
     if (cls) n.className = cls;
-    if (text != null) n.textContent = text;
+    if (text != null) n.textContent = ts(text);
     return n;
   }
 
@@ -84,7 +89,7 @@
         if (!value) return;
         out.push({
           name: typeof e.name === 'string' && e.name ? e.name : '(未命名)',
-          bucket: bucket === 'exports' ? '导出' : '自动备份',
+          bucket: tr(bucket === 'exports' ? '导出' : '自动备份'),
           value: value,
           time: typeof e.time === 'number' ? e.time : null
         });
@@ -101,7 +106,7 @@
     AE.copyWithToast(text, null);
     if (!feedbackNode) return;
     var was = feedbackNode.textContent;
-    feedbackNode.textContent = '已复制';
+    feedbackNode.textContent = tr('已复制');
     feedbackNode.classList.add('ok');
     setTimeout(function () {
       feedbackNode.textContent = was;
@@ -139,7 +144,7 @@
     }));
     if (opts.onDelete) {
       bar.appendChild(button('删除', 'mini danger', function () {
-        if (global.confirm('删除「' + opts.title + '」？')) opts.onDelete();
+        if (global.confirm(tn('删除「{name}」？', { name: opts.title }))) opts.onDelete();
       }));
     }
     bar.appendChild(status);
@@ -164,24 +169,24 @@
     // ---- custom entries first: this is the part the user controls ---------
     var custom = el('details', 'sec');
     custom.open = true;
-    custom.appendChild(el('summary', null, '自定义（' + s.vaultEntries.length + '）'));
+    custom.appendChild(el('summary', null,
+      tn('自定义（{n}）', { n: s.vaultEntries.length })));
     custom.appendChild(el('p', 'note',
-      '任何插件的导入/导出串都可以贴在这里，名称和内容都能改。' +
-      '内容跟设置一起保存，用「保存设置到文件」可以带走。'));
+      '任何插件的导入/导出串都可以贴在这里，名称和内容都能改。内容跟设置一起保存，用「保存设置到文件」可以带走。'));
 
     var addWrap = el('div', 'vault-add');
     var nameIn = el('input');
     nameIn.type = 'text';
-    nameIn.placeholder = '名称，例如「WA-坦克套装」';
+    nameIn.placeholder = tr('名称，例如「WA-坦克套装」');
     var textIn = el('textarea');
-    textIn.placeholder = '把导出串粘贴到这里';
+    textIn.placeholder = tr('把导出串粘贴到这里');
     textIn.spellcheck = false;
     addWrap.appendChild(nameIn);
     addWrap.appendChild(textIn);
     addWrap.appendChild(button('添加', null, function () {
       var name = nameIn.value.trim();
       var text = textIn.value;
-      if (!name || !text) { global.alert('名称和内容都要填。'); return; }
+      if (!name || !text) { global.alert(tr('名称和内容都要填。')); return; }
       s.vaultEntries.push({ name: name, content: text, savedAt: Math.floor(Date.now() / 1000) });
       AE.saveSettings(s);
       render(null);
@@ -191,7 +196,7 @@
     s.vaultEntries.forEach(function (e, i) {
       custom.appendChild(entryRow({
         title: e.name,
-        sub: e.savedAt ? new Date(e.savedAt * 1000).toLocaleString() : '',
+        sub: e.savedAt ? new Date(e.savedAt * 1000).toLocaleString(locale()) : '',
         text: e.content,
         editable: true,
         filename: safeFileName(e.name) + '.txt',
@@ -215,8 +220,7 @@
 
     if (!payloads.length && !idx.length) {
       body.appendChild(el('p', 'note',
-        '没有从游戏目录收集到备份。目前会自动读取 MySlot 的导出串和编辑模式缓存；' +
-        '在 tools/config.json 里把 collectBackups 设为 false 可以关掉。'));
+        '没有从游戏目录收集到备份。目前会自动读取 MySlot 的导出串和编辑模式缓存；在 tools/config.json 里把 collectBackups 设为 false 可以关掉。'));
       return;
     }
 
@@ -229,7 +233,7 @@
     });
     var myTotal = 0;
     mySections.forEach(function (m) { myTotal += m.entries.length; });
-    myslot.appendChild(el('summary', null, 'MySlot 动作条配置（' + myTotal + '）'));
+    myslot.appendChild(el('summary', null, tn('MySlot 动作条配置（{n}）', { n: myTotal })));
     myslot.appendChild(el('p', 'note',
       '这些是可以直接粘贴回游戏 MySlot 窗口的导入串，从 SavedVariables 里读出来的，不用开游戏。'));
     mySections.forEach(function (m) {
@@ -254,8 +258,7 @@
     var editMode = el('details', 'sec');
     editMode.appendChild(el('summary', null, '编辑模式布局缓存'));
     editMode.appendChild(el('p', 'note',
-      '⚠ 这不是能粘贴的导入串。它是暴雪自己的缓存格式，只能整份存下来、' +
-      '将来把文件放回原路径来恢复。文件路径见下面每一项。'));
+      '⚠ 这不是能粘贴的导入串。它是暴雪自己的缓存格式，只能整份存下来、将来把文件放回原路径来恢复。文件路径见下面每一项。'));
     var anyEm = false;
     payloads.filter(function (p) { return p.label === 'EditMode'; }).forEach(function (p) {
       anyEm = true;
@@ -286,7 +289,7 @@
         render(err);
       } catch (e) {
         body.innerHTML = '';
-        body.appendChild(el('p', 'note', '备份箱出错：' + e.message));
+        body.appendChild(el('p', 'note', tn('备份箱出错：{msg}', { msg: e.message })));
       }
     });
   };

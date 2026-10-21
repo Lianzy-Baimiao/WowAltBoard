@@ -86,6 +86,9 @@
       panelTab: 'filter',
 
       // Appearance.
+      // 'auto' follows the OS/browser language; 'zh'/'en' are explicit choices.
+      // Must stay in this table: hydrate() drops keys it does not find here.
+      uiLang: 'auto',
       theme: 'dark',
       skin: 'slate',                 // see AE.SKINS in labels.js
       fontFamily: 'system',          // see AE.FONTS
@@ -236,6 +239,9 @@
         d[k] = o[k];
       }
     });
+    // The default is a string, so hydrate's type check lets any string through.
+    // Only the three known values may reach i18n resolution.
+    if (d.uiLang !== 'zh' && d.uiLang !== 'en') d.uiLang = 'auto';
     return d;
   }
 
@@ -361,9 +367,7 @@
         warnedSaveFail = true;
         AE.toast({
           title: '设置没能保存',
-          body: '浏览器拒绝写入本地存储（被禁用，或这个站点的配额满了）。'
-            + '现在改的东西这次能用，但下一次打开会全部回到原样。\n'
-            + '想让设置跟着文件夹走：设置 → 其他 → 保存设置到文件。',
+          body: '浏览器拒绝写入本地存储（被禁用，或这个站点的配额满了）。现在改的东西这次能用，但下一次打开会全部回到原样。\n想让设置跟着文件夹走：设置 → 其他 → 保存设置到文件。',
           kind: 'bad',
           ms: 12000
         });

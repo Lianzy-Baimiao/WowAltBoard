@@ -25,6 +25,8 @@
   var AE = global.AE = global.AE || {};
   var L  = AE.Labels;
 
+  function tn(s, vars) { return AE.tn ? AE.tn(s, vars) : s; }
+
   var DAY = 86400;
   var STALE_DAYS = 14;
 
@@ -924,7 +926,7 @@
     });
 
     var short = 'S' + (display || activeSeason);
-    var label = '赛季 ' + activeSeason;
+    var label = tn('赛季 {n}', { n: activeSeason });
     if (best) label = best + '　' + short;
     else if (meta && meta.name) label = meta.name + ' ' + short;
 
@@ -1042,7 +1044,7 @@
     var cfg = linkCfg || {};
     var region = cfg.region || 'cn';
     if (L.isPseudoRealm(ch.realm) || !ch.realm || ch.realm === '?') {
-      return { rio: null, wcl: null, reason: '“' + ch.realm + '”不是真实服务器名（跨服大秘境分区），无法拼出主页链接' };
+      return { rio: null, wcl: null, reason: tn('“{realm}”不是真实服务器名（跨服大秘境分区），无法拼出主页链接', { realm: ch.realm }) };
     }
     var realm = cfg.realmForm === 'slug' ? slugify(ch.realm) : encodeURIComponent(ch.realm);
     var name = encodeURIComponent(ch.name);
@@ -1240,10 +1242,10 @@
     if (type === L.VAULT_RAID && raidString) {
       return AE.formatWowString(raidString, threshold);
     }
-    if (type === L.VAULT_MPLUS) return '完成 ' + threshold + ' 个大秘境';
-    if (type === L.VAULT_WORLD) return '完成 ' + threshold + ' 个地下堡';
+    if (type === L.VAULT_MPLUS) return tn('完成 {n} 个大秘境', { n: threshold });
+    if (type === L.VAULT_WORLD) return tn('完成 {n} 个地下堡', { n: threshold });
     if (raidString) return AE.formatWowString(raidString, threshold);
-    return '需要 ' + threshold + ' 次';
+    return tn('需要 {n} 次', { n: threshold });
   };
 
   /** Vault summary for one type: how many of the three slots are unlocked. */

@@ -173,7 +173,7 @@ internal sealed class AppUpdates
     }
     internal static bool Allowed(string path) {
         if (String.IsNullOrEmpty(path) || path.Length > 180 || path.Contains("..") || path.Contains(":") || path.Contains("\\")) return false;
-        if (new[] { "index.html", "tests.html", "README.md", "LICENSE", "启动.bat", "更新数据.bat", Launcher }.Contains(path)) return true;
+        if (new[] { "index.html", "tests.html", "README.md", "README.en.md", "LICENSE", "启动.bat", "更新数据.bat", Launcher }.Contains(path)) return true;
         return System.Text.RegularExpressions.Regex.IsMatch(path,
             @"^(app/[a-zA-Z0-9_-]+\.(js|css|svg)|app/(icons|talent-icons)/[a-z0-9_-]+\.jpg|docs/[a-zA-Z0-9_.-]+\.md|docs/images/[a-zA-Z0-9_-]+\.(png|jpg|svg)|tools/[a-zA-Z0-9_-]+\.(js|ps1|cs)|tools/(spell-names-zh|talent-truth)\.json|tools/desktop/[a-zA-Z0-9_.-]+\.(exe|dll|txt)|tools/desktop/(x86|x64|arm64)/WebView2Loader\.dll)$");
     }

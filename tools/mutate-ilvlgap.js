@@ -142,8 +142,8 @@ var MUTANTS = [
   // 提示里不写原始的两个数 —— 差值就没法独立复核了。
   // 这一条盯的是「可核对性」本身：徽章上那个数变成了无法验证的断言。
   textMutant('提示里不写「你 X　首选那件 Y」', BIS,
-    "          '你 ' + gap.mine + '　首选那件 ' + gap.want + '（' + gap.srcText + '）\\n'",
-    "          '装等差距\\n'",
+    "        gb.setAttribute('data-tip', tn('你 {mine}　首选那件 {want}（{src}）\\n{tail}', {",
+    "        gb.setAttribute('data-tip', tr('装等差距') + tn('{tail}', {",
     '差值就没法独立复核了'),
 
   // 缺一边也照算。这一条的后果比「数字错」更直接：身上没穿 / 存档没记这个部位时

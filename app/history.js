@@ -22,10 +22,14 @@
   var loading = false;
   var weeks = [];       // [{week, label, characters: {key: distilled}}]
 
+  function tr(s, ctx) { return AE.t ? AE.t(s, ctx) : s; }
+  function tn(s, vars) { return AE.tn ? AE.tn(s, vars) : s; }
+  function ts(s) { return AE.ts ? AE.ts(s) : s; }
+
   function el(tag, cls, text) {
     var n = doc.createElement(tag);
     if (cls) n.className = cls;
-    if (text != null) n.textContent = text;
+    if (text != null) n.textContent = ts(text);
     return n;
   }
 
@@ -174,19 +178,20 @@
 
     if (failedFiles && failedFiles.length) {
       body.appendChild(el('p', 'note',
-        '有 ' + failedFiles.length + ' 个快照文件读取失败：' + failedFiles.join('、')));
+        tn('有 {n} 个快照文件读取失败：{files}', {
+          n: failedFiles.length, files: failedFiles.join('、')
+        })));
     }
 
     if (!weeks.length) {
       body.appendChild(el('p', 'note',
-        '还没有历史快照。每次运行启动脚本都会按“游戏周”存一份，' +
-        '所以下一次周重置之后这里才会出现第二行数据。'));
+        '还没有历史快照。每次运行启动脚本都会按“游戏周”存一份，所以下一次周重置之后这里才会出现第二行数据。'));
       return;
     }
 
     body.appendChild(el('p', 'note',
-      '共 ' + weeks.length + ' 个游戏周的快照。按 WoW 周重置时间分桶，不是自然周。' +
-      (weeks.length === 1 ? '目前只有本周，等下周重置后就能看到变化。' : '')));
+      tn('共 {n} 个游戏周的快照。按 WoW 周重置时间分桶，不是自然周。', { n: weeks.length }) +
+      (weeks.length === 1 ? tr('目前只有本周，等下周重置后就能看到变化。') : '')));
 
     /*
      * 趋势的角色集合**跟随主表筛选**：首页不显示的角色（隐藏的账号 / 角色 /
@@ -203,8 +208,7 @@
     });
     if (!Object.keys(keys).length) {
       body.appendChild(el('p', 'note',
-        '历史快照里的角色都被主表的筛选挡掉了 —— 这里跟随主表：'
-        + '在首页生效的隐藏账号 / 角色 / 服务器、搜索词，同样作用在这里。'));
+        '历史快照里的角色都被主表的筛选挡掉了 —— 这里跟随主表：在首页生效的隐藏账号 / 角色 / 服务器、搜索词，同样作用在这里。'));
       return;
     }
     var last = weeks[weeks.length - 1];
@@ -232,7 +236,7 @@
       {
         id: 'map', label: '藏宝图', text: function (r) {
           if (!r.map) return '·';
-          return (r.map.bag ? r.map.bag + ' 张' : '0 张') + ' · ' + (r.map.used ? '已用' : '未用');
+          return tn('{n} 张', { n: r.map.bag || 0 }) + ' · ' + tr(r.map.used ? '已用' : '未用');
         }
       },
       { id: 'gold', label: '金币', get: function (r) { return Math.floor(r.money / 10000); } }
@@ -282,7 +286,7 @@
         if (!r) {
           td.className += ' empty';
           td.textContent = '·';
-          td.title = '这一周该数据源里没有这个角色';
+          td.title = tr('这一周该数据源里没有这个角色');
           tr.appendChild(td);
           return;
         }
@@ -343,7 +347,7 @@
         render(body, failed);
       } catch (e) {
         body.innerHTML = '';
-        body.appendChild(el('p', 'note', '历史数据处理失败：' + e.message));
+        body.appendChild(el('p', 'note', tn('历史数据处理失败：{msg}', { msg: e.message })));
       }
     });
   };

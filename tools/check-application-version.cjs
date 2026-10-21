@@ -40,6 +40,7 @@ const { chromium } = require('playwright');
       const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } }), errors = [];
       page.on('pageerror', e => errors.push(e.message));
       await page.route(/^https?:/, route => route.abort());
+      await page.addInitScript(() => { window.__AE_FORCE_LANG = 'zh'; });
       if (scenario.installed) await page.addInitScript(installed => {
         window.AE_APP_UPDATE_BOOT = { protocol: 1, phase: 'idle', currentVersion: installed, automatic: false };
         window.requests = []; window.receivers = [];

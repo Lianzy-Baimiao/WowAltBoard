@@ -36,10 +36,15 @@
 
   // ------------------------------------------------------------------ helpers
 
+  function tr(s, ctx) { return AE.t ? AE.t(s, ctx) : s; }
+  function tn(s, vars) { return AE.tn ? AE.tn(s, vars) : s; }
+  function ts(s) { return AE.ts ? AE.ts(s) : s; }
+  function locale() { return AE.i18n ? AE.i18n.locale() : undefined; }
+
   function el(tag, cls, text) {
     var n = document.createElement(tag);
     if (cls) n.className = cls;
-    if (text != null) n.textContent = text;
+    if (text != null) n.textContent = ts(text);
     return n;
   }
 
@@ -54,11 +59,11 @@
 
   function relDays(days) {
     if (days == null) return '';
-    if (days <= 0) return '今天';
-    if (days === 1) return '昨天';
-    if (days < 30) return days + ' 天前';
-    if (days < 365) return Math.floor(days / 30) + ' 个月前';
-    return Math.floor(days / 365) + ' 年前';
+    if (days <= 0) return tr('今天');
+    if (days === 1) return tr('昨天');
+    if (days < 30) return tn('{n} 天前', { n: days });
+    if (days < 365) return tn('{n} 个月前', { n: Math.floor(days / 30) });
+    return tn('{n} 年前', { n: Math.floor(days / 365) });
   }
 
   AE.fmt = { group3: group3, relDays: relDays };
@@ -98,7 +103,9 @@
           td.appendChild(wrap);
           if (ch.seasonMismatch) {
             var b = el('span', 'badge warn', '旧赛季');
-            b.title = '该角色的数据来自赛季 ' + ch.season + '，当前赛季是 ' + ctx.model.activeSeason;
+            b.title = tn('该角色的数据来自赛季 {season}，当前赛季是 {active}', {
+              season: ch.season, active: ctx.model.activeSeason
+            });
             td.appendChild(b);
           }
           td.title = ch.name + ' - ' + ch.realm + '\n' + ch.className + ' / ' + ch.raceName;
@@ -115,7 +122,7 @@
         render: function (td, ch, ctx) {
           var alias = ctx.settings.sourceAliases[ch.sourceId];
           td.textContent = alias || ch.sourceName;
-          td.title = '战网账号文件夹: ' + ch.sourceId;
+          td.title = tn('战网账号文件夹: {id}', { id: ch.sourceId });
         }
       },
       {
@@ -141,11 +148,13 @@
           if (ch.ilvl.suspect) {
             td.appendChild(el('span', 'hint', '?'));
             // level counts all slots; equipped counts empty slots as 0.
-            td.title = '平均装等 ' + ch.ilvl.level.toFixed(1) +
-                       '，已装备 ' + ch.ilvl.equipped.toFixed(1) +
-                       '\n两者差异较大，通常是有空的装备栏位';
+            td.title = tn('平均装等 {level}，已装备 {equipped}\n两者差异较大，通常是有空的装备栏位', {
+              level: ch.ilvl.level.toFixed(1), equipped: ch.ilvl.equipped.toFixed(1)
+            });
           } else {
-            td.title = '平均 ' + ch.ilvl.level.toFixed(1) + ' / PvP ' + ch.ilvl.pvp.toFixed(1);
+            td.title = tn('平均 {level} / PvP {pvp}', {
+              level: ch.ilvl.level.toFixed(1), pvp: ch.ilvl.pvp.toFixed(1)
+            });
           }
         }
       },
@@ -155,7 +164,7 @@
         render: function (td, ch) {
           if (!ch.guildName) return dash(td);
           td.textContent = ch.guildName;
-          if (ch.guildRank) td.title = '职位: ' + ch.guildRank;
+          if (ch.guildRank) td.title = tn('职位: {rank}', { rank: ch.guildRank });
         }
       },
       {
@@ -180,11 +189,12 @@
         },
         render: function (td, ch) {
           if (!ch.armorType) return dash(td);
-          td.textContent = ch.armorType;
+          td.textContent = tr(ch.armorType);
           td.className += ' armor-' + L.armorOrder.indexOf(ch.armorType);
-          td.title = ch.className + ' 穿' + ch.armorType +
-            (ch.armorFromGear && ch.armorFromGear !== ch.armorType
-              ? '\n（身上装备以 ' + ch.armorFromGear + ' 为主，可能穿混了）'
+          td.title = tn('{class} 穿 {armor}', {
+            class: ch.className, armor: tr(ch.armorType)
+          }) + (ch.armorFromGear && ch.armorFromGear !== ch.armorType
+              ? tn('\n（身上装备以 {armor} 为主，可能穿混了）', { armor: tr(ch.armorFromGear) })
               : '');
         }
       },
@@ -195,7 +205,7 @@
           if (!ch.lastUpdate) return dash(td);
           td.textContent = relDays(ch.lastUpdateDays);
           if (ch.lastUpdateDays > 14) td.className += ' stale';
-          td.title = new Date(ch.lastUpdate * 1000).toLocaleString();
+          td.title = new Date(ch.lastUpdate * 1000).toLocaleString(locale());
         }
       }
     ];
@@ -221,7 +231,7 @@
         render: function (td, ch) {
           if (!ch.mp.bestSeasonScore) return dash(td);
           td.textContent = ch.mp.bestSeasonScore;
-          if (ch.mp.bestSeasonNumber) td.title = '来自第 ' + ch.mp.bestSeasonNumber + ' 赛季';
+          if (ch.mp.bestSeasonNumber) td.title = tn('来自第 {n} 赛季', { n: ch.mp.bestSeasonNumber });
         }
       },
       {
@@ -229,7 +239,7 @@
         sort: function (ch) { return ch.mp.keystone ? ch.mp.keystone.level : -1; },
         render: function (td, ch, ctx) {
           var ks = ch.mp.keystone;
-          if (!ks) { dash(td); td.title = '本周尚未获得钥石，或已过周重置'; return; }
+          if (!ks) { dash(td); td.title = tr('本周尚未获得钥石，或已过周重置'); return; }
           var meta = ctx.model.tables.dungeonById[ks.cmID];
           var lv = el('b', null, '+' + ks.level);
           if (ks.color && /^[0-9a-f]{8}$/i.test(ks.color)) lv.style.color = '#' + ks.color.slice(2);
@@ -252,7 +262,7 @@
           var r = ch.mp.runsThisWeek;
           if (!r.total) {
             dash(td);
-            td.title = '本周未登录该角色，或已过周重置';
+            td.title = tr('本周未登录该角色，或已过周重置');
             return;
           }
           // Only the Mythic+ count: 史诗 / 英雄 are the non-keystone difficulties,
@@ -261,8 +271,9 @@
           // Both still live in the tooltip.
           td.textContent = String(r.mythicPlus);
           if (!r.mythicPlus) td.className += ' empty';
-          td.title = '大秘境 ' + r.mythicPlus + '，史诗 ' + r.mythic + '，英雄 ' + r.heroic +
-                     '\n合计 ' + r.total + ' 本';
+          td.title = tn('大秘境 {m}，史诗 {my}，英雄 {h}\n合计 {total} 本', {
+            m: r.mythicPlus, my: r.mythic, h: r.heroic, total: r.total
+          });
         }
       }
     ];
@@ -300,12 +311,18 @@
             td.className += ' overtime';
             lv.textContent = d.level + '−';
           }
-          var bits = ['等级 ' + d.level, '分数 ' + d.rating, d.timed ? '限时内完成' : '超时'];
+          var bits = [
+            tn('等级 {n}', { n: d.level }),
+            tn('分数 {n}', { n: d.rating }),
+            tr(d.timed ? '限时内完成' : '超时')
+          ];
           var best = d.bestTimedRun || d.bestNotTimedRun;
           if (best) {
             if (best.durationSec) {
-              bits.push('用时 ' + Math.floor(best.durationSec / 60) + ':' +
-                        String(best.durationSec % 60).padStart(2, '0'));
+              bits.push(tn('用时 {time}', {
+                time: Math.floor(best.durationSec / 60) + ':' +
+                      String(best.durationSec % 60).padStart(2, '0')
+              }));
             }
             var cd = best.completionDate;
             if (cd && cd.year) bits.push(cd.year + '-' + cd.month + '-' + cd.monthDay);
@@ -334,7 +351,7 @@
         },
         render: function (td, ch, ctx) {
           var s = AE.vaultSummary(ch, type);
-          if (!s) { dash(td); td.title = '本周未登录该角色，或已过周重置'; return; }
+          if (!s) { dash(td); td.title = tr('本周未登录该角色，或已过周重置'); return; }
 
           // A segmented bar reads as a progress indicator at a glance and scales
           // with the cell, unlike the fixed-size dots it replaces.
@@ -354,16 +371,21 @@
             }
             bar.appendChild(seg);
 
-            var line = '第 ' + slot.index + ' 档　' + slot.progress + ' / ' + slot.threshold;
+            var line = tn('第 {n} 档　{done} / {total}', {
+              n: slot.index, done: slot.progress, total: slot.threshold
+            });
             if (slot.unlocked) {
-              line += '　已解锁';
+              line += tr('　已解锁');
               if (type === L.VAULT_MPLUS && slot.level) {
                 var ilvl = AE.vaultItemLevel(ctx.model, slot.level);
-                line += '　钥石 +' + slot.level + (ilvl ? ' → ' + ilvl + ' 装等' : '');
+                line += tn('　钥石 +{key}', { key: slot.level }) +
+                        (ilvl ? tn(' → {ilvl} 装等', { ilvl: ilvl }) : '');
               } else if (type === L.VAULT_RAID && slot.level) {
-                line += '　' + (L.raidDifficultyZh[slot.level] || ('难度 ' + slot.level));
+                line += '　' + (L.raidDifficultyZh[slot.level]
+                  ? tr(L.raidDifficultyZh[slot.level])
+                  : tn('难度 {n}', { n: slot.level }));
               } else if (type === L.VAULT_WORLD && slot.level) {
-                line += '　' + slot.level + ' 层';
+                line += tn('　{n} 层', { n: slot.level });
               }
               // exampleRewardLink is deliberately not shown anywhere. The game
               // returns one sample per activity type (all three raid rows carry
@@ -376,7 +398,7 @@
               // 就成了「一共要 11 个」。app/panel.js 那处用同一个函数但不加
               // 「还需」二字，所以它读起来是对的，错的只是这里的措辞。
               var left = Math.max(1, slot.threshold - slot.progress);
-              line += '　还需：' + AE.vaultRequirement(type, left, slot.raidString);
+              line += tn('　还需：{req}', { req: AE.vaultRequirement(type, left, slot.raidString) });
             }
             lines.push(line);
           });
@@ -385,7 +407,7 @@
           td.appendChild(bar);
           if (s.unlocked === s.total) td.className += ' full';
           else if (s.unlocked) td.className += ' partial';
-          td.title = L.vaultTypeZh[type] + '\n' + lines.join('\n');
+          td.title = tr(L.vaultTypeZh[type]) + '\n' + lines.join('\n');
         }
       };
     });
@@ -400,9 +422,11 @@
         sort: function (ch) { return ch.delves.maxTier; },
         render: function (td, ch) {
           if (!ch.delves.maxTier) return dash(td);
-          td.textContent = ch.delves.maxTier + ' 层';
+          td.textContent = tn('{n} 层', { n: ch.delves.maxTier });
           td.title = ch.delves.tiers.map(function (t) {
-            return '难度 ' + t.difficulty + '：' + t.numPoints + ' 分 (tier ' + t.activityTierID + ')';
+            return tn('难度 {d}：{p} 分 (tier {tier})', {
+              d: t.difficulty, p: t.numPoints, tier: t.activityTierID
+            });
           }).join('\n');
         }
       },
@@ -422,10 +446,10 @@
         sort: function (ch) { return ch.treasureMap ? ch.treasureMap.bagCount : -1; },
         render: function (td, ch) {
           var m = ch.treasureMap;
-          if (!m) { dash(td); td.title = '本周未登录该角色'; return; }
-          td.textContent = m.bagCount ? (m.bagCount + ' 张') : '0 张';
+          if (!m) { dash(td); td.title = tr('本周未登录该角色'); return; }
+          td.textContent = tn('{n} 张', { n: m.bagCount || 0 });
           if (m.bagCount) td.className += ' good';
-          td.title = m.name + '\n背包中持有 ' + m.bagCount + ' 张';
+          td.title = tn('{name}\n背包中持有 {n} 张', { name: m.name, n: m.bagCount });
         }
       },
       {
@@ -433,15 +457,15 @@
         sort: function (ch) { return ch.treasureMap ? (ch.treasureMap.used ? 1 : 0) : -1; },
         render: function (td, ch) {
           var m = ch.treasureMap;
-          if (!m) { dash(td); td.title = '本周未登录该角色'; return; }
+          if (!m) { dash(td); td.title = tr('本周未登录该角色'); return; }
           if (m.used) {
-            td.textContent = '已用';
+            td.textContent = tr('已用');
             td.className += ' good';
-            td.title = '本周的珍宝猎手奖赏已经领取';
+            td.title = tr('本周的珍宝猎手奖赏已经领取');
           } else {
-            td.textContent = '未用';
+            td.textContent = tr('未用');
             td.className += ' todo';
-            td.title = '本周的珍宝猎手奖赏还没有领取';
+            td.title = tr('本周的珍宝猎手奖赏还没有领取');
           }
         }
       },
@@ -452,7 +476,7 @@
         render: function (td, ch) {
           var m = ch.treasureMap;
           if (!m) return dash(td);
-          td.textContent = m.hasBuff ? '生效中' : '无';
+          td.textContent = tr(m.hasBuff ? '生效中' : '无');
           if (m.hasBuff) td.className += ' good';
         }
       }
@@ -487,7 +511,9 @@
           return (m.raidShortNames[rc.instanceID] || rc.abbr) + shortDifficulty(rc.difficultyName);
         },
         headTitle: function () {
-          return rc.name + ' - ' + rc.difficultyName + '\n共 ' + rc.total + ' 个首领';
+          return tn('{name} - {diff}\n共 {n} 个首领', {
+            name: rc.name, diff: rc.difficultyName, n: rc.total
+          });
         },
         sort: function (ch) {
           var r = ch.raids.byKey[rc.key];
@@ -515,7 +541,7 @@
   // Single-character difficulty markers keep a 60-column table readable.
   function shortDifficulty(name) {
     var map = { '随机': '随', '普通': '普', '英雄': '英', '史诗': '史', '时空漫游': '漫', '世界': '世' };
-    return map[name] || name;
+    return map[name] ? tr(map[name]) : name;
   }
 
   function enDifficulty(name) {
@@ -605,17 +631,21 @@
           if (!c.quantity) td.className += ' empty';
         }
 
-        lines.push('当前持有　' + group3(c.quantity));
-        if (c.totalEarned) lines.push('累计获得　' + group3(c.totalEarned));
+        lines.push(tn('当前持有　{n}', { n: group3(c.quantity) }));
+        if (c.totalEarned) lines.push(tn('累计获得　{n}', { n: group3(c.totalEarned) }));
         if (cap) {
-          lines.push((cap.weekly ? '本周上限　' : (cap.onEarned ? '累计上限　' : '持有上限　')) +
-                     group3(cap.have) + ' / ' + group3(cap.max));
-          lines.push(cap.remaining > 0 ? ('还可获取　' + group3(cap.remaining)) : '已达上限');
+          lines.push(tn('{kind}　{have} / {max}', {
+            kind: tr(cap.weekly ? '本周上限' : (cap.onEarned ? '累计上限' : '持有上限')),
+            have: group3(cap.have), max: group3(cap.max)
+          }));
+          lines.push(cap.remaining > 0
+            ? tn('还可获取　{n}', { n: group3(cap.remaining) })
+            : tr('已达上限'));
           if (cap.onEarned && !cap.weekly) {
-            lines.push('（上限算的是累计获得量，不是当前持有量）');
+            lines.push(tr('（上限算的是累计获得量，不是当前持有量）'));
           }
         } else {
-          lines.push('没有上限');
+          lines.push(tr('没有上限'));
         }
         td.title = lines.join('\n');
       }
@@ -640,17 +670,17 @@
   /** "铭文 100 / 100" style tooltip block for one profession. */
   function professionTitle(p) {
     var lines = [p.name];
-    if (p.recipes) lines.push('已学配方　' + p.recipes + ' 个');
+    if (p.recipes) lines.push(tn('已学配方　{n} 个', { n: p.recipes }));
     if (p.segments.length) {
       lines.push('');
       p.segments.forEach(function (s) {
         lines.push(s.name + '　' + s.cur + ' / ' + s.max);
       });
     } else if (p.cur != null) {
-      lines.push('技能　' + p.cur + ' / ' + p.max);
+      lines.push(tn('技能　{cur} / {max}', { cur: p.cur, max: p.max }));
     }
     lines.push('');
-    lines.push('来自 BagSync（AlterEgo 不记录专业）');
+    lines.push(tr('来自 BagSync（AlterEgo 不记录专业）'));
     return lines.join('\n');
   }
 
@@ -672,10 +702,9 @@
       group: 'prof',
       width: 96,
       professionSlot: slot,
-      label: '专业 ' + (slot + 1),
-      headTitle: '第 ' + (slot + 1) + ' 个主专业，按 skillLineID 排序（游戏并没有把' +
-                 '“第一/第二专业”存进硬盘，所以这只是一个稳定的顺序，不是学习顺序）。' +
-                 '数字是当前资料片那一段的技能等级。',
+      label: tn('专业 {n}', { n: slot + 1 }),
+      headTitle: tn('第 {n} 个主专业，按 skillLineID 排序（游戏并没有把“第一/第二专业”存进硬盘，所以这只是一个稳定的顺序，不是学习顺序）。数字是当前资料片那一段的技能等级。',
+        { n: slot + 1 }),
       // A name, so sorting groups everyone who has the same profession together --
       // "我哪个号会附魔" is the question these columns exist to answer. Empty sorts
       // last when descending, like the numeric columns' -1.
@@ -701,7 +730,7 @@
       professionId: id,
       label: name || ('#' + id),
       headTitle: (name || ('#' + id)) + '\nskillLineID ' + id +
-                 '\n当前资料片那一段的技能等级',
+                 '\n' + tr('当前资料片那一段的技能等级'),
       sort: function (ch) {
         var p = ch.professions && ch.professions.secondary[id];
         return (p && p.cur != null) ? p.cur : -1;
@@ -743,14 +772,14 @@
         var urls = AE.profileUrls(ch, ctx.settings.links);
         if (!urls[key]) {
           dash(td);
-          td.title = urls.reason || '无法生成链接';
+          td.title = urls.reason || tr('无法生成链接');
           return;
         }
         var a = el('a', 'ext', label);
         a.href = urls[key];
         a.target = '_blank';
         a.rel = 'noopener noreferrer';
-        a.title = title + '\n' + decodeURIComponent(urls[key]);
+        a.title = tr(title) + '\n' + decodeURIComponent(urls[key]);
         // The row click opens the detail drawer; a link click must not do both.
         a.addEventListener('click', function (ev) { ev.stopPropagation(); });
         td.appendChild(a);
@@ -774,17 +803,21 @@
       id: 'prey', group: 'prey', label: '狩猎 合计', width: 78, align: 'center',
       sort: function (ch) { return ch.prey.seen ? ch.prey.done : -1; },
       render: function (td, ch) {
-        if (!ch.prey.seen) { dash(td); td.title = '本周未登录该角色，或已过周重置'; return; }
+        if (!ch.prey.seen) { dash(td); td.title = tr('本周未登录该角色，或已过周重置'); return; }
         td.appendChild(el('b', null, String(ch.prey.done)));
         td.appendChild(el('span', 'sub', '/ ' + ch.prey.seen));
         if (ch.prey.done) td.className += ' partial';
         var done = ch.prey.entries.filter(function (e) { return e.done; });
         td.title = done.length
-          ? '本周已完成 ' + done.length + ' 个：\n' +
-            done.map(function (e) {
-              return '✔ ' + e.name + '（' + L.preyDifficultyLabel(e.difficulty) + '）';
-            }).join('\n')
-          : '本周还没有完成任何狩猎';
+          ? tn('本周已完成 {n} 个：\n{list}', {
+              n: done.length,
+              list: done.map(function (e) {
+                return tn('✔ {name}（{diff}）', {
+                  name: e.name, diff: tr(L.preyDifficultyLabel(e.difficulty))
+                });
+              }).join('\n')
+            })
+          : tr('本周还没有完成任何狩猎');
       }
     }];
 
@@ -808,8 +841,13 @@
           if (d.done >= d.total && d.total > 0) td.className += ' full';
           else if (d.done) td.className += ' partial';
           var done = d.entries.filter(function (e) { return e.done; });
-          td.title = L.preyDifficultyLabel(diff) + ' 难度　' + d.done + ' / ' + d.total +
-            (done.length ? '\n\n已完成：\n' + done.map(function (e) { return '✔ ' + e.name; }).join('\n') : '');
+          td.title = tn('{diff} 难度　{done} / {total}', {
+            diff: tr(L.preyDifficultyLabel(diff)), done: d.done, total: d.total
+          }) + (done.length
+            ? tn('\n\n已完成：\n{list}', {
+                list: done.map(function (e) { return '✔ ' + e.name; }).join('\n')
+              })
+            : '');
         }
       });
     });
@@ -824,7 +862,7 @@
       render: function (td, ch) {
         if (!ch.money) return dash(td);
         td.textContent = group3(ch.gold);
-        td.title = group3(ch.gold) + ' 金';
+        td.title = tn('{n} 金', { n: group3(ch.gold) });
       }
     }];
   }

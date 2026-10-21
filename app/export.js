@@ -19,6 +19,10 @@
 
   var AE = global.AE = global.AE || {};
 
+  function tr(s, ctx) { return AE.t ? AE.t(s, ctx) : s; }
+  function tn(s, vars) { return AE.tn ? AE.tn(s, vars) : s; }
+  function locale() { return AE.i18n ? AE.i18n.locale() : undefined; }
+
   // ------------------------------------------------------------------- CRC32
 
   var CRC_TABLE = (function () {
@@ -287,9 +291,9 @@
       for (var i = 0; i < AE.GROUPS.length; i++) {
         if (AE.GROUPS[i].id === c.group) group = AE.GROUPS[i].label;
       }
-      var label = AE.colLabel(c, ctx);
+      var label = tr(AE.colLabel(c, ctx), 'export');
       // Prefix the group so a 60-column sheet is still readable out of context.
-      return c.group === 'base' ? label : group + ' · ' + label;
+      return c.group === 'base' ? label : tr(group, 'export') + ' · ' + label;
     });
 
     // Read the rows in their current on-screen order.
@@ -357,7 +361,7 @@
       case 'race':       return { v: ch.raceName, num: false };
       case 'armor':      return { v: ch.armorType, num: false };
       case 'lastUpdate': return ch.lastUpdate
-        ? { v: new Date(ch.lastUpdate * 1000).toLocaleString(), num: false }
+        ? { v: new Date(ch.lastUpdate * 1000).toLocaleString(locale()), num: false }
         : { v: '', num: false };
 
       case 'mpRating':   return ch.mp.rating ? { v: ch.mp.rating, num: true } : { v: '', num: false };
@@ -379,8 +383,8 @@
       case 'delveTier':  return ch.delves.maxTier ? { v: ch.delves.maxTier, num: true } : { v: '', num: false };
       case 'delvePoints':return ch.delves.points ? { v: ch.delves.points, num: true } : { v: '', num: false };
       case 'mapBag':     return ch.treasureMap ? { v: ch.treasureMap.bagCount, num: true } : { v: '', num: false };
-      case 'mapUsed':    return ch.treasureMap ? { v: ch.treasureMap.used ? '已用' : '未用', num: false } : { v: '', num: false };
-      case 'mapBuff':    return ch.treasureMap ? { v: ch.treasureMap.hasBuff ? '生效中' : '无', num: false } : { v: '', num: false };
+      case 'mapUsed':    return ch.treasureMap ? { v: ch.treasureMap.used ? tr('已用', 'export') : tr('未用', 'export'), num: false } : { v: '', num: false };
+      case 'mapBuff':    return ch.treasureMap ? { v: ch.treasureMap.hasBuff ? tr('生效中', 'export') : tr('无', 'export'), num: false } : { v: '', num: false };
 
       case 'prey':       return ch.prey.seen ? { v: ch.prey.done, num: true } : { v: '', num: false };
       case 'gold':       return ch.money ? { v: ch.gold, num: true } : { v: '', num: false };
@@ -431,8 +435,11 @@
     var dir = (AE.state && AE.state.model && AE.state.model.downloadsDir) || '';
     var full = dir ? (dir.replace(/[\\/]+$/, '') + '\\' + filename) : filename;
     AE.toast({
-      title: '已导出 ' + filename,
-      body: (dir ? full : '在浏览器的下载文件夹里') + '　·　' + rows + ' 行 × ' + cols + ' 列',
+      title: tn('已导出 {name}', { name: filename }),
+      body: tn('{where}　·　{rows} 行 × {cols} 列', {
+        where: dir ? full : tr('在浏览器的下载文件夹里'),
+        rows: rows, cols: cols
+      }),
       kind: 'good',
       ms: 3000,
       actions: [{

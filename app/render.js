@@ -25,10 +25,14 @@
 
   AE.state = state;
 
+  function tr(s, ctx) { return AE.t ? AE.t(s, ctx) : s; }
+  function tn(s, vars) { return AE.tn ? AE.tn(s, vars) : s; }
+  function ts(s) { return AE.ts ? AE.ts(s) : s; }
+
   function el(tag, cls, text) {
     var n = doc.createElement(tag);
     if (cls) n.className = cls;
-    if (text != null) n.textContent = text;
+    if (text != null) n.textContent = ts(text);
     return n;
   }
 
@@ -196,8 +200,8 @@
         var why = doc.getElementById('empty-hint-text');
         if (why) {
           why.textContent = s.search
-            ? '搜索词「' + s.search + '」没有匹配到任何角色（也搜账号名 / 别名）。'
-            : '检查最低等级、只看本周活跃，或隐藏的账号 / 角色 / 服务器 / 列。';
+            ? tn('搜索词「{q}」没有匹配到任何角色（也搜账号名 / 别名）。', { q: s.search })
+            : tr('检查最低等级、只看本周活跃，或隐藏的账号 / 角色 / 服务器 / 列。');
         }
         hint.style.display = '';
       } else {
@@ -236,8 +240,8 @@
     vis.forEach(function (ch) { gold += ch.gold; });
 
     var f = doc.getElementById('footer-info');
-    f.textContent = '显示 ' + shown + ' / ' + total + ' 个角色' +
-      (vis.length ? '　·　金币合计 ' + AE.fmt.group3(gold) : '');
+    f.textContent = tn('显示 {shown} / {total} 个角色', { shown: shown, total: total }) +
+      (vis.length ? tn('　·　金币合计 {gold}', { gold: AE.fmt.group3(gold) }) : '');
   }
 
   // ------------------------------------------------------------- table building
@@ -276,8 +280,8 @@
       var th = el('th', 'band band-' + c.group);
       th.setAttribute('data-group', c.group);
       th.colSpan = 1;
-      th.title = (g ? g.label : c.group) +
-                 '\n（按住左右拖动可以整组换位置）';
+      th.title = tr(g ? g.label : c.group) +
+                 '\n' + tr('（按住左右拖动可以整组换位置）');
       run = { group: c.group, n: 1, th: th };
       // A wide group (36 currency columns) would centre its label far off to the
       // right, out of the viewport. Sticky keeps it visible while scrolling.
@@ -295,8 +299,8 @@
       th.setAttribute('data-group', c.group);
       th.style.textAlign = c.align;
       th.appendChild(el('span', null, AE.colLabel(c, ctx)));
-      th.title = AE.colHeadTitle(c, ctx) +
-                 '\n（点击排序；按住左右拖动可以在本组内换位置）';
+      th.title = tr(AE.colHeadTitle(c, ctx)) +
+                 '\n' + tr('（点击排序；按住左右拖动可以在本组内换位置）');
       th.addEventListener('click', function () {
         if (state.settings.sortColumn === c.id) {
           state.settings.sortDir = state.settings.sortDir === 'asc' ? 'desc' : 'asc';
@@ -333,7 +337,7 @@
           c.render(td, ch, ctx);
         } catch (e) {
           td.textContent = '!';
-          td.title = '渲染出错: ' + e.message;
+          td.title = tn('渲染出错: {msg}', { msg: e.message });
         }
         tr.appendChild(td);
       });
@@ -356,10 +360,10 @@
     var m = state.model;
     doc.getElementById('scan-time').textContent = m.scannedAtLocal || '?';
     var seasonEl = doc.getElementById('season-info');
-    seasonEl.textContent = (m.season && m.season.label) || ('赛季 ' + m.activeSeason);
-    seasonEl.title = '赛季 ID ' + m.activeSeason +
+    seasonEl.textContent = (m.season && m.season.label) || tn('赛季 {n}', { n: m.activeSeason });
+    seasonEl.title = tn('赛季 ID {n}', { n: m.activeSeason }) +
       (m.season && m.season.english ? '\n' + m.season.english : '') +
-      '\n中文名是从宝库要求文案里还原的';
+      '\n' + tr('中文名是从宝库要求文案里还原的');
 
     // Version label first and unconditionally. It used to be written by
     // renderUpdateBanner(), which is called at the END of the warnings block --
@@ -371,13 +375,13 @@
     if (ver) {
       var u = m.update || {};
       var application = AE.applicationVersion ? AE.applicationVersion() : '';
-      ver.textContent = application ? 'v' + application : '版本未知';
-      var tip = [application ? '应用 v' + application : '应用版本未知'];
-      tip.push('数据扫描工具 v' + (m.toolVersion || '?'));
-      tip.push('AlterEgo 插件 ' + (m.addonVersion || '未知'));
-      tip.push('扫描于 ' + (m.scannedAtLocal || '?'));
-      if (u.checked && u.latestVersion) tip.push('上次检查查到 ' + u.latestVersion);
-      else if (u.error && u.error !== 'handled by application updater') tip.push('上次更新检查未完成：' + u.error);
+      ver.textContent = application ? 'v' + application : tr('版本未知');
+      var tip = [application ? tn('应用 v{v}', { v: application }) : tr('应用版本未知')];
+      tip.push(tn('数据扫描工具 v{v}', { v: m.toolVersion || '?' }));
+      tip.push(tn('AlterEgo 插件 {v}', { v: m.addonVersion || tr('未知') }));
+      tip.push(tn('扫描于 {when}', { when: m.scannedAtLocal || '?' }));
+      if (u.checked && u.latestVersion) tip.push(tn('上次检查查到 {v}', { v: u.latestVersion }));
+      else if (u.error && u.error !== 'handled by application updater') tip.push(tn('上次更新检查未完成：{msg}', { msg: u.error }));
       ver.title = tip.join('\n');
     }
 
@@ -393,12 +397,12 @@
       // 直接 return —— 那个账号的角色**整份从表里消失**，页脚「显示 X / Y 个角色」
       // 的总数悄悄变小，剩下的唯一痕迹是 设置 → 数据源 里一个小徽章。
       // 「使用了备份文件」同理：那是在读上次登录写的 .bak，数据更旧。
-      if (s.parseError) hard.push(s.displayName + '：解析失败（这个账号的角色没能进表）');
-      else if (s.seasonMismatch) warn.push(s.displayName + '：旧赛季数据');
-      else if (s.stale) warn.push(s.displayName + '：' + s.ageDays + ' 天未更新');
-      if (s.degraded) hard.push(s.displayName + '：使用了备份文件（数据是上一次登录写的）');
+      if (s.parseError) hard.push(tn('{name}：解析失败（这个账号的角色没能进表）', { name: s.displayName }));
+      else if (s.seasonMismatch) warn.push(tn('{name}：旧赛季数据', { name: s.displayName }));
+      else if (s.stale) warn.push(tn('{name}：{n} 天未更新', { name: s.displayName, n: s.ageDays }));
+      if (s.degraded) hard.push(tn('{name}：使用了备份文件（数据是上一次登录写的）', { name: s.displayName }));
     });
-    m.scanErrors.forEach(function (e) { hard.push('读取失败：' + e.path); });
+    m.scanErrors.forEach(function (e) { hard.push(tn('读取失败：{path}', { path: e.path })); });
 
     var box = doc.getElementById('warnings');
     var soft = warn.join('　·　');
@@ -456,8 +460,8 @@
 
     box.style.display = '';
     doc.getElementById('update-text').textContent =
-      '有新版本 ' + u.latestVersion + '（当前 v' + cur + '）' +
-      (u.publishedAt ? '　发布于 ' + u.publishedAt.slice(0, 10) : '');
+      tn('有新版本 {version}（当前 v{current}）', { version: u.latestVersion, current: cur }) +
+      (u.publishedAt ? tn('　发布于 {date}', { date: u.publishedAt.slice(0, 10) }) : '');
     var link = doc.getElementById('update-link');
     link.href = u.url;
     doc.getElementById('update-close').onclick = function () {

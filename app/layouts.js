@@ -18,6 +18,8 @@
 
   var AE = global.AE = global.AE || {};
   var doc = global.document;
+  function tr(s, ctx) { return AE.t ? AE.t(s, ctx) : s; }
+  function tn(s, vars) { return AE.tn ? AE.tn(s, vars) : s; }
 
   // A layout's SCOPE decides how much it carries:
   //   'cols' -- group order, per-group column order, what is hidden
@@ -94,7 +96,7 @@
 
   /** What a row should say it stores. */
   AE.layoutScopeLabel = function (e) {
-    return scopeOf(e) === 'all' ? '列 + 筛选 + 外观' : '列';
+    return scopeOf(e) === 'all' ? tr('列 + 筛选 + 外观') : tr('列');
   };
 
   /** Does the live table already match this stored layout, at its own scope? */
@@ -242,7 +244,7 @@
     if (!active) {
       var cur = doc.createElement('option');
       cur.value = '';
-      cur.textContent = '当前（未保存）';
+      cur.textContent = tr('当前（未保存）');
       cur.selected = true;
       sel.appendChild(cur);
     }
@@ -254,7 +256,9 @@
       sel.appendChild(op);
     });
     wrap.style.display = '';
-    sel.title = '布局方案' + (active ? '：' + active : '（当前的改动还没保存）');
+    sel.title = active
+      ? tn('布局方案：{name}', { name: active })
+      : tn('布局方案{note}', { note: tr('（当前的改动还没保存）') });
 
     sel.onchange = function () {
       if (!sel.value) return;                  // the synthetic 当前 entry

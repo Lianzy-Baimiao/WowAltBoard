@@ -72,7 +72,7 @@ function Assert-StagePath([string]$path) {
 Assert-StagePath $pkgDir
 
 $include = @(
-    'index.html', 'tests.html', 'README.md', 'LICENSE',
+    'index.html', 'tests.html', 'README.md', 'README.en.md', 'LICENSE',
     '启动.bat', '更新数据.bat', $exe.Name
 )
 foreach ($f in $include) {
@@ -109,6 +109,8 @@ $dropFromPkg = @(
     'tools\check-launcher-watch.js', # compiled watcher/retry regression harness
     'tools\check-live-refresh.js', # open-window refresh regression tests
     'tools\check-dashboard.js', # dashboard chrome unit tests
+    'tools\check-i18n.js',       # i18n engine and catalog audit
+    'tools\check-i18n-browser.cjs', # optional Playwright English sweep
     'tools\check-app-updates.js', # native application update transaction regression
     'tools\check-application-version.js', # version identity and release-stamping fixture
     'tools\check-application-version.cjs', # application identity versus old character snapshots
@@ -173,7 +175,7 @@ $dataDir = Join-Path $pkgDir 'data'
 New-Item -ItemType Directory -Path $dataDir -Force | Out-Null
 [System.IO.File]::WriteAllText(
     (Join-Path $dataDir '说明.txt'),
-    "这个文件夹保存角色数据、历史、设置和应用更新恢复文件，不要上传到公开仓库。`r`n更新或恢复期间不要删除；清理前请先退出程序并备份个人数据。`r`n",
+    "这个文件夹保存角色数据、历史、设置和应用更新恢复文件，不要上传到公开仓库。`r`nThis folder holds character data, history, settings and application-update recovery files. Do not upload it to a public repository.`r`n更新或恢复期间不要删除；清理前请先退出程序并备份个人数据。`r`nDo not delete it during an update or recovery; quit the app and back up personal data before cleaning it.`r`n",
     [System.Text.UTF8Encoding]::new($true))
 
 # Maintainer-only distribution artifacts. Do not ship local game paths/config in a release.

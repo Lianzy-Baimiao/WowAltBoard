@@ -38,6 +38,7 @@ async function verifyDrawnString(page, str) {
     const errors = [];
     page.on('pageerror', e => errors.push(e.message));
     await page.route(/^https?:/, r => r.abort());
+    await page.addInitScript(() => { window.__AE_FORCE_LANG = 'zh'; });
     await page.goto(pathToFileURL(path.join(dir, 'index.html')).href);
     await page.locator('#btn-bis').click();
     await page.waitForSelector('.bis-slots .item');

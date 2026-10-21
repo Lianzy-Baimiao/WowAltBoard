@@ -14,10 +14,15 @@
 
   var SUPPORT_URL = 'https://ifdian.net/a/lianzy';
 
+  function tr(s, ctx) { return AE.t ? AE.t(s, ctx) : s; }
+  function tn(s, vars) { return AE.tn ? AE.tn(s, vars) : s; }
+  function ts(s) { return AE.ts ? AE.ts(s) : s; }
+  function locale() { return AE.i18n ? AE.i18n.locale() : undefined; }
+
   function el(tag, cls, text) {
     var n = doc.createElement(tag);
     if (cls) n.className = cls;
-    if (text != null) n.textContent = text;
+    if (text != null) n.textContent = ts(text);
     return n;
   }
 
@@ -100,7 +105,7 @@
     var inp = el('input');
     inp.type = 'text';
     inp.value = value || '';
-    if (placeholder) inp.placeholder = placeholder;
+    if (placeholder) inp.placeholder = ts(placeholder);
     inp.addEventListener('change', function () { onChange(inp.value.trim()); });
     wrap.appendChild(inp);
     return wrap;
@@ -118,10 +123,12 @@
   /** 方案 1, 方案 2, ... skipping any name already taken. */
   function nextLayoutName(taken) {
     for (var i = 1; i < 200; i++) {
-      var n = '方案 ' + i;
+      // Generated once at creation and stored; switching language later does not
+      // rename an existing layout (it is the user's name at that point).
+      var n = tn('方案 {n}', { n: i });
       if (taken.indexOf(n) < 0) return n;
     }
-    return '方案';
+    return tr('方案');
   }
 
   /** One saved layout: name, what it stores, plus 应用 / 覆盖 / 重命名 / 删除. */
@@ -129,15 +136,15 @@
     var name = entry.name;
     var row = el('div', 'layout-row' + (isActive ? ' on' : ''));
     var lab = el('span', 'layout-name', (isActive ? '● ' : '') + name);
-    lab.title = isActive ? '当前表格就是这个方案' : '点「应用」切到这个方案';
+    lab.title = isActive ? tr('当前表格就是这个方案') : tr('点「应用」切到这个方案');
     row.appendChild(lab);
 
     // Spelled out on every row: a preset that also moves your filters is a
     // different animal from one that only rearranges columns.
     var tag = el('span', 'layout-scope', AE.layoutScopeLabel(entry));
     tag.title = AE.layoutScope(entry) === 'all'
-      ? '切到这个方案会一并换掉筛选（最低等级、隐藏的角色…）和外观（皮肤、字号…）'
-      : '只换列：分组顺序、组内列顺序、哪些列隐藏';
+      ? tr('切到这个方案会一并换掉筛选（最低等级、隐藏的角色…）和外观（皮肤、字号…）')
+      : tr('只换列：分组顺序、组内列顺序、哪些列隐藏');
     row.appendChild(tag);
 
     var btns = el('span', 'layout-btns');
@@ -145,25 +152,26 @@
       btns.appendChild(button('应用', 'mini', function () { AE.applyLayout(name); }));
     }
     btns.appendChild(button('覆盖', 'mini', function () {
-      if (!global.confirm('用当前状态覆盖方案「' + name + '」？\n（它存的是：' +
-                          AE.layoutScopeLabel(entry) + '）')) return;
+      if (!global.confirm(tn('用当前状态覆盖方案「{name}」？\n（它存的是：{scope}）', {
+        name: name, scope: tr(AE.layoutScopeLabel(entry))
+      }))) return;
       AE.saveLayout(name);          // keeps the row's own scope
       AE.renderLayoutPicker();
       AE.buildSettingsPanel();
-      AE.toast({ title: '已覆盖方案：' + name, kind: 'good', ms: 2500 });
+      AE.toast({ title: tn('已覆盖方案：{name}', { name: name }), kind: 'good', ms: 2500 });
     }));
     btns.appendChild(button('重命名', 'mini', function () {
-      var n = global.prompt('新名字', name);
+      var n = global.prompt(tr('新名字'), name);
       if (n === null) return;
       if (!AE.renameLayout(name, n)) {
-        AE.toast({ title: '改名没成功', body: '名字空着，或者已经有同名方案了。', kind: 'bad', ms: 3000 });
+        AE.toast({ title: tr('改名没成功'), body: tr('名字空着，或者已经有同名方案了。'), kind: 'bad', ms: 3000 });
         return;
       }
       AE.renderLayoutPicker();
       AE.buildSettingsPanel();
     }));
     btns.appendChild(button('删除', 'mini danger', function () {
-      if (!global.confirm('删除方案「' + name + '」？')) return;
+      if (!global.confirm(tn('删除方案「{name}」？', { name: name }))) return;
       AE.deleteLayout(name);
       AE.renderLayoutPicker();
       AE.buildSettingsPanel();
@@ -233,7 +241,7 @@
         AE.saveSettings(s);
         AE.buildSettingsPanel();
       });
-      b.title = t.title;
+      b.title = tr(t.title);
       b.setAttribute('aria-pressed', t.id === cur ? 'true' : 'false');
       host.appendChild(b);
     });
@@ -246,9 +254,7 @@
     // nothing is "current" any more.
     var lay = section('layouts', '布局方案', { open: true });
     lay.appendChild(el('p', 'note',
-      '直接拖表头就能换列的位置（分组表头整组搬，点一下仍然是排序）。' +
-      '方案只记表的形状：分组顺序、组内列顺序、哪些列隐藏；' +
-      '筛选和排序不算在内。'));
+      '直接拖表头就能换列的位置（分组表头整组搬，点一下仍然是排序）。方案只记表的形状：分组顺序、组内列顺序、哪些列隐藏；筛选和排序不算在内。'));
 
     var savedNames = AE.layouts()
       .filter(function (l) { return l && l.name; })
@@ -262,22 +268,22 @@
 
     var layTop = el('div', 'row-buttons');
     layTop.appendChild(button('保存为新方案', null, function () {
-      var n = global.prompt('给这个布局起个名字', nextLayoutName(savedNames));
+      var n = global.prompt(tr('给这个布局起个名字'), nextLayoutName(savedNames));
       if (n === null) return;
       n = String(n).trim();
       if (!n) return;
       if (savedNames.indexOf(n) >= 0 &&
-          !global.confirm('已经有一个叫「' + n + '」的方案，覆盖它？')) return;
+          !global.confirm(tn('已经有一个叫「{name}」的方案，覆盖它？', { name: n }))) return;
       AE.saveLayout(n, s.layoutSaveAll ? 'all' : 'cols');
       AE.renderLayoutPicker();
       AE.buildSettingsPanel();
-      AE.toast({ title: '已保存方案：' + n, kind: 'good', ms: 2500 });
+      AE.toast({ title: tn('已保存方案：{name}', { name: n }), kind: 'good', ms: 2500 });
     }));
     layTop.appendChild(button('恢复默认列顺序', 'mini', function () {
       AE.resetColumnOrder();
       AE.renderLayoutPicker();
       AE.buildSettingsPanel();
-      AE.toast({ title: '列顺序已恢复默认', body: '列的显隐没有动。', ms: 2500 });
+      AE.toast({ title: tr('列顺序已恢复默认'), body: tr('列的显隐没有动。'), ms: 2500 });
     }));
     lay.appendChild(layTop);
 
@@ -299,7 +305,7 @@
     searchWrap.appendChild(el('span', null, '搜索'));
     var search = el('input');
     search.type = 'search';
-    search.placeholder = '角色 / 服务器 / 公会 / 账号';
+    search.placeholder = tr('角色 / 服务器 / 公会 / 账号');
     search.value = s.search;
     search.addEventListener('input', function () {
       s.search = search.value.trim();
@@ -349,7 +355,7 @@
 
   function tabData(panel, st, s, m) {
     // ---- data sources ----------------------------------------------------
-    var src = section('sources', '数据源（' + m.sources.length + '）', { open: true });
+    var src = section('sources', tn('数据源（{n}）', { n: m.sources.length }), { open: true });
     m.sources.forEach(function (so) {
       var row = el('div', 'source-row');
 
@@ -368,7 +374,7 @@
       alias.type = 'text';
       alias.value = s.sourceAliases[so.id] || '';
       alias.placeholder = so.account;
-      alias.title = '给这个战网账号起个好记的别名';
+      alias.title = tr('给这个战网账号起个好记的别名');
       alias.addEventListener('change', function () {
         var v = alias.value.trim();
         if (v) s.sourceAliases[so.id] = v;
@@ -379,7 +385,7 @@
       row.appendChild(head);
 
       var meta = el('div', 'source-meta');
-      meta.appendChild(el('span', null, so.charCount + ' 个角色'));
+      meta.appendChild(el('span', null, tn('{n} 个角色', { n: so.charCount })));
       meta.appendChild(el('span', null, 'dbVer ' + so.dbVersion));
       meta.appendChild(el('span', null, so.mtimeLocal));
       row.appendChild(meta);
@@ -388,8 +394,8 @@
       // account's data is 155 days old".
       var flags = el('div', 'source-flags');
       if (so.parseError) flags.appendChild(el('span', 'badge bad', '解析失败'));
-      if (so.seasonMismatch) flags.appendChild(el('span', 'badge warn', '旧赛季 ' + so.seasons.join('/')));
-      if (so.stale) flags.appendChild(el('span', 'badge warn', so.ageDays + ' 天未更新'));
+      if (so.seasonMismatch) flags.appendChild(el('span', 'badge warn', tn('旧赛季 {seasons}', { seasons: so.seasons.join('/') })));
+      if (so.stale) flags.appendChild(el('span', 'badge warn', tn('{n} 天未更新', { n: so.ageDays })));
       if (so.degraded) flags.appendChild(el('span', 'badge warn', '使用备份'));
       if (flags.childNodes.length) row.appendChild(flags);
 
@@ -402,7 +408,7 @@
     panel.appendChild(src);
 
     // ---- realms ----------------------------------------------------------
-    var realmSec = section('realms', '服务器（' + m.realms.length + '）');
+    var realmSec = section('realms', tn('服务器（{n}）', { n: m.realms.length }));
     m.realms.forEach(function (r) {
       realmSec.appendChild(check(r.name,
         function () { return !s.hiddenRealms[r.name]; },
@@ -411,12 +417,12 @@
           else s.hiddenRealms[r.name] = true;
           AE.refresh();
         },
-        r.count + ' 个'));
+        tn('{n} 个', { n: r.count })));
     });
     panel.appendChild(realmSec);
 
     // ---- characters ------------------------------------------------------
-    var charSec = section('chars', '角色（' + m.characters.length + '）');
+    var charSec = section('chars', tn('角色（{n}）', { n: m.characters.length }));
     var quick = el('div', 'row-buttons');
     quick.appendChild(button('全选', 'mini', function () {
       s.hiddenCharacters = {};
@@ -441,7 +447,7 @@
           else s.hiddenCharacters[ch.key] = true;
           AE.refresh();
         },
-        ch.realm + ' · ' + ch.level + ' 级');
+        tn('{realm} · {level} 级', { realm: ch.realm, level: ch.level }));
       var dot = lab.querySelector('span');
       if (dot) dot.style.color = ch.classColor;
       charSec.appendChild(lab);
@@ -479,7 +485,7 @@
     filterRow.appendChild(el('span', null, '找列'));
     var filterIn = el('input');
     filterIn.type = 'search';
-    filterIn.placeholder = '筛选列名，如：毒牙、金币、专业';
+    filterIn.placeholder = tr('筛选列名，如：毒牙、金币、专业');
     filterRow.appendChild(filterIn);
     colSec.appendChild(filterRow);
 
@@ -497,7 +503,7 @@
       var box = el('div', 'col-group');
 
       var head = el('div', 'col-group-head');
-      head.appendChild(check(g.label + '（' + groupCols.length + '）',
+      head.appendChild(check(tn('{label}（{n}）', { label: tr(g.label), n: groupCols.length }),
         function () { return !s.hiddenGroups[g.id]; },
         function (v) {
           if (v) delete s.hiddenGroups[g.id];
@@ -523,7 +529,9 @@
       var sub = el('div', 'col-list');
       var rows = [];
       groupCols.forEach(function (c) {
-        var name = AE.colLabel(c, st.ctx);
+        // Translated before it is used for both the label and the filter index,
+        // so English users can type the English column name into 找列.
+        var name = tr(AE.colLabel(c, st.ctx));
         var lab = check(name,
           function () { return !s.hiddenColumns[c.id]; },
           function (v) {
@@ -563,20 +571,17 @@
     if (!hasProf) {
       var pn = el('p', 'note');
       if (!bs.enabled) {
-        pn.textContent = '「专业」列已经在 tools/config.json 里关掉了（readBagSync: false）。' +
-                         '改回 true 并重新扫描就会回来。';
+        pn.textContent = tr('「专业」列已经在 tools/config.json 里关掉了（readBagSync: false）。改回 true 并重新扫描就会回来。');
       } else if (!bs.filesFound) {
-        pn.appendChild(doc.createTextNode(
-          '想看专业？AlterEgo 插件本身不记录专业数据，一个字段都没有。装上 BagSync 之后' +
-          '重新扫描，这里会多出「专业」一组列（专业 1 / 专业 2、烹饪、钓鱼）。BagSync：'));
+        pn.appendChild(doc.createTextNode(tr(
+          '想看专业？AlterEgo 插件本身不记录专业数据，一个字段都没有。装上 BagSync 之后重新扫描，这里会多出「专业」一组列（专业 1 / 专业 2、烹饪、钓鱼）。BagSync：')));
         var ba = el('a', null, 'wowinterface.com/downloads/info15351');
         ba.href = 'https://www.wowinterface.com/downloads/info15351';
         ba.target = '_blank';
         ba.rel = 'noopener noreferrer';
         pn.appendChild(ba);
       } else {
-        pn.textContent = '读到了 BagSync 的存档，但里面还没有任何角色的专业记录。' +
-                         '装了 BagSync 之后登录一次角色，它才会记下来。';
+        pn.textContent = tr('读到了 BagSync 的存档，但里面还没有任何角色的专业记录。装了 BagSync 之后登录一次角色，它才会记下来。');
       }
       colSec.appendChild(pn);
     }
@@ -588,8 +593,19 @@
     // ---- appearance ------------------------------------------------------
     var look = section('look', '显示效果');
 
+    // Language first: it changes every label below it, and the page reload is
+    // the only way to rebuild the static HTML and the already-drawn panels.
+    look.appendChild(selectField('界面语言', s.uiLang || 'auto',
+      [['auto', '自动（跟随系统）'], ['zh', '简体中文'], ['en', 'English']],
+      function (v) {
+        s.uiLang = v;
+        AE.saveSettings(s);
+        global.location.reload();
+      },
+      '切换后会重新加载页面'));
+
     look.appendChild(selectField('皮肤', s.skin,
-      AE.SKINS.map(function (k) { return [k.id, k.label]; }),
+      AE.SKINS.map(function (k) { return [k.id, tr(k.label)]; }),
       function (v) { s.skin = v; AE.refresh(); }));
 
     look.appendChild(selectField('明暗', s.theme,
@@ -601,7 +617,7 @@
       }));
 
     look.appendChild(selectField('字体', s.fontFamily,
-      AE.FONTS.map(function (f) { return [f.id, f.label]; }),
+      AE.FONTS.map(function (f) { return [f.id, tr(f.label)]; }),
       function (v) { s.fontFamily = v; AE.refresh(); }));
 
     var sizeWrap = el('div', 'field');
@@ -646,9 +662,7 @@
     // ---- external links --------------------------------------------------
     var links = section('links', '外部主页');
     links.appendChild(el('p', 'note',
-      'Raider.IO 的链接格式已经实测可用（服务器名用中文也能打开）。' +
-      'Warcraft Logs 拒绝脚本访问，它的格式没能在本机验证，第一次点击请确认一下，' +
-      '不对就在下面改地址。'));
+      'Raider.IO 的链接格式已经实测可用（服务器名用中文也能打开）。Warcraft Logs 拒绝脚本访问，它的格式没能在本机验证，第一次点击请确认一下，不对就在下面改地址。'));
     links.appendChild(textField('区域代码', s.links.region, 'cn',
       function (v) { s.links.region = v || 'cn'; AE.rebuild(); }));
     links.appendChild(textField('Raider.IO 前缀', s.links.rioBase,
@@ -669,14 +683,9 @@
     // window.AE_BIS = {...};
     var bisSec = section('bis-data', '毕业装备数据源');
     bisSec.appendChild(el('p', 'note',
-      '装备表和天赋表已经在安装包里，普通用户在「应用更新」更新看板即可，不用填下面两栏。' +
-      '换赛季、或者你自己架了一份更新的数据时，在这里填目录地址，' +
-      '面板会优先读远端，读不到再退回包里的那份。'));
+      '装备表和天赋表已经在安装包里，普通用户在「应用更新」更新看板即可，不用填下面两栏。换赛季、或者你自己架了一份更新的数据时，在这里填目录地址，面板会优先读远端，读不到再退回包里的那份。'));
     bisSec.appendChild(el('p', 'note',
-      '地址填到目录一层（不带文件名），下面这些文件名是固定的：' +
-      'bis-data.js（装备）、talent-data.js（天赋套路）、' +
-      'talent-tree.js（天赋树结构，能画出树来就靠它）、' +
-      'item-icons.js（itemId → 图标名）。'));
+      '地址填到目录一层（不带文件名），下面这些文件名是固定的：bis-data.js（装备）、talent-data.js（天赋套路）、talent-tree.js（天赋树结构，能画出树来就靠它）、item-icons.js（itemId → 图标名）。'));
     // 这两栏和别的 textField 不同：改完**不能**走 AE.rebuild()（重建主表格和
     // 这里毫无关系），但也**不能**只赋值 —— 那样改动只在本次会话生效，刷新
     // 后静默消失（原来就是漏的：其他栏都以会落盘的调用收尾，唯独这两栏没有）。
@@ -685,23 +694,20 @@
     bisSec.appendChild(textField('图标地址前缀', s.iconBaseUrl, '留空 = 用包里的 app/icons/',
       function (v) { s.iconBaseUrl = v.trim(); AE.saveSettings(s); }));
     bisSec.appendChild(el('p', 'note',
-      '图标图片已经在安装包的 app/icons/ 下（469 张，约 1 MB），离线就能显示，' +
-      '这一栏留空即可。填了就改成「前缀 + 图标名 + .jpg」去别处取图，' +
-      '只有你自己架了图床才需要。'));
+      '图标图片已经在安装包的 app/icons/ 下（469 张，约 1 MB），离线就能显示，这一栏留空即可。填了就改成「前缀 + 图标名 + .jpg」去别处取图，只有你自己架了图床才需要。'));
     bisSec.appendChild(el('p', 'note',
-      '两栏改动都会保存；刷新页面后才会按新地址加载' +
-      '（已加载进内存的数据不会重新去取）。'));
+      '两栏改动都会保存；刷新页面后才会按新地址加载（已加载进内存的数据不会重新去取）。'));
     panel.appendChild(bisSec);
 
     // ---- dungeon names ---------------------------------------------------
     var needFix = m.columns.dungeonIds.filter(function (id) {
       return L.dungeonNeedsTranslation(id, s.dungeonNameOverrides, m.dungeonNames);
     });
-    var nameSec = section('dungeon-names', '副本名称' + (needFix.length ? '（' + needFix.length + ' 个缺中文名）' : ''));
+    var nameSec = section('dungeon-names', needFix.length
+      ? tn('副本名称（{n} 个缺中文名）', { n: needFix.length })
+      : tr('副本名称'));
     nameSec.appendChild(el('p', 'note',
-      '中文名是从游戏自己的字符串里还原的：副本锁定记录，以及你身上钥石的物品名。' +
-      '两个来源都没覆盖到的副本会显示英文名，可以在这里手动填写。' +
-      '括号里是表头用的缩写。'));
+      '中文名是从游戏自己的字符串里还原的：副本锁定记录，以及你身上钥石的物品名。两个来源都没覆盖到的副本会显示英文名，可以在这里手动填写。括号里是表头用的缩写。'));
     m.columns.dungeonIds.forEach(function (id) {
       var meta = m.tables.dungeonById[id];
       var wrap = el('label', 'field');
@@ -731,21 +737,20 @@
     // ---- config ----------------------------------------------------------
     var cfg = section('config', '配置');
     cfg.appendChild(el('p', 'note',
-      '浏览器的本地存储不会随文件夹一起复制。要把设置带走，点“保存设置到文件”，' +
-      '下次运行启动脚本时会自动从下载文件夹收进 data/settings.js。'));
+      '浏览器的本地存储不会随文件夹一起复制。要把设置带走，点“保存设置到文件”，下次运行启动脚本时会自动从下载文件夹收进 data/settings.js。'));
 
     var btns = el('div', 'row-buttons');
     btns.appendChild(button('保存设置到文件', null, function () {
       AE.downloadText('settings.js', AE.settingsFileText(s), 'text/javascript');
       AE.toast({
-        title: '已导出 settings.js',
-        body: '下次运行启动器时会自动从下载文件夹收进 data/settings.js。',
+        title: tr('已导出 settings.js'),
+        body: tr('下次运行启动器时会自动从下载文件夹收进 data/settings.js。'),
         kind: 'good', ms: 3000
       });
     }));
     btns.appendChild(button('导出 JSON', null, function () {
       AE.downloadText('wowaltboard-settings.json', JSON.stringify(s, null, 2), 'application/json');
-      AE.toast({ title: '已导出 wowaltboard-settings.json', kind: 'good', ms: 3000 });
+      AE.toast({ title: tr('已导出 wowaltboard-settings.json'), kind: 'good', ms: 3000 });
     }));
 
     var importBtn = button('导入 JSON', null, function () { fileInput.click(); });
@@ -763,7 +768,7 @@
           var o = JSON.parse(text);
           AE.applyImportedSettings(o);
         } catch (e) {
-          global.alert('导入失败：' + e.message);
+          global.alert(tn('导入失败：{msg}', { msg: e.message }));
         }
       };
       fr.readAsText(f, 'utf-8');
@@ -772,14 +777,14 @@
     btns.appendChild(fileInput);
 
     btns.appendChild(button('恢复默认', 'danger', function () {
-      if (!global.confirm('恢复所有设置为默认值？')) return;
+      if (!global.confirm(tr('恢复所有设置为默认值？'))) return;
       AE.applyImportedSettings(AE.settingsDefaults());
     }));
     cfg.appendChild(btns);
 
     cfg.appendChild(el('p', 'note',
-      '设置来源：' + (AE.settingsOrigin || '默认') +
-      (AE.storageOk ? '' : '　（浏览器本地存储不可用，改动不会被记住）')));
+      tn('设置来源：{origin}', { origin: tr(AE.settingsOrigin || '默认') }) +
+      (AE.storageOk ? '' : tr('　（浏览器本地存储不可用，改动不会被记住）'))));
 
     // ---- settings left behind at an old path ------------------------------
     // Automatic adoption only fires when this folder has no settings of its own,
@@ -790,27 +795,26 @@
     // localStorage on file://.
     var foreign = AE.listForeignSettings ? AE.listForeignSettings() : [];
     if (foreign.length) {
-      var old = section('old-settings', '旧路径的设置（' + foreign.length + '）');
+      var old = section('old-settings', tn('旧路径的设置（{n}）', { n: foreign.length }));
       old.appendChild(el('p', 'note',
-        '浏览器是按文件夹路径分开存设置的，所以这个文件夹一旦被移动或改名，' +
-        '原来调好的设置就看不见了 —— 但它还在，就是下面这些。' +
-        '取回会覆盖当前设置，取回前建议先「导出 JSON」备份一份。'));
+        '浏览器是按文件夹路径分开存设置的，所以这个文件夹一旦被移动或改名，原来调好的设置就看不见了 —— 但它还在，就是下面这些。取回会覆盖当前设置，取回前建议先「导出 JSON」备份一份。'));
       foreign.forEach(function (f) {
         var row = el('div', 'layout-row');
         var when = f.savedAt
-          ? new Date(f.savedAt * 1000).toLocaleString()
-          : '时间未记录';
+          ? new Date(f.savedAt * 1000).toLocaleString(locale())
+          : tr('时间未记录');
         var info = el('div', 'layout-name', when);
         info.appendChild(el('span', 'hint',
-          '隐藏 ' + f.hiddenColumns + ' 列　·　' + f.layouts + ' 个方案'));
+          tn('隐藏 {cols} 列　·　{layouts} 个方案', { cols: f.hiddenColumns, layouts: f.layouts })));
         info.title = f.key;
         row.appendChild(info);
         if (f.usable) {
           row.appendChild(button('取回', 'mini', function () {
-            if (!global.confirm('用这份设置替换当前设置？\n\n' + when +
-                                '\n隐藏 ' + f.hiddenColumns + ' 列，' + f.layouts + ' 个方案')) return;
+            if (!global.confirm(tn('用这份设置替换当前设置？\n\n{when}\n隐藏 {cols} 列，{layouts} 个方案', {
+              when: when, cols: f.hiddenColumns, layouts: f.layouts
+            }))) return;
             var got = AE.adoptSettingsFrom(f.key);
-            if (!got) { global.alert('取回失败：这份设置读不出来。'); return; }
+            if (!got) { global.alert(tr('取回失败：这份设置读不出来。')); return; }
             global.location.reload();
           }));
         } else {
@@ -827,31 +831,30 @@
     var up = (m.update || {});
     var upBox = el('div', 'update-box');
     var current = AE.applicationVersion ? AE.applicationVersion() : '';
-    var line = '当前 v' + (current || '?');
+    var line = tn('当前 v{v}', { v: current || '?' });
     if (up.checked && up.latestVersion) {
       var knownCurrent = /^\d+(?:\.\d+)*$/.test(current);
       var comparison = knownCurrent ? AE.compareVersions(
         String(up.latestVersion).replace(/^v/i, ''), current) : 0;
-      var status = !knownCurrent ? '（当前版本未知）'
-        : comparison > 0 ? '（有更新）'
-        : comparison < 0 ? '（检查记录早于当前版本，请重新检查）'
-        : '（当时未发现更新）';
-      line += '　·　上次检查查到 ' + up.latestVersion + status;
+      var status = !knownCurrent ? tr('（当前版本未知）')
+        : comparison > 0 ? tr('（有更新）')
+        : comparison < 0 ? tr('（检查记录早于当前版本，请重新检查）')
+        : tr('（当时未发现更新）');
+      line += tn('　·　上次检查查到 {version}{status}', { version: up.latestVersion, status: status });
     } else if (up.error === 'handled by application updater') {
-      line += '　·　更新检查已由应用更新管理';
+      line += tr('　·　更新检查已由应用更新管理');
     } else if (up.error) {
-      line += '　·　上次检查没成功';
+      line += tr('　·　上次检查没成功');
     } else {
-      line += '　·　未检查';
+      line += tr('　·　未检查');
     }
     upBox.appendChild(el('div', null, line));
     if (m.scannedAtLocal) {
-      upBox.appendChild(el('div', 'hint2', '扫描记录时间：' + m.scannedAtLocal));
+      upBox.appendChild(el('div', 'hint2', tn('扫描记录时间：{when}', { when: m.scannedAtLocal })));
     }
     upBox.appendChild(el('div', 'hint2',
-      up.error === 'handled by application updater' ? '请使用本页上方的「应用更新」。下方完整发布页是手动升级的备用入口。' :
-      '这里显示上次扫描保存的检查结果，不是实时查询。查看最新版本请打开发布页；' +
-      '重新扫描并刷新看板后，这里的记录才会更新。'));
+      up.error === 'handled by application updater' ? tr('请使用本页上方的「应用更新」。下方完整发布页是手动升级的备用入口。') :
+      tr('这里显示上次扫描保存的检查结果，不是实时查询。查看最新版本请打开发布页；重新扫描并刷新看板后，这里的记录才会更新。')));
     if (up.error && up.error !== 'handled by application updater') {
       upBox.appendChild(el('div', 'hint2', String(up.error).slice(0, 120)));
     }
@@ -863,9 +866,8 @@
         (m.repo || 'Lianzy-Baimiao/WowAltBoard') + '/releases/latest';
       global.open(url, '_blank', 'noopener');
       AE.toast({
-        title: '已打开最新发布页',
-        body: '此按钮不会更新本地检查记录。即时联网检查也可用托盘右键的「检查更新」；' +
-              '要更新面板记录，请重新扫描并刷新看板。',
+        title: tr('已打开最新发布页'),
+        body: tr('此按钮不会更新本地检查记录。即时联网检查也可用托盘右键的「检查更新」；要更新面板记录，请重新扫描并刷新看板。'),
         ms: 5000
       });
     }));
@@ -879,7 +881,7 @@
 
     var about = el('p', 'note');
     about.appendChild(doc.createTextNode(
-      'WowAltBoard v' + (current || '?') + '　作者 ' + (m.author || '白描') + '　'));
+      tn('WowAltBoard v{v}　作者 {author}　', { v: current || '?', author: tr(m.author || '白描') })));
     if (m.repo) {
       var a = el('a', null, m.repo);
       a.href = 'https://github.com/' + m.repo;
@@ -896,8 +898,7 @@
     // nothing to hand the URL off to.
     var fund = section('support', '赞赏');
     fund.appendChild(el('p', 'note',
-      '这个工具是免费的，没有广告也没有内购。如果它帮你省下了每周翻小号的时间，' +
-      '可以去爱发电请我喝一杯 —— 完全自愿，不赞赏功能也一个都不少。'));
+      '这个工具是免费的，没有广告也没有内购。如果它帮你省下了每周翻小号的时间，可以去爱发电请我喝一杯 —— 完全自愿，不赞赏功能也一个都不少。'));
     var fundBtns = el('div', 'row-buttons');
     fundBtns.appendChild(button('打开赞赏页', null, function () {
       global.open(SUPPORT_URL, '_blank', 'noopener');
@@ -975,19 +976,24 @@
     title.textContent = ch.name;
     title.style.color = s.classColors ? ch.classColor : '';
     doc.getElementById('drawer-sub').textContent =
-      ch.realm + '　·　' + ch.level + ' 级 ' + ch.raceName + ch.className +
-      '　·　' + (s.sourceAliases[ch.sourceId] || ch.sourceName);
+      tn('{realm}　·　{level} 级 {race}{cls}　·　{source}', {
+        realm: ch.realm, level: ch.level, race: ch.raceName, cls: ch.className,
+        source: s.sourceAliases[ch.sourceId] || ch.sourceName
+      });
 
     // -- summary
     var sum = el('dl', 'kv');
-    kv(sum, '装等', Math.ceil(ch.ilvl.value) + '（平均 ' + ch.ilvl.level.toFixed(1) +
-      ' / 已装备 ' + ch.ilvl.equipped.toFixed(1) + '）');
+    kv(sum, '装等', tn('{ilvl}（平均 {avg} / 已装备 {eq}）', {
+      ilvl: Math.ceil(ch.ilvl.value),
+      avg: ch.ilvl.level.toFixed(1),
+      eq: ch.ilvl.equipped.toFixed(1)
+    }));
     kv(sum, '大秘境评分', ch.mp.rating || '·');
     kv(sum, '赛季最佳', ch.mp.bestSeasonScore || '·');
     kv(sum, '公会', ch.guildName ? (ch.guildName + (ch.guildRank ? ' · ' + ch.guildRank : '')) : '·');
     kv(sum, '护甲类型', ch.armorType || '·');
     kv(sum, '金币', AE.fmt.group3(ch.gold));
-    kv(sum, '最后更新', ch.lastUpdate ? new Date(ch.lastUpdate * 1000).toLocaleString() : '·');
+    kv(sum, '最后更新', ch.lastUpdate ? new Date(ch.lastUpdate * 1000).toLocaleString(locale()) : '·');
     kv(sum, '数据赛季', ch.season || '未记录');
     body.appendChild(sum);
 
@@ -1011,7 +1017,7 @@
         tr.appendChild(el('td', null,
           L.dungeonLabel(x.id, meta, s.dungeonNameOverrides, m.dungeonNames)));
         tr.appendChild(el('td', x.d.timed ? null : 'overtime',
-          (x.d.level || '·') + (x.d.timed ? '' : ' 超时')));
+          x.d.timed ? (x.d.level || '·') : tn('{level} 超时', { level: x.d.level || '·' })));
         tr.appendChild(el('td', null, x.d.rating || '·'));
         tr.appendChild(el('td', null, best && best.durationSec
           ? Math.floor(best.durationSec / 60) + ':' + String(best.durationSec % 60).padStart(2, '0')
@@ -1035,7 +1041,9 @@
         var vs = AE.vaultSummary(ch, ty);
         if (!vs) return;
         var blk = el('div', 'vault-block');
-        blk.appendChild(el('h4', null, L.vaultTypeZh[ty] + '　' + vs.unlocked + '/' + vs.total));
+        blk.appendChild(el('h4', null, tn('{type}　{on}/{total}', {
+          type: tr(L.vaultTypeZh[ty]), on: vs.unlocked, total: vs.total
+        })));
         vs.slots.forEach(function (slot) {
           var line = el('div', 'vault-slot' + (slot.unlocked ? ' on' : ''));
           var lead = slot.progress + ' / ' + slot.threshold;
@@ -1044,11 +1052,15 @@
           if (slot.unlocked) {
             if (ty === L.VAULT_MPLUS && slot.level) {
               var ilvl = AE.vaultItemLevel(m, slot.level);
-              detail = '钥石 +' + slot.level + (ilvl ? '　→ ' + ilvl + ' 装等' : '');
+              detail = ilvl
+                ? tn('钥石 +{level}　→ {ilvl} 装等', { level: slot.level, ilvl: ilvl })
+                : tn('钥石 +{level}', { level: slot.level });
             } else if (ty === L.VAULT_RAID && slot.level) {
-              detail = L.raidDifficultyZh[slot.level] || ('难度 ' + slot.level);
+              detail = L.raidDifficultyZh[slot.level]
+                ? tr(L.raidDifficultyZh[slot.level])
+                : tn('难度 {n}', { n: slot.level });
             } else if (ty === L.VAULT_WORLD && slot.level) {
-              detail = slot.level + ' 层';
+              detail = tn('{n} 层', { n: slot.level });
             }
           } else {
             detail = AE.vaultRequirement(ty, slot.threshold, slot.raidString);
@@ -1065,15 +1077,15 @@
       body.appendChild(el('h3', null, '地下堡 / 藏宝图'));
       var dl = el('dl', 'kv');
       if (ch.delves.tiers.length) {
-        kv(dl, '最高层数', ch.delves.maxTier + ' 层');
+        kv(dl, '最高层数', tn('{n} 层', { n: ch.delves.maxTier }));
         kv(dl, '积分合计', ch.delves.points);
         ch.delves.tiers.forEach(function (t) {
-          kv(dl, '难度 ' + t.difficulty, t.numPoints + ' 分');
+          kv(dl, tn('难度 {n}', { n: t.difficulty }), tn('{n} 分', { n: t.numPoints }));
         });
       }
       if (ch.treasureMap) {
         kv(dl, '藏宝图', ch.treasureMap.name);
-        kv(dl, '背包持有', ch.treasureMap.bagCount + ' 张');
+        kv(dl, '背包持有', tn('{n} 张', { n: ch.treasureMap.bagCount }));
         kv(dl, '本周是否已用', ch.treasureMap.used ? '已用' : '未用');
         kv(dl, 'buff 在身', ch.treasureMap.hasBuff ? '生效中' : '无');
       }
@@ -1148,7 +1160,7 @@
     // -- equipment
     var slots = L.slotOrder.filter(function (sl) { return ch.equipment[sl]; });
     if (slots.length) {
-      body.appendChild(el('h3', null, '装备（' + slots.length + '/16）'));
+      body.appendChild(el('h3', null, tn('装备（{n}/16）', { n: slots.length })));
       var et = el('table', 'mini-table');
       var ehr = el('tr');
       ['槽位', '物品', '装等', '升级'].forEach(function (h) { ehr.appendChild(el('th', null, h)); });
@@ -1179,14 +1191,15 @@
 
     // -- prey, grouped by difficulty
     if (ch.prey.seen) {
-      body.appendChild(el('h3', null, '狩猎　' + ch.prey.done + '/' + ch.prey.seen));
+      body.appendChild(el('h3', null, tn('狩猎　{done}/{seen}', { done: ch.prey.done, seen: ch.prey.seen })));
       ['PREY_DIFFICULTY_NORMAL', 'PREY_DIFFICULTY_HARD', 'PREY_DIFFICULTY_NIGHTMARE']
         .forEach(function (diff) {
           var d = ch.prey.byDifficulty[diff];
           if (!d) return;
           var blk = el('div', 'prey-block');
-          blk.appendChild(el('h4', null,
-            L.preyDifficultyLabel(diff) + '　' + d.done + ' / ' + d.total));
+          blk.appendChild(el('h4', null, tn('{diff}　{done} / {total}', {
+            diff: tr(L.preyDifficultyLabel(diff)), done: d.done, total: d.total
+          })));
           var pl = el('div', 'prey-list');
           // Completed first: the unfinished list is 30+ entries and the question
           // is almost always "what did I already do this week".

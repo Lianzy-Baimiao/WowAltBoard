@@ -99,7 +99,7 @@ if (-not (Test-Path -LiteralPath $IconPath)) {
 # Chinese in the source comes back mangled -- the compiler reported
 # "newline in constant" on a perfectly valid string.
 # ---------------------------------------------------------------------------
-$T = @{
+$T_ZH = @{
     Title      = '魔兽多角色看板'
     Scanning   = '正在扫描魔兽世界目录...'
     NoScript   = "找不到 tools\scan.ps1。`n请确认这个程序和 index.html、tools 文件夹在同一个目录里。"
@@ -122,7 +122,8 @@ $T = @{
     DirSaved   = '游戏目录已保存，正在重新扫描...'
     ShortcutOk = '桌面快捷方式已创建。'
     ShortcutBad= '创建快捷方式失败：'
-    PageTitle  = '魔兽多角色看板'
+    # The page <title> is fixed in both languages (see T_PAGETITLE comment).
+    PageTitle  = 'WowAltBoard'
     TrayUpdate = '检查更新'
     UpdNewer   = '有新版本 {0}（当前 v{1}），点这里打开发布页'
     UpdCurrent = '已经是最新版本 v{0}'
@@ -184,6 +185,89 @@ $T = @{
     BodyUnknown= "这次的失败原因不在已知情况里。下面的「详细信息」是扫描器的原始输出，可以照着排查，也可以点「复制详情」发给作者。"
 }
 
+# English side of every string above. Keys must match exactly -- the build
+# refuses to run otherwise, because a missing key would silently produce an
+# empty caption at runtime. {0}/{1} placeholders are also checked.
+$T_EN = @{
+    Title      = 'WoW Alt Board'
+    Scanning   = 'Scanning the World of Warcraft folder...'
+    NoScript   = "tools\scan.ps1 was not found.`nMake sure this program is in the same folder as index.html and the tools folder."
+    Footnote   = 'To see the full scan output, double-click 启动.bat in this folder.'
+    NoPwsh     = "Cannot run the PowerShell scan script.`n"
+    NoPage     = "Scan succeeded, but index.html was not found.`nMake sure this program is in the same folder as index.html."
+    NoBrowse   = "Data was generated, but the browser could not be opened automatically.`nOpen index.html manually."
+    Font       = 'Microsoft YaHei UI'
+    TrayOpen   = 'Open board'
+    TrayRescan = 'Rescan now'
+    TrayExit   = 'Exit'
+    TrayIdle   = 'WoW Alt Board - watching game saves'
+    TrayBusy   = 'WoW Alt Board - rescanning...'
+    TrayDone   = 'Data updated; the page will show it on the next refresh'
+    TrayNoWatch= 'WoW Alt Board'
+    TraySetDir = 'Set game folder...'
+    TrayShortcut='Create desktop shortcut'
+    PickDir    = 'Choose the WoW install folder (the one containing _retail_)'
+    DirBad     = "No _retail_ folder was found here.`nChoose the folder that contains _retail_, for example D:\\World of Warcraft."
+    DirSaved   = 'Game folder saved; rescanning...'
+    ShortcutOk = 'Desktop shortcut created.'
+    ShortcutBad= 'Could not create the shortcut: '
+    PageTitle  = 'WowAltBoard'
+    TrayUpdate = 'Check for updates'
+    UpdNewer   = 'Version {0} is available (current v{1}); click to open the releases page'
+    UpdCurrent = 'Already up to date: v{0}'
+    UpdFailed  = 'Could not check for updates; the network may be unavailable. Try again later.'
+    UpdTitle    = 'Check for updates'
+    UpdChecking = 'Checking for updates online...'
+    UpdNewerAsk = "New version {0} found.`n`nYou are using {1}.`n`nOpen the releases page to download it?"
+    UpdNoNew    = "Already up to date ({0}); no update needed."
+    UpdFailAsk  = "Could not reach GitHub, so it is unknown whether a new version exists.`n`nGitHub is often unreachable in mainland China; this is usually a network problem, not a broken program.`n`nTechnical detail: {0}`n`nOpen the releases page to check manually? (GitHub access is also required)"
+    CloseAsk   = "The board window has closed.`n`nKeep the program in the tray (watch saves, rescan automatically)?`n`nYes = stay in tray　　No = exit as well"
+    CloseTitle = 'After closing the board'
+    CloseRemem = "This choice is remembered; change it later under 'When closing the board' in the tray menu."
+    BehaveMenu = 'When closing the board'
+    BehaveTray = 'Stay in tray'
+    BehaveExit = 'Exit as well'
+    BehaveAsk  = 'Ask every time'
+
+    BtnRetry   = 'Rescan'
+    BtnSetDir  = 'Set game folder...'
+    BtnAddons  = 'Open addon folder'
+    BtnDownload= 'Download AlterEgo'
+    BtnDetail  = 'Details ▼'
+    BtnDetail2 = 'Details ▲'
+    BtnCopy    = 'Copy details'
+    BtnCopied  = 'Copied'
+    BtnClose   = 'Close'
+    AddonUrl   = 'https://www.curseforge.com/wow/addons/alterego'
+
+    HeadNoWow  = 'World of Warcraft installation not found'
+    BodyNoWow  = "The registry, Battle.net configuration and common paths were all checked, but nothing was found. Set it manually once.`n`n1. Click 'Set game folder' below.`n2. Choose the folder containing _retail_, e.g. D:\World of Warcraft.`n3. It is saved and rescanned automatically."
+
+    HeadNoAddon= 'AlterEgo is not installed'
+    BodyNoAddon= "This board only turns data saved by the AlterEgo addon into a web page; it does not read the game itself. Install the addon and log in once so it writes a save.`n`n1. Download AlterEgo: click 'Download AlterEgo' below, or search for AlterEgo in the CurseForge app.`n2. Extract it into this folder:`n      %ADDONS%`n   You should then see AlterEgo\AlterEgo.toc directly.`n3. Start the game and log in to any character.`n4. Type /reload, or log out and exit the game — the addon writes its data at that point.`n5. Come back and click 'Rescan'."
+
+    HeadBroken = 'The AlterEgo folder is nested incorrectly and the game cannot load it'
+    BodyBroken = "An AlterEgo folder was found, but it has no AlterEgo.toc. This almost always means the archive was extracted with an extra folder level.`n`nCorrect:  %ADDONS%\AlterEgo\AlterEgo.toc`nWrong:  ...\AddOns\AlterEgo\AlterEgo\AlterEgo.toc`n`nFor the second case, cut out the inner AlterEgo folder and overwrite the outer one.`n`nThen start the game, log in once, type /reload, and click 'Rescan' below."
+
+    HeadDisabled='AlterEgo is installed but disabled'
+    BodyDisabled="AlterEgo is disabled in every character's addon list, so the game will not load it and no data is produced.`n`n1. Start the game and click 'AddOns' at the lower left of the character screen.`n2. Tick AlterEgo (switch to 'All characters' at the upper right to enable it everywhere at once).`n3. Log in, type /reload, or log out and exit the game.`n4. Come back and click 'Rescan'."
+
+    HeadNoChar = 'No character data in this game folder yet'
+    BodyNoChar = "This WoW installation appears never to have been logged into, or it is not the one you play — two installs or a copy on another drive is common.`n`n1. Use 'Set game folder' below to confirm the right one.`n2. Start the game, log in to a character and exit.`n3. Come back and click 'Rescan'."
+
+    HeadNoSaved= 'AlterEgo is installed but has not produced data yet'
+    BodyNoSaved= "The addon is present and enabled, but has not written a save yet. It only writes on /reload, logout or exit — while the game is running the data stays in memory.`n`n1. Start the game and log in to any character.`n2. Click the AlterEgo icon on the minimap so it collects this character.`n3. Type /reload, or log out and exit the game.`n4. Come back and click 'Rescan'.`n`n(When this program stays in the tray it watches the save files and rescans after /reload.)"
+
+    HeadUnread = 'AlterEgo saves were found, but the contents are incomplete'
+    BodyUnread = "This usually means the game is still running and the save file is being written, so only half of it was read.`n`n1. Fully exit World of Warcraft — close the game, not just return to the character screen.`n2. Come back and click 'Rescan'.`n`nIf the game really is closed, the save is corrupt: delete it and collect the data again in game."
+
+    HeadNoWrite= 'This folder is not writable, so there is nowhere to put the scan results'
+    BodyNoWrite= "The scanner needs to create a data\ folder beside itself, and this location refuses writes — usually because the program was extracted into Program Files or a read-only network share.`n`nMove the whole WowAltBoard folder somewhere writable (Desktop, D:\ etc.) and double-click it again. Administrator rights are not required."
+
+    HeadUnknown= 'Scan failed; no data was generated'
+    BodyUnknown= "This failure is not one of the known cases. 'Details' below contains the scanner's raw output; use it to investigate, or click 'Copy details' and send it to the author."
+}
+
 # PowerShell string -> C# string literal, ASCII-only.
 # Note: no `switch` here on purpose. Inside a switch, `continue` continues the
 # SWITCH rather than the enclosing foreach, so a backslash got escaped and then
@@ -209,6 +293,7 @@ $source = @'
 using System;
 using System.Diagnostics;
 using System.Drawing;
+using System.Globalization;
 using System.IO;
 using System.Net;
 using System.Reflection;
@@ -220,76 +305,114 @@ using Microsoft.Win32;
 // `public` only so Add-Type stops warning that the generated type is not public.
 public static class Launcher
 {
-    const string T_TITLE      = @@TITLE@@;
-    const string T_SCANNING   = @@SCANNING@@;
-    const string T_NOSCRIPT   = @@NOSCRIPT@@;
-    const string T_FOOTNOTE   = @@FOOTNOTE@@;
-    const string T_NOPWSH     = @@NOPWSH@@;
-    const string T_NOPAGE     = @@NOPAGE@@;
-    const string T_NOBROWSE   = @@NOBROWSE@@;
-    const string T_FONT       = @@FONT@@;
-    const string T_TRAYOPEN   = @@TRAYOPEN@@;
-    const string T_TRAYRESCAN = @@TRAYRESCAN@@;
-    const string T_TRAYEXIT   = @@TRAYEXIT@@;
-    const string T_TRAYIDLE   = @@TRAYIDLE@@;
-    const string T_TRAYBUSY   = @@TRAYBUSY@@;
-    const string T_TRAYDONE   = @@TRAYDONE@@;
-    const string T_TRAYNOWATCH= @@TRAYNOWATCH@@;
-    const string T_TRAYSETDIR = @@TRAYSETDIR@@;
-    const string T_TRAYSHORTCUT=@@TRAYSHORTCUT@@;
-    const string T_PICKDIR    = @@PICKDIR@@;
-    const string T_DIRBAD     = @@DIRBAD@@;
-    const string T_DIRSAVED   = @@DIRSAVED@@;
-    const string T_SHORTCUTOK = @@SHORTCUTOK@@;
-    const string T_SHORTCUTBAD= @@SHORTCUTBAD@@;
+    // Static field initialisers run in textual order, so UseEn MUST be declared
+    // before every T_* field below: they call T(), and T() reads UseEn. Declared
+    // after them, it would still be false while they initialise, pinning the UI
+    // to Chinese.
+    static readonly bool UseEn = DetectUseEn();
+    static string T(string zh, string en) { return UseEn ? en : zh; }
+
+    // Native-UI language (tray menu, dialogs, window title). The page has its
+    // own setting; this only decides what the launcher itself draws.
+    static bool DetectUseEn()
+    {
+        // 1) Explicit override. Checks and shortcuts pass --lang=...
+        foreach (string a in Environment.GetCommandLineArgs())
+        {
+            if (a == null) continue;
+            string s = a.Trim().ToLowerInvariant();
+            if (s == "--lang=zh" || s == "--lang=zh-cn") return false;
+            if (s == "--lang=en" || s == "--lang=en-us") return true;
+        }
+        // 2) An explicit choice saved by the board's own settings. BaseDir is
+        //    still null during static init, so reach config.json via the assembly.
+        try
+        {
+            string dir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+            string cfg = Path.Combine(Path.Combine(dir, "tools"), "config.json");
+            if (File.Exists(cfg))
+            {
+                string text = File.ReadAllText(cfg);
+                System.Text.RegularExpressions.Match m =
+                    System.Text.RegularExpressions.Regex.Match(text, "\"uiLang\"\\s*:\\s*\"(zh|en)\"");
+                if (m.Success) return m.Groups[1].Value == "en";
+            }
+        }
+        catch { /* unreadable config: fall through to the OS language */ }
+        // 3) Follow the system: Chinese Windows -> Chinese, everything else English.
+        return CultureInfo.CurrentUICulture.TwoLetterISOLanguageName != "zh";
+    }
+
+    static readonly string T_TITLE      = @@TITLE@@;
+    static readonly string T_SCANNING   = @@SCANNING@@;
+    static readonly string T_NOSCRIPT   = @@NOSCRIPT@@;
+    static readonly string T_FOOTNOTE   = @@FOOTNOTE@@;
+    static readonly string T_NOPWSH     = @@NOPWSH@@;
+    static readonly string T_NOPAGE     = @@NOPAGE@@;
+    static readonly string T_NOBROWSE   = @@NOBROWSE@@;
+    static readonly string T_FONT       = @@FONT@@;
+    static readonly string T_TRAYOPEN   = @@TRAYOPEN@@;
+    static readonly string T_TRAYRESCAN = @@TRAYRESCAN@@;
+    static readonly string T_TRAYEXIT   = @@TRAYEXIT@@;
+    static readonly string T_TRAYIDLE   = @@TRAYIDLE@@;
+    static readonly string T_TRAYBUSY   = @@TRAYBUSY@@;
+    static readonly string T_TRAYDONE   = @@TRAYDONE@@;
+    static readonly string T_TRAYNOWATCH= @@TRAYNOWATCH@@;
+    static readonly string T_TRAYSETDIR = @@TRAYSETDIR@@;
+    static readonly string T_TRAYSHORTCUT=@@TRAYSHORTCUT@@;
+    static readonly string T_PICKDIR    = @@PICKDIR@@;
+    static readonly string T_DIRBAD     = @@DIRBAD@@;
+    static readonly string T_DIRSAVED   = @@DIRSAVED@@;
+    static readonly string T_SHORTCUTOK = @@SHORTCUTOK@@;
+    static readonly string T_SHORTCUTBAD= @@SHORTCUTBAD@@;
     // Must match the <title> in index.html: it is how an already-open dashboard
     // window is found.
-    const string T_PAGETITLE  = @@PAGETITLE@@;
-    const string T_TRAYUPDATE = @@TRAYUPDATE@@;
-    const string T_UPDNEWER   = @@UPDNEWER@@;
-    const string T_UPDCURRENT = @@UPDCURRENT@@;
-    const string T_UPDFAILED  = @@UPDFAILED@@;
-    const string T_UPDTITLE   = @@UPDTITLE@@;
-    const string T_UPDCHECKING= @@UPDCHECKING@@;
-    const string T_UPDNEWERASK= @@UPDNEWERASK@@;
-    const string T_UPDNONEW   = @@UPDNONEW@@;
-    const string T_UPDFAILASK = @@UPDFAILASK@@;
-    const string T_CLOSEASK   = @@CLOSEASK@@;
-    const string T_CLOSETITLE = @@CLOSETITLE@@;
-    const string T_CLOSEREMEM = @@CLOSEREMEM@@;
-    const string T_BEHAVEMENU = @@BEHAVEMENU@@;
-    const string T_BEHAVETRAY = @@BEHAVETRAY@@;
-    const string T_BEHAVEEXIT = @@BEHAVEEXIT@@;
-    const string T_BEHAVEASK  = @@BEHAVEASK@@;
+    static readonly string T_PAGETITLE  = @@PAGETITLE@@;
+    static readonly string T_TRAYUPDATE = @@TRAYUPDATE@@;
+    static readonly string T_UPDNEWER   = @@UPDNEWER@@;
+    static readonly string T_UPDCURRENT = @@UPDCURRENT@@;
+    static readonly string T_UPDFAILED  = @@UPDFAILED@@;
+    static readonly string T_UPDTITLE   = @@UPDTITLE@@;
+    static readonly string T_UPDCHECKING= @@UPDCHECKING@@;
+    static readonly string T_UPDNEWERASK= @@UPDNEWERASK@@;
+    static readonly string T_UPDNONEW   = @@UPDNONEW@@;
+    static readonly string T_UPDFAILASK = @@UPDFAILASK@@;
+    static readonly string T_CLOSEASK   = @@CLOSEASK@@;
+    static readonly string T_CLOSETITLE = @@CLOSETITLE@@;
+    static readonly string T_CLOSEREMEM = @@CLOSEREMEM@@;
+    static readonly string T_BEHAVEMENU = @@BEHAVEMENU@@;
+    static readonly string T_BEHAVETRAY = @@BEHAVETRAY@@;
+    static readonly string T_BEHAVEEXIT = @@BEHAVEEXIT@@;
+    static readonly string T_BEHAVEASK  = @@BEHAVEASK@@;
 
-    const string T_BTNRETRY   = @@BTNRETRY@@;
-    const string T_BTNSETDIR  = @@BTNSETDIR@@;
-    const string T_BTNADDONS  = @@BTNADDONS@@;
-    const string T_BTNDOWNLOAD= @@BTNDOWNLOAD@@;
-    const string T_BTNDETAIL  = @@BTNDETAIL@@;
-    const string T_BTNDETAIL2 = @@BTNDETAIL2@@;
-    const string T_BTNCOPY    = @@BTNCOPY@@;
-    const string T_BTNCOPIED  = @@BTNCOPIED@@;
-    const string T_BTNCLOSE   = @@BTNCLOSE@@;
-    const string T_ADDONURL   = @@ADDONURL@@;
-    const string T_HEADNOWOW  = @@HEADNOWOW@@;
-    const string T_BODYNOWOW  = @@BODYNOWOW@@;
-    const string T_HEADNOADDON= @@HEADNOADDON@@;
-    const string T_BODYNOADDON= @@BODYNOADDON@@;
-    const string T_HEADBROKEN = @@HEADBROKEN@@;
-    const string T_BODYBROKEN = @@BODYBROKEN@@;
-    const string T_HEADDISABLED=@@HEADDISABLED@@;
-    const string T_BODYDISABLED=@@BODYDISABLED@@;
-    const string T_HEADNOCHAR = @@HEADNOCHAR@@;
-    const string T_BODYNOCHAR = @@BODYNOCHAR@@;
-    const string T_HEADNOSAVED= @@HEADNOSAVED@@;
-    const string T_BODYNOSAVED= @@BODYNOSAVED@@;
-    const string T_HEADUNREAD = @@HEADUNREAD@@;
-    const string T_BODYUNREAD = @@BODYUNREAD@@;
-    const string T_HEADNOWRITE= @@HEADNOWRITE@@;
-    const string T_BODYNOWRITE= @@BODYNOWRITE@@;
-    const string T_HEADUNKNOWN= @@HEADUNKNOWN@@;
-    const string T_BODYUNKNOWN= @@BODYUNKNOWN@@;
+    static readonly string T_BTNRETRY   = @@BTNRETRY@@;
+    static readonly string T_BTNSETDIR  = @@BTNSETDIR@@;
+    static readonly string T_BTNADDONS  = @@BTNADDONS@@;
+    static readonly string T_BTNDOWNLOAD= @@BTNDOWNLOAD@@;
+    static readonly string T_BTNDETAIL  = @@BTNDETAIL@@;
+    static readonly string T_BTNDETAIL2 = @@BTNDETAIL2@@;
+    static readonly string T_BTNCOPY    = @@BTNCOPY@@;
+    static readonly string T_BTNCOPIED  = @@BTNCOPIED@@;
+    static readonly string T_BTNCLOSE   = @@BTNCLOSE@@;
+    static readonly string T_ADDONURL   = @@ADDONURL@@;
+    static readonly string T_HEADNOWOW  = @@HEADNOWOW@@;
+    static readonly string T_BODYNOWOW  = @@BODYNOWOW@@;
+    static readonly string T_HEADNOADDON= @@HEADNOADDON@@;
+    static readonly string T_BODYNOADDON= @@BODYNOADDON@@;
+    static readonly string T_HEADBROKEN = @@HEADBROKEN@@;
+    static readonly string T_BODYBROKEN = @@BODYBROKEN@@;
+    static readonly string T_HEADDISABLED=@@HEADDISABLED@@;
+    static readonly string T_BODYDISABLED=@@BODYDISABLED@@;
+    static readonly string T_HEADNOCHAR = @@HEADNOCHAR@@;
+    static readonly string T_BODYNOCHAR = @@BODYNOCHAR@@;
+    static readonly string T_HEADNOSAVED= @@HEADNOSAVED@@;
+    static readonly string T_BODYNOSAVED= @@BODYNOSAVED@@;
+    static readonly string T_HEADUNREAD = @@HEADUNREAD@@;
+    static readonly string T_BODYUNREAD = @@BODYUNREAD@@;
+    static readonly string T_HEADNOWRITE= @@HEADNOWRITE@@;
+    static readonly string T_BODYNOWRITE= @@BODYNOWRITE@@;
+    static readonly string T_HEADUNKNOWN= @@HEADUNKNOWN@@;
+    static readonly string T_BODYUNKNOWN= @@BODYUNKNOWN@@;
 
     static string BaseDir;
     static string ScanScript;
@@ -1359,7 +1482,8 @@ public static class Launcher
                 {
                     if (probe.WaitForExit(5000) && probe.ExitCode == 0)
                     {
-                        Process.Start(new ProcessStartInfo(desktop) { UseShellExecute = false });
+                        Process.Start(new ProcessStartInfo(desktop,
+                            "--lang=" + (UseEn ? "en" : "zh")) { UseShellExecute = false });
                         OwnAppWindow = true;
                         RaiseWhenReady();
                         return;
@@ -1369,7 +1493,8 @@ public static class Launcher
             catch { /* missing runtime or damaged optional host: browser fallback */ }
         }
 
-        string url = new Uri(PageFile).AbsoluteUri;
+        string url = new Uri(PageFile).AbsoluteUri
+            + (PageFile.IndexOf('?') >= 0 ? "&" : "?") + "lang=" + (UseEn ? "en" : "zh");
         string browser = FindBrowser();
         if (browser != null)
         {
@@ -1778,8 +1903,27 @@ public static class Launcher
 }
 '@
 
-foreach ($k in $T.Keys) {
-    $source = $source.Replace('@@' + $k.ToUpper() + '@@', (ConvertTo-CsLiteral $T[$k]))
+# Both tables must agree: a missing key would silently become an empty caption,
+# and a mismatched {0}/{1} set would corrupt a formatted message at runtime.
+$zhKeys = @($T_ZH.Keys | Sort-Object)
+$enKeys = @($T_EN.Keys | Sort-Object)
+$diff = @(Compare-Object $zhKeys $enKeys)
+if ($diff.Count -gt 0) {
+    throw ("$T_ZH / $T_EN key mismatch: " +
+           (($diff | ForEach-Object { $_.SideIndicator + ' ' + $_.InputObject }) -join ', '))
+}
+foreach ($k in $zhKeys) {
+    $zhPh = @([regex]::Matches($T_ZH[$k], '\{\d+\}') | ForEach-Object { $_.Value } | Sort-Object -Unique)
+    $enPh = @([regex]::Matches($T_EN[$k], '\{\d+\}') | ForEach-Object { $_.Value } | Sort-Object -Unique)
+    if (@(Compare-Object $zhPh $enPh).Count -gt 0) {
+        throw ("placeholder mismatch for ${k}: zh [$($zhPh -join ',')] en [$($enPh -join ',')]")
+    }
+    $token = '@@' + $k.ToUpper() + '@@'
+    if (-not $source.Contains($token)) {
+        throw "the C# template never uses $token"
+    }
+    $source = $source.Replace($token,
+        ('T(' + (ConvertTo-CsLiteral $T_ZH[$k]) + ', ' + (ConvertTo-CsLiteral $T_EN[$k]) + ')'))
 }
 if ($source -match '@@[A-Z]+@@') {
     throw "a UI string placeholder was left unsubstituted: $($Matches[0])"

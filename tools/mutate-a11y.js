@@ -56,8 +56,8 @@ var MUTANTS = [
    "var tb = el('span', 'tag trk', '');"],
 
   ['来源徽章只留 tooltip、去掉可见文字', BIS,
-   "badge.setAttribute('data-tip', srcText || '来源未知');",
-   "badge.textContent = ''; badge.setAttribute('data-tip', srcText || '来源未知');"]
+   "badge.setAttribute('data-tip', srcText || tr('来源未知'));",
+   "badge.textContent = ''; badge.setAttribute('data-tip', srcText || tr('来源未知'));"]
 ];
 
 function run() {

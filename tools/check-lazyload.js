@@ -39,9 +39,10 @@ if (!fs.existsSync(path.join(ROOT, 'data', 'data.js'))) {
 
 var env = stub.makeEnv(['bis', 'bis-sub', 'bis-body']);
 var g = env.g, doc = env.doc;
+g.__AE_FORCE_LANG = 'zh';
 
 // index.html 里**同步加载**的那一批。数据文件一个都不预载 —— 那正是重点。
-['app/class-names.js', 'app/lua-parser.js', 'app/labels.js', 'app/model.js',
+['app/i18n.js', 'app/i18n-en.js', 'app/class-names.js', 'app/lua-parser.js', 'app/labels.js', 'app/model.js',
  'app/settings.js', 'app/columns.js', 'app/layouts.js', 'app/export.js',
  'app/talent-decode.js', 'app/history.js', 'app/bis.js'].forEach(function (f) {
   env.load(f);

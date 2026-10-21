@@ -6,7 +6,8 @@
 var assert = require('assert');
 var stub = require('./dom-stub.js');
 var env = stub.makeEnv(['panel-body', 'panel-tabs']);
-['app/version.js', 'app/labels.js', 'app/settings.js', 'app/render.js', 'app/panel.js'].forEach(env.load);
+env.g.__AE_FORCE_LANG = 'zh';
+['app/version.js', 'app/i18n.js', 'app/i18n-en.js', 'app/labels.js', 'app/settings.js', 'app/render.js', 'app/panel.js'].forEach(env.load);
 var AE = env.g.AE;
 var opened = [], toasts = [];
 env.g.open = function (url) { opened.push(url); };

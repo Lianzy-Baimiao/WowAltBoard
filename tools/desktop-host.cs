@@ -1,9 +1,10 @@
-﻿// Native frame; only the local dashboard may request a scan or change the theme.
+// Native frame; only the local dashboard may request a scan or change the theme.
 using System;
 using System.IO;
 using System.Drawing;
 using System.Diagnostics;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Web.Script.Serialization;
 using System.Windows.Forms;
@@ -12,6 +13,11 @@ using Microsoft.Web.WebView2.WinForms;
 
 internal sealed class DashboardWindow : Form
 {
+    // Language of the native frame only (title, message boxes). The page picks
+    // its own language; this is set once in Main before the window is created.
+    static bool UseEn;
+    static string L(string zh, string en) { return UseEn ? en : zh; }
+
     readonly string root;
     readonly Uri page;
     readonly WebView2 view = new WebView2();
@@ -36,9 +42,15 @@ internal sealed class DashboardWindow : Form
     DashboardWindow(string baseDir)
     {
         root = baseDir;
-        page = new Uri(Path.Combine(root, "index.html"));
+        // The query is how the page learns the native frame's language; a saved
+        // explicit choice in the page settings still takes priority over it.
+        var pageUri = new UriBuilder(new Uri(Path.Combine(root, "index.html")));
+        pageUri.Query = "lang=" + (UseEn ? "en" : "zh");
+        page = pageUri.Uri;
         themeFile = Path.Combine(root, "data", "desktop-theme.json");
-        Text = "\u9b54\u517d\u591a\u89d2\u8272\u770b\u677f";
+        // Fixed in both languages: the launcher finds this window by this title
+        // and index.html carries the same <title>.
+        Text = "WowAltBoard";
         StartPosition = FormStartPosition.CenterScreen;
         Size = new Size(1440, 900);
         MinimumSize = new Size(640, 420);
@@ -91,7 +103,8 @@ internal sealed class DashboardWindow : Form
                 view.Source = page;
             } catch (Exception ex) {
                 try { File.WriteAllText(Path.Combine(root, "data", "desktop-error.log"), ex.ToString()); } catch { }
-                MessageBox.Show("\u684c\u9762\u7a97\u53e3\u521d\u59cb\u5316\u5931\u8d25\uff0c\u8bf7\u7528\u6d4f\u89c8\u5668\u6253\u5f00 index.html\u3002", Text);
+                MessageBox.Show(L("\u684c\u9762\u7a97\u53e3\u521d\u59cb\u5316\u5931\u8d25\uff0c\u8bf7\u7528\u6d4f\u89c8\u5668\u6253\u5f00 index.html\u3002",
+                    "The desktop window could not start. Open index.html in a browser instead."), Text);
                 // Do not open a normal browser tab here: the tray owns this window
                 // and must never accidentally close the user's unrelated browser tabs.
                 Close();
@@ -143,8 +156,12 @@ internal sealed class DashboardWindow : Form
         }
         if (command == "apply" || command == "rollback") {
             if (scanning) { SendUpdateResult(id, UpdateError("SCAN_BUSY"), true); return; }
-            if (MessageBox.Show(this, command == "rollback" ? "退出并恢复上一次应用版本？角色数据与设置会保留，自动下载将关闭。" : "退出看板并安装已下载的新版本？角色数据与设置会保留，完成后自动重开。",
-                "应用更新", MessageBoxButtons.OKCancel, MessageBoxIcon.Question) != DialogResult.OK) {
+            if (MessageBox.Show(this, command == "rollback"
+                ? L("\u9000\u51fa\u5e76\u6062\u590d\u4e0a\u4e00\u6b21\u5e94\u7528\u7248\u672c\uff1f\u89d2\u8272\u6570\u636e\u4e0e\u8bbe\u7f6e\u4f1a\u4fdd\u7559\uff0c\u81ea\u52a8\u4e0b\u8f7d\u5c06\u5173\u95ed\u3002",
+                    "Exit and restore the previous app version? Character data and settings are kept; automatic downloads will be turned off.")
+                : L("\u9000\u51fa\u770b\u677f\u5e76\u5b89\u88c5\u5df2\u4e0b\u8f7d\u7684\u65b0\u7248\u672c\uff1f\u89d2\u8272\u6570\u636e\u4e0e\u8bbe\u7f6e\u4f1a\u4fdd\u7559\uff0c\u5b8c\u6210\u540e\u81ea\u52a8\u91cd\u5f00\u3002",
+                    "Exit the board and install the downloaded update? Character data and settings are kept; the board reopens automatically when done."),
+                L("\u5e94\u7528\u66f4\u65b0", "Apply update"), MessageBoxButtons.OKCancel, MessageBoxIcon.Question) != DialogResult.OK) {
                 SendUpdateResult(id, appUpdates.Current(), true); return;
             }
             updating = true;
@@ -228,6 +245,31 @@ internal sealed class DashboardWindow : Form
     }
     protected override void OnFormClosed(FormClosedEventArgs e) { updateRequests.Stop(); updateRequests.Dispose(); if (updateCancel != null) updateCancel.Cancel(); base.OnFormClosed(e); }
     protected override void OnHandleCreated(EventArgs e) { base.OnHandleCreated(e); PaintFrame(); }
+
+    // --lang=... beats the saved config, which beats the OS language.
+    static bool DetectUseEn(string[] args, string root)
+    {
+        foreach (string a in args)
+        {
+            if (a == null) continue;
+            string s = a.Trim().ToLowerInvariant();
+            if (s == "--lang=zh" || s == "--lang=zh-cn") return false;
+            if (s == "--lang=en" || s == "--lang=en-us") return true;
+        }
+        try
+        {
+            string cfg = Path.Combine(root, "tools", "config.json");
+            if (File.Exists(cfg))
+            {
+                System.Text.RegularExpressions.Match m = System.Text.RegularExpressions.Regex.Match(
+                    File.ReadAllText(cfg), "\"uiLang\"\\s*:\\s*\"(zh|en)\"");
+                if (m.Success) return m.Groups[1].Value == "en";
+            }
+        }
+        catch { /* unreadable config: follow the OS */ }
+        return CultureInfo.CurrentUICulture.TwoLetterISOLanguageName != "zh";
+    }
+
     [STAThread] static int Main(string[] args)
     {
         string architecture = IntPtr.Size == 8 ? "x64" : "x86";
@@ -238,8 +280,11 @@ internal sealed class DashboardWindow : Form
         Application.EnableVisualStyles();
         Application.SetCompatibleTextRenderingDefault(false);
         string root = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", ".."));
+        UseEn = DetectUseEn(args, root);
         if (File.Exists(Path.Combine(root, "data", "app-update", "recovery.required"))) {
-            MessageBox.Show("应用更新需要恢复，请从「魔兽看板.exe」启动。", "应用更新"); return 4;
+            MessageBox.Show(L("\u5e94\u7528\u66f4\u65b0\u9700\u8981\u6062\u590d\uff0c\u8bf7\u4ece\u300c\u9b54\u517d\u770b\u677f.exe\u300d\u542f\u52a8\u3002",
+                "The app update needs recovery. Start it again from \u9b54\u517d\u770b\u677f.exe."),
+                L("\u5e94\u7528\u66f4\u65b0", "Application update")); return 4;
         }
         if (!File.Exists(Path.Combine(root, "index.html"))) return 3;
         Application.Run(new DashboardWindow(root));

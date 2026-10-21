@@ -1,5 +1,7 @@
 # 魔兽多角色看板（WowAltBoard）
 
+[简体中文](README.md) | [English](README.en.md)
+
 [![许可 MIT](https://img.shields.io/badge/许可-MIT-blue?style=flat-square)](LICENSE)
 [![赞赏 爱发电](https://img.shields.io/badge/赞赏-爱发电-946ce6?style=flat-square)](https://ifdian.net/a/lianzy)
 
@@ -42,6 +44,10 @@ Windows 10/11 使用系统 PowerShell 和 .NET。新版优先使用 WebView2 原
 
 ## 主要功能
 
+* **中英双语界面**：默认跟随系统语言（中文系统显示简体中文，其他系统显示 English），
+  可在「设置 → 外观 → 界面语言」里改成固定语言。启动器托盘、对话框和原生窗口同样跟随系统，
+  也可以用 `--lang=en` / `--lang=zh` 或 `tools/config.json` 的 `uiLang` 指定。
+  游戏数据（角色名、物品、副本、天赋名）跟随游戏客户端语言，不另行翻译
 * **一张表对比所有角色**：多账号、跨服务器，60+ 列按需显示，点表头排序，
   按住表头拖动换列位置，整组也能搬家；调好的视图可以存成命名「布局方案」一键切换
 * **角色详情**：点任意一行看逐本最佳记录、宝库三档、装备 16 槽位、狩猎清单

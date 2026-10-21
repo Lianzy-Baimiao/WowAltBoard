@@ -3,6 +3,8 @@
   'use strict';
   var AE = global.AE = global.AE || {};
   var doc = global.document;
+  function tn(s, vars) { return AE.tn ? AE.tn(s, vars) : s; }
+  function locale() { return AE.i18n ? AE.i18n.locale() : undefined; }
   function text(id, value) {
     var node = doc.getElementById(id);
     if (node) node.textContent = value;
@@ -15,10 +17,10 @@
       rating = Math.max(rating, ch.mp.rating || 0);
     });
     text('overview-count', characters.length);
-    text('overview-total', '共 ' + total + ' 个角色');
+    text('overview-total', tn('共 {n} 个角色', { n: total }));
     text('overview-rewards', rewards);
     text('overview-runs', runs);
-    text('overview-rating', characters.length ? Math.round(rating).toLocaleString('zh-CN') : '—');
+    text('overview-rating', characters.length ? Math.round(rating).toLocaleString(locale()) : '—');
     var search = doc.getElementById('board-search');
     if (search && doc.activeElement !== search) search.value = AE.state.settings.search;
   };

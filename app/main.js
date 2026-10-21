@@ -10,11 +10,15 @@
   var AE = global.AE = global.AE || {};
   var doc = global.document;
 
+  // 本地兜底：i18n-en.js 缺失时也不能让致命错误路径自己先崩掉。
+  function tr(s, ctx) { return AE.t ? AE.t(s, ctx) : s; }
+  function tn(s, vars) { return AE.tn ? AE.tn(s, vars) : s; }
+
   function fatal(title, detail) {
     var box = doc.getElementById('fatal');
     box.style.display = '';
-    doc.getElementById('fatal-title').textContent = title;
-    doc.getElementById('fatal-detail').textContent = detail || '';
+    doc.getElementById('fatal-title').textContent = tr(title);
+    doc.getElementById('fatal-detail').textContent = tr(detail || '');
     doc.getElementById('app').style.display = 'none';
   }
 
@@ -25,14 +29,8 @@
     // decoded using the document's encoding. On a zh-CN machine a missing
     // <meta charset> means every Chinese character mojibakes.
     if (probe.encoding && probe.encoding.toUpperCase() !== 'UTF-8') {
-      fatal('页面编码不是 UTF-8（当前 ' + probe.encoding + '）',
+      fatal(tn('页面编码不是 UTF-8（当前 {enc}）', { enc: probe.encoding }),
             '中文会显示为乱码。请确认 index.html 的 <meta charset="utf-8"> 在 <head> 的最前面。');
-      return;
-    }
-
-    if (!global.AE_DATA) {
-      fatal('数据未加载', '没有找到 data/data.js。请先双击文件夹里的 魔兽看板.exe'
-            + '（或 启动.bat）来扫描游戏目录。');
       return;
     }
 
@@ -44,6 +42,15 @@
     }
     AE.settingsOrigin = loaded.origin;
     AE.storageOk = loaded.storageOk && probe.storage !== false;
+
+    // 保存的语言优先于启动器传来的 ?lang=；拿到设置后才能翻静态 HTML。
+    if (AE.i18n) AE.i18n.use(loaded.settings.uiLang);
+    if (AE.i18n) AE.i18n.applyStatic();
+
+    if (!global.AE_DATA) {
+      fatal('数据未加载', '没有找到 data/data.js。请先双击文件夹里的 魔兽看板.exe（或 启动.bat）来扫描游戏目录。');
+      return;
+    }
 
     var model;
     try {
@@ -60,8 +67,8 @@
 
     if (!model.characters.length) {
       fatal('没有找到任何角色',
-            '扫描到 ' + model.sources.length + ' 个数据源，但里面没有角色记录。' +
-            '需要装了 AlterEgo 并且登录过游戏，插件才会写入数据。');
+            tn('扫描到 {n} 个数据源，但里面没有角色记录。需要装了 AlterEgo 并且登录过游戏，插件才会写入数据。',
+               { n: model.sources.length }));
       return;
     }
 
@@ -105,9 +112,7 @@
       if (loaded.adoptedFrom) {
         AE.toast({
           title: '设置已从旧路径迁移过来',
-          body: '这个文件夹被移动或改名过。浏览器按路径分开存设置，' +
-                '所以刚才是从旧位置找回来的。想让设置以后跟着文件夹走，' +
-                '去 设置 → 其他 → 保存设置到文件。',
+          body: '这个文件夹被移动或改名过。浏览器按路径分开存设置，所以刚才是从旧位置找回来的。想让设置以后跟着文件夹走，去 设置 → 其他 → 保存设置到文件。',
           ms: 9000
         });
       }
@@ -369,7 +374,7 @@
     var id = 'scan-' + Date.now() + '-' + (++manualScanSequence);
     manualScan = { id: id, label: button.textContent };
     button.disabled = true;
-    button.textContent = '扫描中…';
+    button.textContent = tr('扫描中…');
     button.setAttribute('aria-busy', 'true');
     manualScan.timer = global.setTimeout(function () {
       finishManualScan({ type: 'scan-result', id: id, ok: false, error: 'BRIDGE_TIMEOUT' });

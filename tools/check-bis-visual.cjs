@@ -37,6 +37,7 @@ const { chromium } = require('playwright');
           const errors = [], network = [];
           page.on('pageerror', e => errors.push(e.message));
           await page.route(/^https?:/, r => { network.push(r.request().url()); return r.abort(); });
+          await page.addInitScript(() => { window.__AE_FORCE_LANG = 'zh'; });
           await page.goto(pathToFileURL(path.join(dir, 'index.html')).href);
           await page.evaluate(({ css, theme }) => {
             const style = document.createElement('style');

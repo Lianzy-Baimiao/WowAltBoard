@@ -19,6 +19,7 @@ const { chromium } = require('playwright');
     const page=await browser.newPage({viewport:{width:1440,height:1000}}), errors=[];
     page.on('pageerror',e=>errors.push(e.message)); await page.route(/^https?:/,r=>r.abort());
     await page.addInitScript(()=>{
+      window.__AE_FORCE_LANG='zh';
       window.sent=[];window.receivers=[];
       window.AE_APP_UPDATE_BOOT={protocol:1,phase:'idle',currentVersion:'1.17.3',automatic:false,canRollback:false};
       window.chrome.webview={postMessage:m=>window.sent.push(m),addEventListener:(kind,fn)=>window.receivers.push(fn)};
@@ -66,6 +67,7 @@ const { chromium } = require('playwright');
     assert.equal(await box.getByRole('checkbox').isChecked(),false); assert.match(await box.innerText(),/角色数据和设置未回退/);
     assert.deepEqual(errors,[]);
     const fallback=await browser.newPage(); await fallback.route(/^https?:/,r=>r.abort());
+    await fallback.addInitScript(()=>{ window.__AE_FORCE_LANG='zh'; });
     await fallback.goto(pathToFileURL(path.join(dir,'index.html')).href);
     await fallback.locator('#btn-settings').click(); await fallback.locator('#panel-tabs').getByRole('button',{name:'其他',exact:true}).click();
     assert.match(await fallback.locator('.app-updates').innerText(),/浏览器版可从最新发布下载完整包/);

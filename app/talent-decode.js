@@ -27,6 +27,8 @@
   'use strict';
 
   var AE = global.AE = global.AE || {};
+  function tr(s, ctx) { return AE.t ? AE.t(s, ctx) : s; }
+  function tn(s, vars) { return AE.tn ? AE.tn(s, vars) : s; }
 
   var ALPHA = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
   var RANK_BITS = 6;
@@ -97,12 +99,12 @@
    *        所以这里是数组不是单值）。
    */
   function decode(str, TR) {
-    if (!str || typeof str !== 'string') return { err: '空串' };
-    if (!TR || !TR.nodes || !TR.nodeOrder || !TR.specs) return { err: '天赋树数据没加载' };
+    if (!str || typeof str !== 'string') return { err: tr('空串') };
+    if (!TR || !TR.nodes || !TR.nodeOrder || !TR.specs) return { err: tr('天赋树数据没加载') };
 
     var arr = toBits(str);
-    if (!arr) return { err: '串里有 base64 表外的字符' };
-    if (arr.length < 152) return { err: '串太短，连串头都不够（要 152 位）' };
+    if (!arr) return { err: tr('串里有 base64 表外的字符') };
+    if (arr.length < 152) return { err: tr('串太短，连串头都不够（要 152 位）') };
 
     var r = reader(arr);
     var out = { ver: r.read(8), spec: r.read(16), pts: 0, nr: {}, subs: [], granted: {} };
@@ -114,10 +116,10 @@
     out.hash = hash;
 
     var sp = TR.specs[String(out.spec)];
-    if (!sp) return { err: '天赋树数据里没有专精 ' + out.spec };
+    if (!sp) return { err: tn('天赋树数据里没有专精 {id}', { id: out.spec }) };
     out.cls = sp.cls;
     var order = TR.nodeOrder[sp.cls];
-    if (!order || !order.length) return { err: sp.cls + ' 没有节点顺序表' };
+    if (!order || !order.length) return { err: tn('{cls} 没有节点顺序表', { cls: sp.cls }) };
 
     var SUBTREE = TR.types ? TR.types.indexOf('subtree') : -1;
     var subSeen = {};
@@ -140,7 +142,7 @@
         // 位读完了节点还没走完 = 这串是照着**另一版**天赋树编的。
         // 这不是「串坏了」，也不是解码器错了：赛季更新加一个节点就会这样。
         // 说清楚是哪种，否则下一个人会去改解码器。
-        out.err = '这串是照着另一版天赋树编的（还差 ' + (order.length - k) + ' 个节点没走到）';
+        out.err = tn('这串是照着另一版天赋树编的（还差 {n} 个节点没走到）', { n: order.length - k });
         return out;
       }
       if (!r.read(1)) continue;            // 这个节点没选

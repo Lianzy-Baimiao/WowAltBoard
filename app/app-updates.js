@@ -19,15 +19,23 @@
     INSTALL_FAILED: '安装未完成，请重试。若更新曾中断，下次从「魔兽看板.exe」启动会先恢复应用文件。',
     CANCELLED: '下载已取消，当前应用没有改动。', TIMEOUT: '更新响应超时，已请求取消；稍后可重试。'
   };
-  function el(tag, cls, text) { var e = doc.createElement(tag); if (cls) e.className = cls; if (text) e.textContent = text; return e; }
+  function tr(s, ctx) { return AE.t ? AE.t(s, ctx) : s; }
+  function tn(s, vars) { return AE.tn ? AE.tn(s, vars) : s; }
+  function ts(s) { return AE.ts ? AE.ts(s) : s; }
+  function locale() { return AE.i18n ? AE.i18n.locale() : undefined; }
+  function el(tag, cls, text) { var e = doc.createElement(tag); if (cls) e.className = cls; if (text) e.textContent = ts(text); return e; }
   function size(n) { return n < 1048576 ? Math.ceil(n / 1024) + ' KB' : (n / 1048576).toFixed(1) + ' MB'; }
   function message() {
     if (!supported) return bridge ? '当前桌面程序不支持应用内更新，需要手动升级一次程序。' : '应用内安装需要通过「魔兽看板.exe」打开；浏览器版可从最新发布下载完整包。';
     if (state.phase === 'error') return errors[state.error] || '更新没有完成，当前版本可以继续使用。';
     if (state.phase === 'checking') return '正在检查应用新版本…';
-    if (state.phase === 'available') return '发现 v' + state.version + '：' + state.changed + ' 个文件有变化，需下载 ' + state.packages + ' 个组件包，约 ' + size(state.bytes) + '。';
-    if (state.phase === 'downloading') return '正在准备更新：' + state.completed + '/' + state.total + ' 个组件；未变化组件复用本地，不重复下载。';
-    if (state.phase === 'ready') return 'v' + state.version + ' 已下载并校验。你可以继续使用，方便时再重启安装。';
+    if (state.phase === 'available') return tn('发现 v{v}：{c} 个文件有变化，需下载 {p} 个组件包，约 {s}。', {
+      v: state.version, c: state.changed, p: state.packages, s: size(state.bytes)
+    });
+    if (state.phase === 'downloading') return tn('正在准备更新：{done}/{total} 个组件；未变化组件复用本地，不重复下载。', {
+      done: state.completed, total: state.total
+    });
+    if (state.phase === 'ready') return tn('v{v} 已下载并校验。你可以继续使用，方便时再重启安装。', { v: state.version });
     if (state.phase === 'current') return '当前没有更高版本的正式发布；源站数据是否更新与应用版本是两回事。';
     if (state.phase === 'cancelled') return '已取消，当前应用没有改动；重试会复用已下载并校验的组件包。';
     if (state.phase === 'updated') return '应用更新已完成。角色数据、设置及窗口状态已保留。';
@@ -36,7 +44,9 @@
   }
   function paint(host) {
     host.textContent = ''; host.appendChild(el('h3', '', '应用更新'));
-    if (supported) host.appendChild(el('p', 'note', '当前应用 v' + ((AE.applicationVersion && AE.applicationVersion()) || '未知')));
+    if (supported) host.appendChild(el('p', 'note', tn('当前应用 v{v}', {
+      v: (AE.applicationVersion && AE.applicationVersion()) || tr('未知')
+    })));
     var status = el('p', 'app-update-message', message()); status.setAttribute('role', 'status'); host.appendChild(status);
     if (!supported) return;
     var actions = el('div', 'row-buttons');
@@ -45,16 +55,21 @@
       b.addEventListener('click', function () { request(action); }); actions.appendChild(b);
     }
     button('检查应用更新', 'check', pending);
-    if (state.phase === 'available') button('下载更新（' + size(state.bytes) + '）', 'download', pending);
+    if (state.phase === 'available') button(tn('下载更新（{size}）', { size: size(state.bytes) }), 'download', pending);
     if (pending && pending.action !== 'preferences' && pending.action !== 'apply' && pending.action !== 'rollback') button('取消下载 / 检查', 'cancel', false);
     if (state.ready || state.phase === 'ready') button('重启并安装更新', 'apply', pending);
     if (state.canRollback) button('恢复上一次应用版本', 'rollback', pending);
     host.appendChild(actions);
     var label = el('label', 'update-auto'), check = el('input'); check.type = 'checkbox'; check.checked = pending && pending.action === 'preferences' ? pending.automatic : !!state.automatic; check.disabled = !!pending;
     check.addEventListener('change', function () { request('preferences', check.checked); });
-    label.appendChild(check); label.appendChild(doc.createTextNode('自动检查并后台下载（每 24 小时，不自动重启）')); host.appendChild(label);
+    label.appendChild(check); label.appendChild(doc.createTextNode(tr('自动检查并后台下载（每 24 小时，不自动重启）'))); host.appendChild(label);
     host.appendChild(el('p', 'note', '默认关闭，只在看板运行时检查。按组件增量下载，不是每次重新下载完整应用；安装前会再次确认重启。保留角色数据、设置、游戏路径和窗口状态。'));
-    if (state.checkedAt) { var date = new Date(state.checkedAt); host.appendChild(el('p', 'note', '上次应用检查：' + (isNaN(date.getTime()) ? '未知' : date.toLocaleString()))); }
+    if (state.checkedAt) {
+      var date = new Date(state.checkedAt);
+      host.appendChild(el('p', 'note', tn('上次应用检查：{when}', {
+        when: isNaN(date.getTime()) ? tr('未知') : date.toLocaleString(locale())
+      })));
+    }
   }
   function refresh() { Array.prototype.forEach.call(doc.querySelectorAll('.app-updates'), paint); }
   function armTimeout(id) {

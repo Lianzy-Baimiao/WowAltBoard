@@ -26,13 +26,14 @@ internal static class UpdateTests {
     {"index.html", "old page"}, {"app/main.js", "old main"}, {"app/panel.js", "old settings"}, {"app/app-updates.js", "old update UI"},
     {"tools/scan.ps1", "$TOOL_VERSION = '1.0.0'"}, {AppUpdates.Launcher, "old launcher"}, {"tools/desktop/WowAltBoard.Desktop.exe", "old host"},
     {"tools/desktop/WowAltBoard.Updater.exe", "old updater"}, {"tools/desktop/Microsoft.Web.WebView2.Core.dll", "unchanged runtime"},
-    {"app/icons/sword.jpg", "unchanged icon"}, {"app/dropped.js", "old retired file"}, {"README.md", "readme"}
+    {"app/icons/sword.jpg", "unchanged icon"}, {"app/dropped.js", "old retired file"}, {"README.md", "readme"},
+    {"README.en.md", "readme en"}
    };
    foreach(var f in files) { Put(root,f.Key,f.Value); Put(target,f.Key,f.Value); }
    Put(root,"tools/config.json","{gamePaths:'PRIVATE'}"); Put(root,"data/data.js","PRIVATE CHARACTERS"); Put(root,"data/webview2/settings","PRIVATE SETTINGS"); Put(root,"user-note.txt","USER NOTE");
    AppUpdatePackage.Build(root,"1.0.0",Path.Combine(home,"base-assets"));
    Put(target,"app/main.js","new main"); Put(target,"app/added.js","new feature"); File.Delete(AppUpdates.Safe(target,"app/dropped.js"));
-   Put(target,"app/icons/new--.jpg","new icon"); Put(target,"docs/release-1.0.1.md","versioned notes"); Put(target,"tools/config.json","MUST NOT SHIP"); Put(target,"data/data.js","MUST NOT SHIP");
+   Put(target,"app/icons/new--.jpg","new icon"); Put(target,"docs/release-1.0.1.md","versioned notes"); Put(target,"README.en.md","new readme en"); Put(target,"tools/config.json","MUST NOT SHIP"); Put(target,"data/data.js","MUST NOT SHIP");
    AppUpdatePackage.Build(target,"1.0.1",output); manifest = AppUpdates.ReadManifest(Path.Combine(output,"app-release.json")); engine = new AppUpdates(root,Download);
   }
   public byte[] Download(Uri uri,long limit,CancellationToken token) {
@@ -55,7 +56,7 @@ internal static class UpdateTests {
   Ok(!f.engine.Current().automatic,"automatic download is opt-in"); f.Run("auto"); Ok(f.requests.Count==0,"disabled auto performs no HTTP");
   var current=f.manifest; f.manifest=AppUpdates.ReadManifest(Path.Combine(f.root,"app-release.json"));
   Ok(f.Run("check").phase=="current" && f.requests.Count==1,"identical version downloads only manifest"); f.manifest=current; f.requests.Clear();
-  var available=f.Run("check"); Ok(available.phase=="available" && available.changed==4,"new/changed files calculated from actual bytes");
+  var available=f.Run("check"); Ok(available.phase=="available" && available.changed==5,"new/changed files calculated from actual bytes");
   int expected=f.manifest.parts.Count(p=>p.files.Any(e=>!AppUpdates.Matches(AppUpdates.Safe(f.root,e.path),e)));
   Ok(available.packages==expected && available.bytes>0,"component download size calculated");
   Ok(f.Run("download").phase=="ready","verified stage ready");
@@ -65,11 +66,11 @@ internal static class UpdateTests {
   Ok(!f.manifest.parts.SelectMany(p=>p.files).Any(e=>e.path.Contains("config.json")||e.path.StartsWith("data/")),"publisher excludes private paths");
   AppUpdates.Apply(f.root);
   Ok(File.ReadAllText(Path.Combine(f.root,"app/icons/new--.jpg"))=="new icon" && File.ReadAllText(Path.Combine(f.root,"docs/release-1.0.1.md"))=="versioned notes","hyphenated icons and versioned docs installed");
-  Ok(File.ReadAllText(Path.Combine(f.root,"app/main.js"))=="new main" && !File.Exists(Path.Combine(f.root,"app/dropped.js")) && File.Exists(Path.Combine(f.root,"app/added.js")),"whole app apply/add/retire");
+  Ok(File.ReadAllText(Path.Combine(f.root,"app/main.js"))=="new main" && File.ReadAllText(Path.Combine(f.root,"README.en.md"))=="new readme en" && !File.Exists(Path.Combine(f.root,"app/dropped.js")) && File.Exists(Path.Combine(f.root,"app/added.js")),"whole app apply/add/retire");
   Ok(AppUpdates.ReadManifest(Path.Combine(f.root,"app-release.json")).version=="1.0.1","application receipt upgraded");
   Ok(new AppUpdates(f.root,f.Download).Current().canRollback,"backup advertised after successful install"); f.Personal();
   AppUpdates.Rollback(f.root,false);
-  Ok(File.ReadAllText(Path.Combine(f.root,"app/main.js"))=="old main" && File.Exists(Path.Combine(f.root,"app/dropped.js")) && !File.Exists(Path.Combine(f.root,"app/added.js")),"rollback restores originals and removes additions"); f.Personal();
+  Ok(File.ReadAllText(Path.Combine(f.root,"app/main.js"))=="old main" && File.ReadAllText(Path.Combine(f.root,"README.en.md"))=="readme en" && File.Exists(Path.Combine(f.root,"app/dropped.js")) && !File.Exists(Path.Combine(f.root,"app/added.js")),"rollback restores originals and removes additions"); f.Personal();
   var h=new Fixture("hash"); h.Run("check"); h.bad=true; Ok(h.Run("download").error=="HASH_MISMATCH","damaged zip rejected"); Ok(File.ReadAllText(Path.Combine(h.root,"app/main.js"))=="old main","hash failure leaves app unchanged"); h.bad=false; Ok(h.Run("download").phase=="ready","retry succeeds");
   var n=new Fixture("network"); n.network=true; Ok(n.Run("check").error=="NETWORK","network failure reported"); n.network=false; n.Run("check"); n.cancelled=true; Ok(n.Run("download").phase=="cancelled","cancellation keeps old app"); n.cancelled=false; n.Run("download");
   var cachedRequests=n.requests.Count; n.Run("download"); Ok(n.requests.Count==cachedRequests,"retry reuses verified stage/packages");

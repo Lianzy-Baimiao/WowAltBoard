@@ -122,10 +122,14 @@
 
   // ------------------------------------------------------------------ 小工具
 
+  function tr(s, ctx) { return AE.t ? AE.t(s, ctx) : s; }
+  function tn(s, vars) { return AE.tn ? AE.tn(s, vars) : s; }
+  function ts(s) { return AE.ts ? AE.ts(s) : s; }
+
   function el(tag, cls, text) {
     var n = doc.createElement(tag);
     if (cls) n.className = cls;
-    if (text != null) n.textContent = text;
+    if (text != null) n.textContent = ts(text);
     return n;
   }
 
@@ -212,11 +216,11 @@
       if (status === 'loading') loading++;
       if (status === 'remote') remote++;
     });
-    return '　' + (loading ? loading + ' 项加载中 · ' : '')
-      + (fallback ? fallback + ' 项远端失败，已回退包内 · ' : '')
-      + (failed ? failed + ' 项加载失败 · ' : '')
-      + (remote ? remote + ' 项远端副本已载入 · ' : '')
-      + '查看各源日期与加载状态';
+    return '　' + (loading ? tn('{n} 项加载中 · ', { n: loading }) : '')
+      + (fallback ? tn('{n} 项远端失败，已回退包内 · ', { n: fallback }) : '')
+      + (failed ? tn('{n} 项加载失败 · ', { n: failed }) : '')
+      + (remote ? tn('{n} 项远端副本已载入 · ', { n: remote }) : '')
+      + tr('查看各源日期与加载状态');
   }
   function fillSourceList(list) {
     list.textContent = '';
@@ -232,9 +236,9 @@
       row.appendChild(el('span', 'source-status' + (status === 'fallback' || status === 'failed' ? ' source-caution' : ''),
         LOAD_LABELS[status] || '尚未按需加载'));
       row.appendChild(el('span', 'note', data
-        ? '数据标注日期：' + (data.updatedAt || '未提供')
-          + (data.addonVersion ? ' · 插件版本 ' + data.addonVersion : '')
-        : '数据日期：未读取'));
+        ? tn('数据标注日期：{date}', { date: data.updatedAt || tr('未提供') })
+          + (data.addonVersion ? tn(' · 插件版本 {v}', { v: data.addonVersion }) : '')
+        : tr('数据日期：未读取')));
       if (source[0] === 'AE_guide') row.appendChild(el('span', 'source-caution', '本地更新器保留快照，不自动抓取源站'));
       list.appendChild(row);
     });
@@ -267,7 +271,7 @@
       if (i >= tried.length) {
         dataLoads[globalName] = 'failed';
         refreshDataStatus();
-        done(fileName + ' 读取失败'); return;
+        done(tn('{file} 读取失败', { file: fileName })); return;
       }
       var s = doc.createElement('script');
       var settled = false, timer = null;
@@ -667,7 +671,10 @@
     var lv = code % 10;
     var t = B.tracks[idx];
     if (!t) return '';
-    return (t[1] || t[0]) + ' ' + lv + '/6';
+    // 轨道表自带英文名（t[0]）和中文名（t[1]）；英文界面直接用数据里的英文，
+    // 不靠目录翻 —— 这是游戏数据，跟着语言表走。
+    var en = AE.i18n && AE.i18n.lang() === 'en';
+    return ((en ? t[0] : t[1]) || t[0]) + ' ' + lv + '/6';
   }
 
   /** 按 itemId 出一个 <img>，没有图标数据就返回 null。size 是显示边长。 */
@@ -867,7 +874,7 @@
    */
   function setTitle() {
     var n = doc.getElementById('bis-title');
-    if (n) n.textContent = state.tab === 'talents' ? '天赋' : '毕业装备';
+    if (n) n.textContent = state.tab === 'talents' ? tr('天赋') : tr('毕业装备');
   }
 
   /**
@@ -1024,9 +1031,11 @@
           persist({ bisSpec: key });
           render();
         });
-        b.setAttribute('data-tip', s.cls + '/' + s.spec +
-          '　英雄天赋 ' + (s.hero ? heroName(s.hero) : '(无)') +
-          '　specID ' + (s.specId || '?'));
+        b.setAttribute('data-tip', tn('{cls}/{spec}　英雄天赋 {hero}　specID {id}', {
+          cls: s.cls, spec: s.spec,
+          hero: s.hero ? heroName(s.hero) : tr('(无)'),
+          id: s.specId || '?'
+        }));
         specRow.appendChild(b);
       });
       wrap.appendChild(specRow);
@@ -1071,17 +1080,19 @@
     var subMr = view === 'guide' ? mrPick(s.specId) : null;
     if (subRs) {
       var R = rio();
-      setSub('数据 ' + ((R && R.updatedAt) || '?') + '　raider.io '
-        + ((R && R.season) || '?') + '　样本 ' + (subRs.nGear || 0) + ' 人');
+      setSub(tn('数据 {date}　raider.io {season}　样本 {n} 人', {
+        date: (R && R.updatedAt) || '?', season: (R && R.season) || '?', n: subRs.nGear || 0
+      }));
     } else if (subMr) {
       // 这里**不写样本量**，因为 guide 没有。写来源指南的 slug ——
       // 那是可追溯的东西：照着它能翻到原页面自己核对。
       var M = guide();
-      setSub('数据 ' + ((M && M.updatedAt) || '?') + '　guide-site.invalid　'
-        + (subMr.kind === 'mplus' ? '大秘境指南' : '团本指南')
-        + '　编辑推荐，无样本量');
+      setSub(tn('数据 {date}　guide-site.invalid　{guide}　编辑推荐，无样本量', {
+        date: (M && M.updatedAt) || '?',
+        guide: tr(subMr.kind === 'mplus' ? '大秘境指南' : '团本指南')
+      }));
     } else {
-      setSub('数据 ' + (B.updatedAt || '?') + '　' + (s.zone || ''));
+      setSub(tn('数据 {date}　{zone}', { date: B.updatedAt || '?', zone: s.zone || '' }));
     }
 
     // ---- 视角 + 角色对照
@@ -1106,7 +1117,7 @@
         persist({ bisView: v[0] });
         render();
       });
-      b.setAttribute('data-tip', v[2]);
+      b.setAttribute('data-tip', tr(v[2]));
       viewWrap.appendChild(b);
     });
     bar.appendChild(viewWrap);
@@ -1274,11 +1285,12 @@
     if (!ch && picked) {
       var mm = el('p', 'bis-sum');
       mm.appendChild(el('b', null, picked.name));
-      mm.appendChild(el('b', 'warn', '　是' + L.classLabel(picked.classFile, settings().learnedClassNames)
-        + '，不是' + specLabel(s) + '所属职业 —— 没有拿他对照'));
-      mm.appendChild(el('span', 'note',
-        '　跨职业比装备算不出有意义的数（护甲类型和属性都不一样）。'
-        + '换个下拉里没有 ≠ 标记的角色，或者切回他自己的专精。'));
+      mm.appendChild(el('b', 'warn', tn('　是{class}，不是{spec}所属职业 —— 没有拿他对照', {
+        class: L.classLabel(picked.classFile, settings().learnedClassNames),
+        spec: specLabel(s)
+      })));
+      mm.appendChild(el('span', 'note', tr(
+        '　跨职业比装备算不出有意义的数（护甲类型和属性都不一样）。换个下拉里没有 ≠ 标记的角色，或者切回他自己的专精。')));
       host.appendChild(mm);
     }
 
@@ -1296,17 +1308,19 @@
        * 而屏幕上没有任何东西提示这件事。
        */
       if (rs) {
-        sum.appendChild(doc.createTextNode('　榜上见过 ' + matched + ' 件，没见过 '
-          + missing + ' 件' + (unknown ? '，' + unknown + ' 个部位存档里没记录' : '') + '。'));
-        sum.appendChild(el('span', 'note',
-          '　这个视角不是推荐，是统计：「榜上见过」= 采样里**至少有一个人**穿过它。'
-          + '分布不截断，所以只有 1 个人穿的也算见过 —— 每一行后面的人数才是分量。'));
+        sum.appendChild(doc.createTextNode(tn('　榜上见过 {matched} 件，没见过 {missing} 件{unknown}。', {
+          matched: matched, missing: missing,
+          unknown: unknown ? tn('，{n} 个部位存档里没记录', { n: unknown }) : ''
+        })));
+        sum.appendChild(el('span', 'note', tr(
+          '　这个视角不是推荐，是统计：「榜上见过」= 采样里**至少有一个人**穿过它。分布不截断，所以只有 1 个人穿的也算见过 —— 每一行后面的人数才是分量。')));
       } else {
-        sum.appendChild(doc.createTextNode('　对上 ' + matched + ' 件，差 ' + missing + ' 件'
-          + (unknown ? '，' + unknown + ' 个部位存档里没记录' : '') + '。'));
-        sum.appendChild(el('span', 'note',
-          '　「对上」= 身上这件正好在该部位的推荐列表里。装等更高的同名替代品不算。'
-          + '戒指和饰品按一对算 —— 两个格子在游戏里等价，戴在哪个孔都算对上。'));
+        sum.appendChild(doc.createTextNode(tn('　对上 {matched} 件，差 {missing} 件{unknown}。', {
+          matched: matched, missing: missing,
+          unknown: unknown ? tn('，{n} 个部位存档里没记录', { n: unknown }) : ''
+        })));
+        sum.appendChild(el('span', 'note', tr(
+          '　「对上」= 身上这件正好在该部位的推荐列表里。装等更高的同名替代品不算。戒指和饰品按一对算 —— 两个格子在游戏里等价，戴在哪个孔都算对上。')));
       }
       // ---- 装等差距汇总。「差 13 件」说不出**差多远**，这一行说。
       // 分母写出来：能比的只有 gapN 个部位（存档没记的、推荐件查不到装等的都比不了）。
@@ -1318,22 +1332,24 @@
         gsum.appendChild(el('b', null, '装等对比'));
         // **两个原始平均值摆出来**，再给差值。只给「合计差 168」的话，那是个
         // 无法核对的数：分母是几个部位、两边各自多少，用户都看不见。
-        gsum.appendChild(doc.createTextNode('　你 '));
+        gsum.appendChild(doc.createTextNode(tr('　你 ')));
         gsum.appendChild(el('b', 'iv-mine', String(avgMine)));
-        gsum.appendChild(doc.createTextNode('　这套推荐 '));
+        gsum.appendChild(doc.createTextNode(tr('　这套推荐 ')));
         gsum.appendChild(el('b', 'iv-want', String(avgWant)));
-        gsum.appendChild(doc.createTextNode('　（能比的 ' + gapN + ' 个部位的平均）'));
-        gsum.appendChild(doc.createTextNode('　合计 '
-          + (gapSum > 0 ? '差 ' + gapSum : gapSum < 0 ? '高 ' + (-gapSum) : '持平 0')
-          + ' 装等，平均每件 ' + avg + '。'));
+        gsum.appendChild(doc.createTextNode(tn('　（能比的 {n} 个部位的平均）', { n: gapN })));
+        gsum.appendChild(doc.createTextNode(tn('　合计 {diff} 装等，平均每件 {avg}。', {
+          diff: gapSum > 0 ? tn('差 {n}', { n: gapSum })
+            : gapSum < 0 ? tn('高 {n}', { n: -gapSum }) : tr('持平 0'),
+          avg: avg
+        })));
         if (gapWorst && gapWorst.d > 0) {
-          gsum.appendChild(doc.createTextNode('　差最多的是'
-            + (B.slotNames[gapWorst.slot] || ('部位 ' + gapWorst.slot))
-            + ' ' + gapWorst.d + ' 点。'));
+          gsum.appendChild(doc.createTextNode(tn('　差最多的是{slot} {n} 点。', {
+            slot: B.slotNames[gapWorst.slot] || tn('部位 {n}', { n: gapWorst.slot }),
+            n: gapWorst.d
+          })));
         }
-        gsum.appendChild(el('span', 'note',
-          '　比的是你身上这件和这个部位首选那一件。推荐件的装等取自本机两份实测数据'
-          + '（见每一行的提示），是个参考量级。'));
+        gsum.appendChild(el('span', 'note', tr(
+          '　比的是你身上这件和这个部位首选那一件。推荐件的装等取自本机两份实测数据（见每一行的提示），是个参考量级。')));
         // **属性为什么只有一边。** 推荐件的属性有（下面每一行都印着），
         // 而你身上那件的属性**存档里没有** —— AlterEgo 存的是名字 / 装等 / 品质 /
         // 物品链接，没有属性字段；链接里的 bonusID 理论上能推出属性，但那要一张
@@ -1344,9 +1360,8 @@
         // 那条断言数着，共用会让计数翻倍（写完第一版就被它抓了）。
         var stNote = el('p', 'bis-sum stat-note');
         stNote.appendChild(el('b', null, '属性'));
-        stNote.appendChild(doc.createTextNode(
-          '　推荐件的属性印在下面每一行上（暴击 / 急速 / 精通 / 全能），'
-          + '你身上那件的属性存档里没有，所以这一栏只有一边。'));
+        stNote.appendChild(doc.createTextNode(tr(
+          '　推荐件的属性印在下面每一行上（暴击 / 急速 / 精通 / 全能），你身上那件的属性存档里没有，所以这一栏只有一边。')));
         // 「展开上面的『属性目标』」**只在那一块真的画出来时才说**。
         // 上面 renderStatTargets 是 `if (!rs)` 才画的（实战分布视角不画它），
         // 而这句话原来无条件画，于是在那个视角里指向一个屏幕上不存在的折叠块 ——
@@ -1356,10 +1371,10 @@
           stNote.appendChild(el('span', 'note',
             '　想看这个专精该堆什么，展开上面的「属性目标」。'));
         }
-        stNote.setAttribute('data-tip',
+        stNote.setAttribute('data-tip', tr(
           'AlterEgo 存的装备只有名字 / 装等 / 品质 / 物品链接，没有属性字段。\n'
           + '链接里的 bonusID 能推出属性，但要一张 bonusID→属性的对照表，本机没有。\n'
-          + '拿随包那份物品池去查，身上 224 件只对上 52 件，四分之三的部位会空着。');
+          + '拿随包那份物品池去查，身上 224 件只对上 52 件，四分之三的部位会空着。'));
         /*
          * 这两块挂进**左列底下**，也就是游戏里角色模型的位置。
          * 左列只有 6 格（游戏里那两格衬衣 / 战袍这份数据没有），右列 8 格，
@@ -1391,7 +1406,7 @@
       var c = el('span', 'mcell');
       c.appendChild(el('label', null, k));
       c.appendChild(el('b', null, v));
-      if (tip) c.setAttribute('data-tip', tip);
+      if (tip) c.setAttribute('data-tip', tr(tip));
       return c;
     }
     wrap.appendChild(cell('毕业装等', String(s.ilvl || '?'),
@@ -1399,13 +1414,13 @@
     // heroName() 查表换中文。**不换的话装备页写 San'layn、天赋页写萨莱因** ——
     // 同一个英雄天赋在两页上是两个名字，用户会以为是两个东西。
     // 那张表是 app/talent-tree.js 里子树的暴雪 DB2 名，查不到就原样留英文。
-    wrap.appendChild(cell('英雄天赋', s.hero ? heroName(s.hero) : '(无)',
+    wrap.appendChild(cell('英雄天赋', s.hero ? heroName(s.hero) : tr('(无)'),
       '这套推荐是按这个英雄天赋统计的'));
 
     var w = s.weapon && s.weapon[kind === 'raid' ? 'raid' : 'mplusHigh'];
     if (w) {
       var parts = Object.keys(w).sort(function (a, b) { return w[b] - w[a]; })
-        .map(function (k) { return (WEAPON_ZH[k] || k) + ' ' + pct(w[k]); });
+        .map(function (k) { return tr(WEAPON_ZH[k] || k) + ' ' + pct(w[k]); });
       if (parts.length) {
         wrap.appendChild(cell('武器', parts.join('　'),
           '顶尖玩家的武器搭配分布'));
@@ -1435,8 +1450,8 @@
       return wrap;
     }
 
-    sum.textContent = '属性目标　' + keys.filter(function (k) { return t[k]; })
-      .map(function (k) { return (B.statNames[k] || k) + ' ' + pct(t[k]); }).join('　');
+    sum.textContent = tr('属性目标') + '　' + keys.filter(function (k) { return t[k]; })
+      .map(function (k) { return tr(B.statNames[k] || k) + ' ' + pct(t[k]); }).join('　');
     if (borrowed) {
       // 借来的数字必须自己说明是借来的，否则在「最佳推荐」这个标题下面，
       // 它看起来就是 guide 给的。
@@ -1447,11 +1462,9 @@
       // 不对。第 19 轮实测过：那是页面里一串编码（data-wow-data），
       // 后端接口要 Discord 登录，用户实测 403。所以是「抓不到」，不是「在正文里」。
       var from = el('span', 'note', '　本机实测数据，非 guide');
-      from.setAttribute('data-tip',
-        '这一组是顶尖玩家的属性统计值（' + (kind === 'raid' ? '团本' : '大秘境')
-        + '），来自本机两份实测数据，不是 guide 给的。\n'
-        + 'guide 的属性优先级在页面里是一串编码，后端接口要登录且实测 403，'
-        + '所以抓不到 —— 与其猜一个顺序，不如摆出这份能追溯的。');
+      from.setAttribute('data-tip', tn('这一组是顶尖玩家的属性统计值（{content}），来自本机两份实测数据，不是 guide 给的。\nguide 的属性优先级在页面里是一串编码，后端接口要登录且实测 403，所以抓不到 —— 与其猜一个顺序，不如摆出这份能追溯的。', {
+        content: tr(kind === 'raid' ? '团本' : '大秘境')
+      }));
       sum.appendChild(from);
     }
 
@@ -1459,7 +1472,7 @@
     keys.forEach(function (k) {
       if (!t[k]) return;
       var row = el('div', 'bar-row');
-      row.appendChild(el('label', null, B.statNames[k] || k));
+      row.appendChild(el('label', null, tr(B.statNames[k] || k)));
       var track = el('span', 'track');
       var fill = el('span', 'fill');
       fill.style.width = Math.min(100, (t[k] / total) * 100) + '%';
@@ -1472,15 +1485,14 @@
     wrap.appendChild(bars);
 
     if (s.tol != null) {
-      wrap.appendChild(el('p', 'note', '容差 ±' + s.tol + '%　'
-        + '（属性达成度在这个范围内就算达标）'));
+      wrap.appendChild(el('p', 'note', tn('容差 ±{n}%　（属性达成度在这个范围内就算达标）', { n: s.tol })));
     }
 
     var weights = s.weights || {};
     var wk = Object.keys(weights);
     if (wk.length) {
-      wrap.appendChild(el('p', 'note', '属性权重　' + wk.map(function (k) {
-        return (B.statNames[k] || k) + ' ' + weights[k];
+      wrap.appendChild(el('p', 'note', tr('属性权重') + '　' + wk.map(function (k) {
+        return tr(B.statNames[k] || k) + ' ' + weights[k];
       }).join('　')));
     }
     return wrap;
@@ -1510,8 +1522,8 @@
     var want = top[1];
     if (!want) return null;
     var srcText = top[3] === -2
-      ? (top[9] === 'r' ? 'raider.io 榜上均值' : '顶尖玩家实测最高')
-      : (top[3] === -1 ? 'raider.io 榜上均值' : '顶尖玩家实测');
+      ? (top[9] === 'r' ? tr('raider.io 榜上均值') : tr('顶尖玩家实测最高'))
+      : (top[3] === -1 ? tr('raider.io 榜上均值') : tr('顶尖玩家实测'));
     return { d: Math.round(want - mine.itemLevel), mine: mine.itemLevel, want: want, srcText: srcText };
   }
 
@@ -1530,7 +1542,7 @@
     var wrap = el('div', 'slot');
 
     var head = el('div', 'slot-head');
-    head.appendChild(el('b', null, B.slotNames[slotId] || ('部位 ' + slotId)));
+    head.appendChild(el('b', null, B.slotNames[slotId] || tn('部位 {n}', { n: slotId })));
 
     var sum = 0;
     rows.forEach(function (r) { sum += (typeof r[2] === 'number' ? r[2] : 0); });
@@ -1553,12 +1565,12 @@
       // 一个完全编出来的数字。这里改成报「几件首选 + 几件替代」，都是真的。
       var nBis = 0, nAlt = 0;
       rows.forEach(function (r) { if (r[8]) nAlt++; else nBis++; });
-      var mb2 = el('span', 'tag cov mr', '首选 ' + nBis + (nAlt ? ' ・替代 ' + nAlt : ''));
-      mb2.setAttribute('data-tip',
-        'guide 这个部位给了 ' + nBis + ' 件首选'
-        + (nAlt ? '、' + nAlt + ' 件可刷替代' : '') + '。\n'
-        + '这份数据没有样本量也没有使用率 —— 它是编辑的推荐排序，不是统计。\n'
-        + '想看「多少人真的这么穿」，切到「实战分布」视角。');
+      var mb2 = el('span', 'tag cov mr', nAlt
+        ? tn('首选 {bis} ・替代 {alt}', { bis: nBis, alt: nAlt })
+        : tn('首选 {bis}', { bis: nBis }));
+      mb2.setAttribute('data-tip', tn('guide 这个部位给了 {bis} 件首选{alt}。\n这份数据没有样本量也没有使用率 —— 它是编辑的推荐排序，不是统计。\n想看「多少人真的这么穿」，切到「实战分布」视角。', {
+        bis: nBis, alt: nAlt ? tn('、{n} 件可刷替代', { n: nAlt }) : ''
+      }));
       head.appendChild(mb2);
     } else if (sampleN) {
       // 有真实样本量：显示 N，并按统计学的老规矩提醒 N 太小的时候别当结论。
@@ -1568,28 +1580,28 @@
       // 只留 cov 的话，「N=97」会被当成不合格的「记录 xx%」，或者反过来 ——
       // 两种文字共用一条正则，等于两边都验不住。
       var nb = el('span', 'tag cov sn' + (sampleN < 30 ? ' no' : ''), 'N=' + sampleN);
-      nb.setAttribute('data-tip',
-        '这个部位是从 ' + sampleN + ' 个玩家身上数出来的，列出了全部 '
-        + rows.length + ' 种（百分比之和 ' + pct(sum) + '）。'
-        + (sampleN < 30
-          ? '\n样本不到 30，百分比只能当参考。'
-          : '\n每个部位的样本量是各自算的 —— 有人没副手，各部位人数本来就不一样。'));
+      nb.setAttribute('data-tip', tn('这个部位是从 {n} 个玩家身上数出来的，列出了全部 {kinds} 种（百分比之和 {pct}）。{tail}', {
+        n: sampleN, kinds: rows.length, pct: pct(sum),
+        tail: sampleN < 30
+          ? tr('\n样本不到 30，百分比只能当参考。')
+          : tr('\n每个部位的样本量是各自算的 —— 有人没副手，各部位人数本来就不一样。')
+      }));
       head.appendChild(nb);
     } else {
-      var cov = el('span', 'tag cov' + (sum < 50 ? ' no' : ''), '记录 ' + pct(sum));
-      cov.setAttribute('data-tip',
-        '这 ' + rows.length + ' 件加起来占顶尖玩家的 ' + pct(sum) + '。'
-        + (sum < 99.5 ? '\n剩下的 ' + pct(Math.round((100 - sum) * 10) / 10)
-                        + ' 穿的是什么，数据里没有。' : '')
-        + '\n另外：这份数据不带样本量，所以百分比背后是几个人也查不到。'
-        + '\n换到「实战分布」视角能看到真实样本量。');
+      var cov = el('span', 'tag cov' + (sum < 50 ? ' no' : ''), tn('记录 {pct}', { pct: pct(sum) }));
+      cov.setAttribute('data-tip', tn('这 {kinds} 件加起来占顶尖玩家的 {pct}。{rest}\n另外：这份数据不带样本量，所以百分比背后是几个人也查不到。\n换到「实战分布」视角能看到真实样本量。', {
+        kinds: rows.length, pct: pct(sum),
+        rest: sum < 99.5
+          ? tn('\n剩下的 {pct} 穿的是什么，数据里没有。', { pct: pct(Math.round((100 - sum) * 10) / 10) })
+          : ''
+      }));
       head.appendChild(cov);
     }
 
     if (mine) {
       var m = el('span', 'mine' + (hit ? ' ok' : ''));
       m.appendChild(doc.createTextNode(hit ? '✓ ' : '· '));
-      var nm = el('span', null, mine.name || '(未知)');
+      var nm = el('span', null, mine.name || tr('(未知)'));
       if (mine.quality != null && L.qualityColors[mine.quality]) {
         nm.style.color = L.qualityColors[mine.quality];
       }
@@ -1607,18 +1619,20 @@
         }
       }
       if (mineRow && sampleN) {
-        m.setAttribute('data-tip', '榜上 ' + (mineRow[6] || 0) + '/' + sampleN
-          + ' 个人穿这件（' + pct((mineRow[6] || 0) * 100 / sampleN) + '）。\n'
-          + '这个视角是统计不是推荐 —— 分布不截断，所以「见过」不等于「多数人这么穿」。');
+        m.setAttribute('data-tip', tn('榜上 {people}/{total} 个人穿这件（{pct}）。\n这个视角是统计不是推荐 —— 分布不截断，所以「见过」不等于「多数人这么穿」。', {
+          people: mineRow[6] || 0, total: sampleN,
+          pct: pct((mineRow[6] || 0) * 100 / sampleN)
+        }));
       } else {
       m.setAttribute('data-tip', hit
         ? (hitVia === 'twin'
-          ? '你身上这件在' + (B.slotNames[twinId] || ('部位 ' + twinId))
-            + '的推荐列表里 —— 两个' + (twinId >= 13 ? '饰品' : '戒指')
-            + '格在游戏里是等价的，戴在哪个孔不影响强度，所以算对上了'
-          : '你身上这件就在推荐列表里')
-        : '你身上这件不在推荐列表里'
-          + (twinId ? '（另一个' + (twinId >= 13 ? '饰品' : '戒指') + '格的列表也查过了）' : ''));
+          ? tn('你身上这件在{slot}的推荐列表里 —— 两个{kind}格在游戏里是等价的，戴在哪个孔不影响强度，所以算对上了', {
+            slot: B.slotNames[twinId] || tn('部位 {n}', { n: twinId }),
+            kind: tr(twinId >= 13 ? '饰品' : '戒指')
+          })
+          : tr('你身上这件就在推荐列表里'))
+        : tr('你身上这件不在推荐列表里')
+          + (twinId ? tn('（另一个{kind}格的列表也查过了）', { kind: tr(twinId >= 13 ? '饰品' : '戒指') }) : ''));
       }
       head.appendChild(m);
 
@@ -1633,12 +1647,13 @@
         // 做决定要看的（换不换这个部位）—— 关键数字不该藏在鼠标后面。
         var gb = el('span', 'tag gap' + (gap.d > 0 ? ' behind' : (gap.d < 0 ? ' ahead' : ' even')),
           gap.mine + ' → ' + gap.want + '　'
-          + (gap.d > 0 ? '差 ' + gap.d : (gap.d < 0 ? '高 ' + (-gap.d) : '持平')));
-        gb.setAttribute('data-tip',
-          '你 ' + gap.mine + '　首选那件 ' + gap.want + '（' + gap.srcText + '）\n'
-          + (gap.d > 0 ? '换上去等于这个部位 +' + gap.d + ' 装等'
-            : gap.d < 0 ? '你这件装等更高 —— 但款式不是推荐的那件，属性搭配可能不一样'
-              : '装等一样'));
+          + (gap.d > 0 ? tn('差 {n}', { n: gap.d }) : (gap.d < 0 ? tn('高 {n}', { n: -gap.d }) : tr('持平'))));
+        gb.setAttribute('data-tip', tn('你 {mine}　首选那件 {want}（{src}）\n{tail}', {
+          mine: gap.mine, want: gap.want, src: gap.srcText,
+          tail: gap.d > 0 ? tn('换上去等于这个部位 +{n} 装等', { n: gap.d })
+            : gap.d < 0 ? tr('你这件装等更高 —— 但款式不是推荐的那件，属性搭配可能不一样')
+              : tr('装等一样')
+        }));
         head.appendChild(gb);
       }
     } else if (currentChar()) {
@@ -1653,11 +1668,7 @@
        * 所以这两种情况在数据里分不开 —— 那就**两种都说**，不挑一个断言。
        */
       var e = el('span', 'mine empty', '· 这一格是空的');
-      e.setAttribute('data-tip',
-        '两种可能，数据里分不开：\n'
-        + '① 这一格本来就该空着 —— 拿双手武器就没有副手（这个专精的采样里，'
-        + '这一格多半也是空的，看部位标题那个 N）；\n'
-        + '② AlterEgo 只记它抓到的部位，这一格可能没扫到 —— 那种情况登录一次那个角色就会补上。');
+      e.setAttribute('data-tip', tr('两种可能，数据里分不开：\n① 这一格本来就该空着 —— 拿双手武器就没有副手（这个专精的采样里，这一格多半也是空的，看部位标题那个 N）；\n② AlterEgo 只记它抓到的部位，这一格可能没扫到 —— 那种情况登录一次那个角色就会补上。'));
       head.appendChild(e);
     }
     wrap.appendChild(head);
@@ -1680,7 +1691,7 @@
     var top = rows[pi] || null;
     if (top && !flat) {
       var tRi = (top[3] === -1 ? rioItem(top[0]) : (top[3] === -2 ? mrItem(top[0]) : null));
-      var tName = (tRi && tRi.n) || (B.items[top[0]] || {}).n || ('物品 ' + top[0]);
+      var tName = (tRi && tRi.n) || (B.items[top[0]] || {}).n || tn('物品 {id}', { id: top[0] });
       var line = el('div', 'slot-top');
       // 星号 + 分量：rio 有真实使用率和人数，guide 只有名次（它不是统计）。
       var badge = mrRows ? 'BiS' : (typeof top[2] === 'number' ? pct(top[2]) : '—');
@@ -1699,14 +1710,14 @@
       if (top[1]) line.appendChild(el('span', 'sub', String(top[1])));
       // 插槽 / 轨道这两个徽章跟着首选那件走（用户要求格子里要能看到）。
       if (tRi && tRi.gmax) {
-        var sk2 = el('span', 'tag sock', tRi.gmax > 1 ? '插槽 ×' + tRi.gmax : '插槽');
-        sk2.setAttribute('data-tip', '首选那件至少有 ' + tRi.gmax + ' 个插槽');
+        var sk2 = el('span', 'tag sock', tRi.gmax > 1 ? tn('插槽 ×{n}', { n: tRi.gmax }) : tr('插槽'));
+        sk2.setAttribute('data-tip', tn('首选那件至少有 {n} 个插槽', { n: tRi.gmax }));
         line.appendChild(sk2);
       }
       var trk2 = top[5] ? trackLabel(top[5]) : '';
       if (trk2) {
         var tb2 = el('span', 'tag trk', trk2);
-        tb2.setAttribute('data-tip', '首选那件的升级轨道');
+        tb2.setAttribute('data-tip', tr('首选那件的升级轨道'));
         line.appendChild(tb2);
       }
       wrap.appendChild(line);
@@ -1728,17 +1739,17 @@
     // 悬停提示：前 8 件 + 还有多少件。**放在格子头上**，所以不展开也能看个大概。
     var tipLines = rows.slice(0, 8).map(function (r) {
       var ri2 = (r[3] === -1 ? rioItem(r[0]) : (r[3] === -2 ? mrItem(r[0]) : null));
-      var nm2 = (ri2 && ri2.n) || (B.items[r[0]] || {}).n || ('物品 ' + r[0]);
+      var nm2 = (ri2 && ri2.n) || (B.items[r[0]] || {}).n || tn('物品 {id}', { id: r[0] });
       var who2 = (r[3] === -1 && r[6] != null && sampleN)
-        ? '　' + r[6] + '/' + sampleN + ' 人'
+        ? tn('　{people}/{total} 人', { people: r[6], total: sampleN })
         : '';
       return (typeof r[2] === 'number' ? pct(r[2]) : '') + '　' + nm2
         + (r[1] ? '　' + r[1] : '') + who2;
     });
-    if (rows.length > 8) tipLines.push('… 还有 ' + (rows.length - 8) + ' 件');
-    tipLines.push('（点这一格展开全部）');
-    head.setAttribute('data-tip', (B.slotNames[slotId] || ('部位 ' + slotId))
-      + (sampleN ? '　样本 ' + sampleN + ' 人' : '') + '\n' + tipLines.join('\n'));
+    if (rows.length > 8) tipLines.push(tn('… 还有 {n} 件', { n: rows.length - 8 }));
+    tipLines.push(tr('（点这一格展开全部）'));
+    head.setAttribute('data-tip', (B.slotNames[slotId] || tn('部位 {n}', { n: slotId }))
+      + (sampleN ? tn('　样本 {n} 人', { n: sampleN }) : '') + '\n' + tipLines.join('\n'));
 
     /*
      * 点格子头展开 / 收起这一格的完整分布。**不用 <details>**：那会把两行摘要塞进
@@ -1813,12 +1824,12 @@
     } else {
       icon.classList.add('ph');
       icon.style.borderColor = catColor(cat);
-      icon.textContent = CAT_GLYPH[cat] || '?';
+      icon.textContent = ts(CAT_GLYPH[cat] || '?');
     }
     row.appendChild(icon);
 
     var main = el('span', 'im');
-    var name = el('b', null, (ri && ri.n) || it.n || ('物品 ' + itemId));
+    var name = el('b', null, (ri && ri.n) || it.n || tn('物品 {id}', { id: itemId }));
     // 品质：rio / guide 自带 q；BisData 没有这个字段，要查 app/item-icons.js。
     // 查不到就不上色，而不是默认紫色 —— 默认紫会把蓝色附魔和白色合剂都染错。
     //
@@ -1839,11 +1850,10 @@
     // 角色镶过），275 件里 159 件的数超过 3 —— 那不可能是插槽数。
     // 宝石只能镶在插槽里，所以「见过 N 颗」是「至少 N 个插槽」的硬证据。
     if (ri && ri.gmax) {
-      var sk = el('span', 'tag sock', ri.gmax > 1 ? '插槽 ×' + ri.gmax : '插槽');
-      sk.setAttribute('data-tip', '这件至少有 ' + ri.gmax + ' 个插槽'
-        + '（榜上见过有人在它上面镶了 ' + ri.gmax + ' 颗宝石）。\n'
-        + '榜上一共 ' + ri.sock + ' 个角色给这件镶过宝石。\n'
-        + '插槽可能更多 —— 采样里没人镶满的话这里就看不出来。');
+      var sk = el('span', 'tag sock', ri.gmax > 1 ? tn('插槽 ×{n}', { n: ri.gmax }) : tr('插槽'));
+      sk.setAttribute('data-tip', tn('这件至少有 {n} 个插槽（榜上见过有人在它上面镶了 {n} 颗宝石）。\n榜上一共 {people} 个角色给这件镶过宝石。\n插槽可能更多 —— 采样里没人镶满的话这里就看不出来。', {
+        n: ri.gmax, people: ri.sock
+      }));
       main.appendChild(sk);
     }
 
@@ -1858,35 +1868,33 @@
         // guide 视角的装等是借来的，得说清是谁测的 —— 两个来源不是同一个量。
         sub.classList.add(ivSrc === 'r' ? 'iv-rio' : 'iv-gi');
         sub.setAttribute('data-tip', ivSrc === 'r'
-          ? '装等 ' + ilvl + '：guide 不给装等，这是 raider.io 榜上玩家'
-            + '穿这件时的「平均」装等'
-          : '装等 ' + ilvl + '：guide 不给装等，这是顶尖玩家身上'
-            + '这件的「最高」装等'
-            + (mx && mx > ilvl ? '，还能升到 ' + mx : ''));
+          ? tn('装等 {n}：guide 不给装等，这是 raider.io 榜上玩家穿这件时的「平均」装等', { n: ilvl })
+          : tn('装等 {n}：guide 不给装等，这是顶尖玩家身上这件的「最高」装等{up}', {
+            n: ilvl, up: mx && mx > ilvl ? tn('，还能升到 {n}', { n: mx }) : ''
+          }));
       }
       sub.appendChild(el('small', 'iv-label', isRio || (isMr && ivSrc === 'r') ? '榜单均值' : '实测最高'));
       main.appendChild(sub);
     } else if (isMr) {
       var noiv = el('span', 'sub2 iv-none', '装等 ?');
-      noiv.setAttribute('data-tip',
-        'guide 不给装等，而这一件在本机两份实测数据里都没出现'
-        + '（实测 1358 次引用里有 6 次这样）—— 所以这里不填，不猜一个数字上去');
+      noiv.setAttribute('data-tip', tr('guide 不给装等，而这一件在本机两份实测数据里都没出现（实测 1358 次引用里有 6 次这样）—— 所以这里不填，不猜一个数字上去'));
       main.appendChild(noiv);
     }
 
     var tl = trackLabel(trk);
     if (tl) {
       var tb = el('span', 'tag trk', tl);
-      tb.setAttribute('data-tip', '升级轨道，从装备的 bonusID 解出来的\n'
-        + '（' + tl + ' = 这条轨道的第 ' + (trk % 10) + ' 级，满级 6 级）'
-        + (isMr ? '\nguide 不给轨道，这一条和左边的装等出自同一次测量' : ''));
+      tb.setAttribute('data-tip', tn('升级轨道，从装备的 bonusID 解出来的\n（{label} = 这条轨道的第 {level} 级，满级 6 级）{tail}', {
+        label: tl, level: trk % 10,
+        tail: isMr ? tr('\nguide 不给轨道，这一条和左边的装等出自同一次测量') : ''
+      }));
       main.appendChild(tb);
     }
 
     if (it.st) {
       var sp = el('span', 'stats');
       Object.keys(it.st).forEach(function (k) {
-        var t = el('span', null, (B.statNames[k] || k) + ' ' + it.st[k]);
+        var t = el('span', null, tr(B.statNames[k] || k) + ' ' + it.st[k]);
         t.style.color = statColor(k);
         sp.appendChild(t);
       });
@@ -1895,7 +1903,7 @@
     if (it.h) main.appendChild(el('span', 'sub', WEAPON_ZH[it.h] || it.h));
     if (it.u) {
       var ou = el('span', 'tag use', '使用');
-      ou.setAttribute('data-tip', '带使用效果');
+      ou.setAttribute('data-tip', tr('带使用效果'));
       main.appendChild(ou);
     }
     row.appendChild(main);
@@ -1906,7 +1914,7 @@
       var badge = el('span', 'tag', B.sourceCategories[cat] || cat || '?');
       badge.style.borderColor = catColor(cat);
       badge.style.color = catColor(cat);
-      badge.setAttribute('data-tip', srcText || '来源未知');
+      badge.setAttribute('data-tip', srcText || tr('来源未知'));
       row.appendChild(badge);
     }
 
@@ -1915,10 +1923,10 @@
       // 画名次 + 它出自哪张表，这两个都是数据里真有的东西。
       var mb = el('span', 'usage rank');
       var tag = el('span', 'tag ' + (isAlt ? 'alt' : 'bis'),
-        (isAlt ? '替代 #' : 'BiS #') + rank);
+        isAlt ? tn('替代 #{n}', { n: rank }) : tn('BiS #{n}', { n: rank }));
       tag.setAttribute('data-tip', isAlt
-        ? 'guide 的「可刷替代」表里排第 ' + rank + '（拿得到的退而求其次的选择）'
-        : 'guide 的「Best in Slot」表里排第 ' + rank + '（编辑给的首选）');
+        ? tn('guide 的「可刷替代」表里排第 {n}（拿得到的退而求其次的选择）', { n: rank })
+        : tn('guide 的「Best in Slot」表里排第 {n}（编辑给的首选）', { n: rank }));
       mb.appendChild(tag);
       row.appendChild(mb);
     } else {
@@ -1932,24 +1940,30 @@
       // rio 的提示带**分子分母**：「12/97 人」比「12.4%」可查证得多，
       // 而这正是换数据源的理由 —— BisData 那边只能给一个没有分母的百分比。
       u.setAttribute('data-tip', isRio
-        ? (people != null ? people + '/' + Math.round(people * 100 / usage) + ' 人这个部位用它'
-                          : pct(usage) + ' 的人这个部位用它')
-        : '顶尖玩家里有 ' + pct(usage) + ' 的人这个部位用它'
-          + (boss ? '\n掉落：' + boss : '')
-          + (srcText ? '\n' + srcText : ''));
+        ? (people != null
+            ? tn('{people}/{total} 人这个部位用它', { people: people, total: Math.round(people * 100 / usage) })
+            : tn('{pct} 的人这个部位用它', { pct: pct(usage) }))
+        : tn('顶尖玩家里有 {pct} 的人这个部位用它{drop}{src}', {
+            pct: pct(usage),
+            drop: boss ? tn('\n掉落：{boss}', { boss: boss }) : '',
+            src: srcText ? '\n' + srcText : ''
+          }));
       row.appendChild(u);
     }
 
     row.setAttribute('data-tip', ((ri && ri.n) || it.n || '') + '\nitemID ' + itemId
-      + (ilvl ? '\n' + (isRio ? '平均装等 ' : '装等 ') + ilvl : '')
-      + (mx && mx > ilvl ? '（可升到 ' + mx + '）' : '')
-      + (isRio || isMr ? '' : '\n' + (srcText || '来源未知'))
+      + (ilvl ? '\n' + tn(isRio ? '平均装等 {n}' : '装等 {n}', { n: ilvl }) : '')
+      + (mx && mx > ilvl ? tn('（可升到 {n}）', { n: mx }) : '')
+      + (isRio || isMr ? '' : '\n' + (srcText || tr('来源未知')))
       // guide 那行故意不写「使用率」——它没有这个数，写了就是编。
       + (isMr
-        ? '\nguide ' + (isAlt ? '可刷替代' : 'Best in Slot') + ' 第 ' + rank
-          + '\n这是编辑给的推荐排序，不是使用率统计'
-        : '\n使用率 ' + pct(usage)
-          + (isRio && people != null ? '（' + people + ' 人）' : '')));
+        ? tn('\nguide {table} 第 {rank}\n这是编辑给的推荐排序，不是使用率统计', {
+            table: tr(isAlt ? '可刷替代' : 'Best in Slot'), rank: rank
+          })
+        : tn('\n使用率 {pct}{people}', {
+            pct: pct(usage),
+            people: isRio && people != null ? tn('（{n} 人）', { n: people }) : ''
+          })));
     return row;
   }
 
@@ -1975,18 +1989,18 @@
 
     if (s.gems && s.gems.length) {
       var g = el('details', 'sec');
-      g.appendChild(el('summary', null, '宝石　' + s.gems.length + ' 种'));
+      g.appendChild(el('summary', null, tn('宝石　{n} 种', { n: s.gems.length })));
       var gl = el('div', 'chips');
       s.gems.forEach(function (row) {
         var c = el('span', 'chip');
         var gi = iconImg(row[0], 16);
         if (gi) c.appendChild(gi);
-        var gn = el('b', null, row[1] || ('宝石 ' + row[0]));
+        var gn = el('b', null, row[1] || tn('宝石 {id}', { id: row[0] }));
         var gq = itemQuality(row[0]);
         if (gq != null && L.qualityColors[gq]) gn.style.color = L.qualityColors[gq];
         c.appendChild(gn);
         c.appendChild(el('span', 'n', pct(row[2])));
-        c.setAttribute('data-tip', 'itemID ' + row[0] + '　使用率 ' + pct(row[2]));
+        c.setAttribute('data-tip', tn('itemID {id}　使用率 {pct}', { id: row[0], pct: pct(row[2]) }));
         gl.appendChild(c);
       });
       g.appendChild(gl);
@@ -1996,27 +2010,29 @@
     var ek = Object.keys(s.ench || {});
     if (ek.length) {
       var e = el('details', 'sec');
-      e.appendChild(el('summary', null, '附魔　' + ek.length + ' 个部位'));
+      e.appendChild(el('summary', null, tn('附魔　{n} 个部位', { n: ek.length })));
       var et = el('div', 'ench');
       SLOT_ORDER.forEach(function (slotId) {
         var list = s.ench[slotId];
         if (!list || !list.length) return;
         var row = el('div', 'ench-row');
-        row.appendChild(el('label', null, B.slotNames[slotId] || ('部位 ' + slotId)));
+        row.appendChild(el('label', null, B.slotNames[slotId] || tn('部位 {n}', { n: slotId })));
         var box = el('span', 'chips');
         list.forEach(function (en) {
           var c = el('span', 'chip');
           // en[3] 是附魔卷轴的 itemId；图标查的是它，不是附魔 ID。
           var ei = en[3] ? iconImg(en[3], 16) : null;
           if (ei) c.appendChild(ei);
-          var en2 = el('b', null, en[1] || ('附魔 ' + en[0]));
+          var en2 = el('b', null, en[1] || tn('附魔 {id}', { id: en[0] }));
           var eq = en[3] ? itemQuality(en[3]) : null;
           if (eq != null && L.qualityColors[eq]) en2.style.color = L.qualityColors[eq];
           c.appendChild(en2);
           c.appendChild(el('span', 'n', pct(en[2])));
-          c.setAttribute('data-tip', '附魔 ID ' + en[0]
-            + (en[3] ? '　卷轴 itemID ' + en[3] : '')
-            + '　使用率 ' + pct(en[2]));
+          c.setAttribute('data-tip', tn('附魔 ID {id}{scroll}　使用率 {pct}', {
+            id: en[0],
+            scroll: en[3] ? tn('　卷轴 itemID {id}', { id: en[3] }) : '',
+            pct: pct(en[2])
+          }));
           box.appendChild(c);
         });
         row.appendChild(box);
@@ -2028,7 +2044,7 @@
 
     if (B.consumables && B.consumables.length) {
       var c2 = el('details', 'sec');
-      c2.appendChild(el('summary', null, '消耗品　' + B.consumables.length + ' 种（所有专精通用）'));
+      c2.appendChild(el('summary', null, tn('消耗品　{n} 种（所有专精通用）', { n: B.consumables.length })));
       var groups = {};
       B.consumables.forEach(function (it) {
         (groups[it.kind || '其他'] = groups[it.kind || '其他'] || []).push(it);
@@ -2049,12 +2065,12 @@
           if (cq != null && L.qualityColors[cq]) cn.style.color = L.qualityColors[cq];
           chip.appendChild(cn);
           if (it.stat) {
-            var st = el('span', 'n', B.statNames[it.stat] || it.stat);
+            var st = el('span', 'n', tr(B.statNames[it.stat] || it.stat));
             st.style.color = statColor(it.stat);
             chip.appendChild(st);
           }
           chip.setAttribute('data-tip', 'itemID ' + it.id
-            + (it.icon ? '\n图标 ' + it.icon : ''));
+            + (it.icon ? tn('\n图标 {name}', { name: it.icon }) : ''));
           box.appendChild(chip);
         });
         row.appendChild(box);
@@ -2097,37 +2113,32 @@
     var sum = el('summary');
     sum.appendChild(el('span', 'ttl', '数据来源与更新'));
     sum.appendChild(el('span', 'note bis-load-summary', dataLoadSummary()));
-    sum.setAttribute('data-tip', '展开查看各源自己的数据日期、加载结果及更新方式。远端载入不等于源站有更新。');
+    sum.setAttribute('data-tip', tr('展开查看各源自己的数据日期、加载结果及更新方式。远端载入不等于源站有更新。'));
     upd.appendChild(sum);
     var sources = el('ul', 'bis-source-list');
     fillSourceList(sources);
     upd.appendChild(sources);
     upd.appendChild(el('p', 'note', '普通用户请到「设置 → 应用更新」更新整个看板（包含参照数据）。下方为高级手动数据维护工具，不是应用升级。'));
     upd.appendChild(el('p', 'note',
-      '在线重新加载：读取仓库或自定义地址的数据副本，仅本次会话有效，不写入本地；'
-      + '远端失败会回退包内。这里显示的是数据文件标注日期，不是刚才点击按钮的时间，也不保证源站最新。'));
+      '在线重新加载：读取仓库或自定义地址的数据副本，仅本次会话有效，不写入本地；远端失败会回退包内。这里显示的是数据文件标注日期，不是刚才点击按钮的时间，也不保证源站最新。'));
     upd.appendChild(el('p', 'note',
-      '本地更新：运行 更新数据.bat，成功的步骤写入本地，失败或跳过的步骤保留旧文件，完成后重启看板。'
-      + 'guide 自动抓取已停用，本地更新保留现有快照；不会绕过源站访问限制。'));
+      '本地更新：运行 更新数据.bat，成功的步骤写入本地，失败或跳过的步骤保留旧文件，完成后重启看板。guide 自动抓取已停用，本地更新保留现有快照；不会绕过源站访问限制。'));
     // 第二段说明：凭证那一截挂详细申请步骤（悬停）。段落是纯文本拼的，
     // 这里拆开组装，让「Warcraft Logs 凭证」那几个字带上 tip。
     var p2 = el('p', 'note');
-    p2.appendChild(doc.createTextNode(
-      '最慢的一步是实战分布（raider.io 限速抓取，约 47 分钟）——'
-      + '不想等就复制第二条命令跳过它。装备 / 天赋参照表要从游戏里装的'
-      + '那个插件转换（没装的话这两步自动跳过，包里旧数据继续用）；'
-      + '团本天赋串需要'));
+    p2.appendChild(doc.createTextNode(tr(
+      '最慢的一步是实战分布（raider.io 限速抓取，约 47 分钟）——不想等就复制第二条命令跳过它。装备 / 天赋参照表要从游戏里装的那个插件转换（没装的话这两步自动跳过，包里旧数据继续用）；团本天赋串需要')));
     var cred = el('span', null, 'Warcraft Logs 凭证');
-    cred.setAttribute('data-tip',
+    cred.setAttribute('data-tip', tr(
       '申请是免费的，一分钟的事：\n'
       + '1. 打开 https://www.warcraftlogs.com/api/clients/（要有 WCL 账号）\n'
       + '2. 「Create a Client」→ 名字随便填（如 WowAltBoard）→ 保存\n'
       + '3. 复制 Client ID 和 Client Secret，存成 tools\\.wcl-auth.json：\n'
       + '     { "clientId": "…", "clientSecret": "…" }\n'
       + '   （或设环境变量 WCL_CLIENT_ID / WCL_CLIENT_SECRET）\n'
-      + '那个文件已在 .gitignore 里，不会进仓库、不会进发布包。');
+      + '那个文件已在 .gitignore 里，不会进仓库、不会进发布包。'));
     p2.appendChild(cred);
-    p2.appendChild(doc.createTextNode('，没有也跳过。'));
+    p2.appendChild(doc.createTextNode(tr('，没有也跳过。')));
     upd.appendChild(p2);
 
     var dir = localDir();
@@ -2148,11 +2159,11 @@
     var online = button('重新加载远端副本（仅本次会话）', 'mini', function () {
       AE.bisOnlineUpdate();
     });
-    online.setAttribute('data-tip',
+    online.setAttribute('data-tip', tr(
       '从远端（jsDelivr 上的仓库副本，或你在设置里填的远端地址）重新加载这些数据。\n'
       + '只影响本次打开：不写盘、不进设置，刷新后回到包里的那份。\n'
       + '国内网络对 jsDelivr 时通时不通 —— 拉不到就自动用包里的，等它 8 秒而已。\n'
-      + '要把更新写入本地（重启也在），用 更新数据.bat。');
+      + '要把更新写入本地（重启也在），用 更新数据.bat。'));
     act.appendChild(online);
     act.appendChild(button('复制全量命令', 'mini', function () { copyCmd(''); }));
     act.appendChild(button('复制跳过实战分布的命令', 'mini', function () { copyCmd(' -SkipRio'); }));
@@ -2178,60 +2189,57 @@
 
     if (mr) {
       var M = guide();
-      p.appendChild(doc.createTextNode(
-        '数据来自 ' + ((M && M.source) || 'guide-site.invalid') + '，'
-        + '抓取日期 ' + ((M && M.updatedAt) || '?') + '，'
-        + '这个专精用的是' + (mr.kind === 'mplus' ? '大秘境' : '团本') + '指南（'
-        + (mr.v.slug || '?') + '）。'));
+      p.appendChild(doc.createTextNode(tn('数据来自 {source}，抓取日期 {date}，这个专精用的是{guide}指南（{slug}）。', {
+        source: (M && M.source) || 'guide-site.invalid',
+        date: (M && M.updatedAt) || '?',
+        guide: tr(mr.kind === 'mplus' ? '大秘境' : '团本'),
+        slug: mr.v.slug || '?'
+      })));
       p.appendChild(el('br'));
       // 界面上没有百分比，得说一句为什么，否则看起来像数据缺了。
-      p.appendChild(doc.createTextNode(
-        '这是编辑的推荐排序，不是使用率统计，所以只有名次没有百分比。'
-        + '想看多少人这么穿，切到「实战分布」。'));
+      p.appendChild(doc.createTextNode(tr(
+        '这是编辑的推荐排序，不是使用率统计，所以只有名次没有百分比。想看多少人这么穿，切到「实战分布」。')));
       p.appendChild(el('br'));
-      p.appendChild(doc.createTextNode(
-        '装等来自本机两份实测数据（guide 的表里没有），每行的装等上写着是谁测的。'
-        + '物品中文名来自暴雪 DB2。'));
+      p.appendChild(doc.createTextNode(tr(
+        '装等来自本机两份实测数据（guide 的表里没有），每行的装等上写着是谁测的。物品中文名来自暴雪 DB2。')));
       return p;
     }
 
     if (rs) {
       var R = rio();
-      p.appendChild(doc.createTextNode(
-        '数据来自 ' + ((R && R.source) || 'raider.io') + '，'
-        + '抓取日期 ' + ((R && R.updatedAt) || '?') + '，赛季 ' + ((R && R.season) || '?') + '。'
-        + '这个专精统计了 ' + (rs.nGear || 0) + ' 个角色的实际装备'
+      p.appendChild(doc.createTextNode(tn('数据来自 {source}，抓取日期 {date}，赛季 {season}。这个专精统计了 {n} 个角色的实际装备{note}。', {
+        source: (R && R.source) || 'raider.io',
+        date: (R && R.updatedAt) || '?',
+        season: (R && R.season) || '?',
+        n: rs.nGear || 0,
         // **原来写「榜上 500 人，其中 99 人拿到了装备」，那是把设计说成了故障。**
         // 500 是天赋串的抓取上限（每个专精都恰好 500），装备是**只查榜前 100 名**
         // （生成器里 TARGET=100，日志原话「每专精分数最高的 100 个」），
         // 实际失败的只有 0~2 人。所以这两个数描述的是**两批人**：
         // 装备 = 榜前 100，天赋串 = 榜前 500。不说清的话看起来像 400 人的装备丢了。
-        + (rs.n && rs.n !== rs.nGear
-          ? '（装备只查榜前 ' + Math.max(100, rs.nGear) + ' 名，'
-            + rs.nGear + ' 人查到了；下面天赋串那一块用的是榜前 ' + rs.n + ' 名，'
-            + '两块描述的不是同一批人）'
-          : '')
-        + '。'));
+        note: rs.n && rs.n !== rs.nGear
+          ? tn('（装备只查榜前 {rank} 名，{got} 人查到了；下面天赋串那一块用的是榜前 {rank2} 名，两块描述的不是同一批人）', {
+            rank: Math.max(100, rs.nGear), got: rs.nGear, rank2: rs.n
+          })
+          : ''
+      })));
       p.appendChild(el('br'));
-      p.appendChild(doc.createTextNode(
-        '百分比 = 该部位穿这件的人数 / 该部位样本量，不截断，所以一个部位加起来是 100%。'
-        + '物品中文名来自暴雪 DB2（' + ((R && R.itemNameSource) || '?') + '）。'));
+      p.appendChild(doc.createTextNode(tn('百分比 = 该部位穿这件的人数 / 该部位样本量，不截断，所以一个部位加起来是 100%。物品中文名来自暴雪 DB2（{src}）。', {
+        src: (R && R.itemNameSource) || '?'
+      })));
       p.appendChild(el('br'));
-      p.appendChild(doc.createTextNode(
-        '属性权重 / 宝石 / 附魔 / 掉落来源在「最佳推荐」里，raider.io 的角色档案没有这些。'));
+      p.appendChild(doc.createTextNode(tr('属性权重 / 宝石 / 附魔 / 掉落来源在「最佳推荐」里，raider.io 的角色档案没有这些。')));
       return p;
     }
 
-    p.appendChild(doc.createTextNode(
-      '随包的静态参照表（' + (B.source || '未知来源') + '），'
-      + '统计日期 ' + (B.updatedAt || '?') + '，表版本 ' + (B.addonVersion || '?') + '。'));
+    p.appendChild(doc.createTextNode(tn('随包的静态参照表（{source}），统计日期 {date}，表版本 {v}。', {
+      source: B.source || tr('未知来源'), date: B.updatedAt || '?', v: B.addonVersion || '?'
+    })));
     p.appendChild(el('br'));
-    p.appendChild(doc.createTextNode(
-      '这是顶尖玩家实际在用什么的统计，不是模拟器的理论最优。使用率低也可能只是难拿。'));
+    p.appendChild(doc.createTextNode(tr('这是顶尖玩家实际在用什么的统计，不是模拟器的理论最优。使用率低也可能只是难拿。')));
     if (!global.AE_ITEM_ICONS) {
       p.appendChild(el('br'));
-      p.appendChild(doc.createTextNode(
-        '数据里只有 itemID 没有图标名，配置图标源后才会出图，现在是按来源上色的占位块。'));
+      p.appendChild(doc.createTextNode(tr('数据里只有 itemID 没有图标名，配置图标源后才会出图，现在是按来源上色的占位块。')));
     }
     return p;
   }
@@ -2242,7 +2250,7 @@
     if (talLoaded) { done(); return; }
     if (talLoading) return;
     talLoading = true;
-    setSub('正在加载天赋数据…');
+    setSub(tr('正在加载天赋数据…'));
     // guide 的方案也是天赋页要用的（第 15 轮：天赋按 guide 来）。
     // 它自己带回调重画，所以这里只是**触发**，不等它 —— 等它的话
     // 天赋页会为了一份可选数据多空一会儿。
@@ -2256,7 +2264,7 @@
       // 画出来是一个**完全空白**的提示框停 3 秒；'warn' 也不是它认的 kind
       // （只有 info / good / bad）。
       if (err && AE.toast) {
-        AE.toast({ title: '天赋数据读取失败', body: String(err), kind: 'bad' });
+        AE.toast({ title: tr('天赋数据读取失败'), body: String(err), kind: 'bad' });
       }
       // 树结构是另一个文件（app/talent-tree.js，约 415 KB）。
       // 以前它是**可选的**：加载不到就退回「只有统计、没有树」。
@@ -2401,13 +2409,13 @@
       try { o = dec.decode(t.s, TR); } catch (e) { o = null; }
     }
     var sp = mrSplit(o);
-    if (!sp) return t.p + ' 点';
+    if (!sp) return tn('{n} 点', { n: t.p });
     var seen = {}, vals = [];
     ((t.h && t.h.length) ? t.h : [0]).forEach(function (sid) {
       var v = sp.base + (sp.per[sid] || 0);
       if (!seen[v]) { seen[v] = 1; vals.push(v); }
     });
-    return vals.length ? vals.join(' / ') + ' 点' : t.p + ' 点';
+    return vals.length ? tn('{list} 点', { list: vals.join(' / ') }) : tn('{n} 点', { n: t.p });
   }
 
   /**
@@ -2435,7 +2443,7 @@
    * 全名不丢，挂在 data-tip 上。
    */
   function mrShortNames(list) {
-    var full = list.map(function (t) { return t.n || '（这套没写名字）'; });
+    var full = list.map(function (t) { return t.n || tr('（这套没写名字）'); });
     if (list.length < 2) return full;
     var cnt = {};
     full.forEach(function (n) {
@@ -2502,7 +2510,7 @@
       }
       var pts = mrPtsText(t);
       if (pts) tags.push(pts);
-      tags.push('第 ' + (i + 1) + ' 套');
+      tags.push(tn('第 {n} 套', { n: i + 1 }));
       // 逐个往上加，直到这一行和别人不一样了。加到「第 N 套」必然唯一。
       for (var k = 1; k <= tags.length; k++) {
         var cand = n + '（' + tags.slice(0, k).join(' · ') + '）';
@@ -2527,13 +2535,13 @@
             }
             var p2 = mrPtsText(t2);
             if (p2) tg2.push(p2);
-            tg2.push('第 ' + (j + 1) + ' 套');
+            tg2.push(tn('第 {n} 套', { n: j + 1 }));
             if (tg2.slice(0, k).join(' · ') === tags.slice(0, k).join(' · ')) same = true;
           });
           if (!same) return cand;
         }
       }
-      return n + '（第 ' + (i + 1) + ' 套）';
+      return n + tn('（第 {n} 套）', { n: i + 1 });
     });
   }
 
@@ -2584,14 +2592,16 @@
     var M = guide();
     var b = pick.build;
     var dec = AE.TalentDecode;
-    var out = dec ? dec.decode(b.s, tree()) : { err: '天赋解码器没加载（app/talent-decode.js）' };
+    var out = dec ? dec.decode(b.s, tree()) : { err: tr('天赋解码器没加载（app/talent-decode.js）') };
 
     // 标题（setTitle）在天赋页已经写着「天赋」，副标题**不要再写一遍** ——
     // 两个拼在一起是「天赋　天赋　鲜血　guide-site.invalid …」，同一个词连着两遍。
-    setSub(specLabel(s) + '　guide-site.invalid '
-      + ((M && M.updatedAt) || '?') + '　'
-      + (pick.kind === 'mplus' ? '大秘境指南' : '团本指南')
-      + ' 共 ' + pick.list.length + ' 套');
+    setSub(tn('{spec}　guide-site.invalid {date}　{guide} 共 {n} 套', {
+      spec: specLabel(s),
+      date: (M && M.updatedAt) || '?',
+      guide: tr(pick.kind === 'mplus' ? '大秘境指南' : '团本指南'),
+      n: pick.list.length
+    }));
 
     // **raider.io 那一块放在最上面**（用户第 18 轮定的）。
     //
@@ -2617,7 +2627,7 @@
         persist({ bisMrKind: k[0] });
         render();
       });
-      btn.setAttribute('data-tip', mrTalents(s.specId, k[0]).length + ' 套方案');
+      btn.setAttribute('data-tip', tn('{n} 套方案', { n: mrTalents(s.specId, k[0]).length }));
       seg.appendChild(btn);
     });
     bar.appendChild(seg);
@@ -2626,7 +2636,7 @@
     // 方案列表。名字长，所以竖着一行一个，不挤成一排小按钮。
     var pickBox = el('div', 'mr-builds');
     pickBox.setAttribute('role', 'group');
-    pickBox.setAttribute('aria-label', '天赋方案，共 ' + pick.list.length + ' 套');
+    pickBox.setAttribute('aria-label', tn('天赋方案，共 {n} 套', { n: pick.list.length }));
     var shortNames = mrShortNames(pick.list);
     pick.list.forEach(function (t, i) {
       var btn = choiceButton('', 'mrb' + (i === pick.idx ? ' on' : ''), function () {
@@ -2634,7 +2644,7 @@
         state.mrSub = 0;        // 换方案，英雄树的选择跟着重置
         render();
       });
-      var full = t.n || '（这套没写名字）';
+      var full = t.n || tr('（这套没写名字）');
       btn.appendChild(el('span', 'nm', shortNames[i]));
       var meta = el('span', 'mt');
       var ptsText = mrPtsText(t);
@@ -2643,13 +2653,13 @@
       // 一条串在 guide 页面上挂在多个小节下面（每副本 / 每首领各一个天赋图）时，
       // 生成器并成一套，c 是共用它的小节数。这里得说出来：名字里只留了第一个
       // 小节（「… in Altar of Fangs」），不说的话会以为这套只适用于那一个副本。
-      if (t.c > 1) meta.appendChild(el('em', 'many', '通用 ' + t.c + ' 处'));
+      if (t.c > 1) meta.appendChild(el('em', 'many', tn('通用 {n} 处', { n: t.c })));
       // 场景（单体 / AOE / 顺劈 / 多目标）。**可选字段** —— 实测 guide 80 篇里
       // 只有 28 篇按场景分天赋，其余按英雄天赋或副本分。没有就不画这个标签，
       // 而不是默认标成「单体」（那是编的）。
       (t.sc || []).forEach(function (code) {
         var e = el('em', 'scen ' + code, SCEN_ZH[code] || code);
-        e.setAttribute('data-tip', SCEN_TIP[code] || '');
+        e.setAttribute('data-tip', tr(SCEN_TIP[code] || ''));
         meta.appendChild(e);
       });
       // 英雄天赋名走 subTreeName()：那是 DB2 的中文名，不是我编的译名。
@@ -2667,9 +2677,9 @@
       // run-tests.js 的「名字」那条断言认的就是这一行，换个顺序它会报红。
       btn.setAttribute('data-tip', full + '\n' + ptsText
         + (t.h.length > 1
-          ? '（串里两条英雄天赋合计 ' + t.p + ' 点，游戏里只能选一条）' : '')
-        + '\n英雄天赋：' + t.h.map(subTreeName).join(' / ')
-        + (t.c > 1 ? '\nguide 有 ' + t.c + ' 个小节用的是同一套' : ''));
+          ? tn('（串里两条英雄天赋合计 {n} 点，游戏里只能选一条）', { n: t.p }) : '')
+        + tn('\n英雄天赋：{list}', { list: t.h.map(subTreeName).join(' / ') })
+        + (t.c > 1 ? tn('\nguide 有 {n} 个小节用的是同一套', { n: t.c }) : ''));
       pickBox.appendChild(btn);
     });
     host.appendChild(pickBox);
@@ -2721,8 +2731,8 @@
     if (selT && selT.str) {
       var tbar = el('div', 'tree-src');
       tbar.appendChild(el('span', 'lb', '天赋树来源'));
-      [['mr', 'guide 方案'],
-       ['lo', '榜上 #' + (selT.idx + 1) + '·' + selT.count + '人']].forEach(function (k) {
+      [['mr', tr('guide 方案')],
+       ['lo', tn('榜上 #{n}·{people}人', { n: selT.idx + 1, people: selT.count })]].forEach(function (k) {
         var on = (k[0] === 'lo') === !!wantLo;
         var btn = choiceButton(k[1], on ? 'on' : null, function () {
           state.treeSrc = k[0];
@@ -2731,10 +2741,10 @@
           render();
         });
         btn.setAttribute('data-tip', k[0] === 'lo'
-          ? '画上面「榜上热门天赋串」里现在选中的那一条（' + selT.cur.label + ' 榜，'
-            + selT.count + ' 个角色在用）。换上面那排 #N 按钮，这棵树跟着换。'
-          : 'guide 编辑写的那一套方案（上面方案列表里高亮的那条）。'
-            + '它和榜上那些串不是同一套天赋。');
+          ? tn('画上面「榜上热门天赋串」里现在选中的那一条（{kind} 榜，{n} 个角色在用）。换上面那排 #N 按钮，这棵树跟着换。', {
+            kind: tr(selT.cur.label), n: selT.count
+          })
+          : tr('guide 编辑写的那一套方案（上面方案列表里高亮的那条）。它和榜上那些串不是同一套天赋。'));
         tbar.appendChild(btn);
       });
       if (wantLo && !loOut) {
@@ -2744,16 +2754,17 @@
     }
 
     if (loOut) {
-      host.appendChild(renderCurrentTree('榜上 #' + (selT.idx + 1) + ' · ' + selT.cur.label
-        + ' · ' + selT.count + ' 人', selT.str, loOut.subs.length > 1, 'lo'));
+      host.appendChild(renderCurrentTree(tn('榜上 #{n} · {kind} · {people} 人', {
+        n: selT.idx + 1, kind: tr(selT.cur.label), people: selT.count
+      }), selT.str, loOut.subs.length > 1, 'lo'));
       host.appendChild(renderLoTree(s, selT, loOut));
     } else if (out.err) {
       var w = el('div', 'bis-warn');
       w.appendChild(el('b', null, '这套方案的串解不开'));
-      w.appendChild(el('p', null, out.err + ' —— 树画不出来。'));
+      w.appendChild(el('p', null, tn('{msg} —— 树画不出来。', { msg: out.err })));
       host.appendChild(w);
     } else {
-      host.appendChild(renderCurrentTree('guide · ' + (b.n || '当前攻略方案'),
+      host.appendChild(renderCurrentTree('guide · ' + (b.n || tr('当前攻略方案')),
         b.g, (b.h || []).length > 1, 'mr'));
       host.appendChild(renderMrTree(s, b, out));
     }
@@ -2776,7 +2787,7 @@
     var box = el('div', 'bis-tree');
     var sp = TR.specs[String(s.specId)];
     if (!sp) {
-      box.appendChild(el('p', 'note', '天赋树数据里没有 specID ' + s.specId + '。'));
+      box.appendChild(el('p', 'note', tn('天赋树数据里没有 specID {id}。', { id: s.specId })));
       return box;
     }
     var sub = (out.subs && out.subs.length) ? out.subs[0] : 0;
@@ -2789,17 +2800,18 @@
       if (out.nr[id] && !out.granted[id]) drawn += out.nr[id].rank;
     });
     var off = out.pts - drawn;
-    box.appendChild(el('p', 'note',
-      '画的是榜上 #' + (sel.idx + 1) + '（' + sel.cur.label + '榜，'
-      + sel.count + ' 个角色在用这一串）。'
-      + '共 ' + out.pts + ' 点，英雄天赋：' + (sub ? subTreeName(sub) : '这套没点') + '。'
-      + (off > 0
-        ? '（下面三棵树里 ' + drawn + ' 点，另 ' + off
-          + ' 点是「选哪条英雄天赋」那一下 —— 它不画在任何一棵树里。）'
-        : '')));
+    box.appendChild(el('p', 'note', tn('画的是榜上 #{n}（{kind}榜，{people} 个角色在用这一串）。共 {pts} 点，英雄天赋：{hero}。{tail}', {
+      n: sel.idx + 1, kind: tr(sel.cur.label), people: sel.count,
+      pts: out.pts, hero: sub ? subTreeName(sub) : tr('这套没点'),
+      tail: off > 0
+        ? tn('（下面三棵树里 {drawn} 点，另 {off} 点是「选哪条英雄天赋」那一下 —— 它不画在任何一棵树里。）', {
+            drawn: drawn, off: off
+          })
+        : ''
+    })));
     var heroRow = el('div', 'tree-cols hero-row');
     var mainRow = el('div', 'tree-cols main-row');
-    [[heroRow, heroIds, '英雄天赋' + (sub ? '：' + subTreeName(sub) : '')],
+    [[heroRow, heroIds, tr('英雄天赋') + (sub ? '：' + subTreeName(sub) : '')],
      [mainRow, sp.classNodes, '职业天赋'],
      [mainRow, sp.specNodes, '专精天赋']
     ].forEach(function (g) {
@@ -2815,16 +2827,16 @@
     var bar = el('div', 'tree-current');
     bar.setAttribute('data-source', source);
     var identity = el('div', 'tree-identity');
-    identity.appendChild(el('b', null, '当前树：' + label));
-    identity.appendChild(el('span', 'note', !str
+    identity.appendChild(el('b', null, tr('当前树：') + label));
+    identity.appendChild(el('span', 'note', tr(!str
       ? '此树没有对应导入串，不能用榜单串代替。'
       : bundled ? '原串包含多条英雄天赋；当前只展示其中一条，不是单英雄导出。'
-      : '复制内容与当前树同源；来源记录不代表最优解。'));
+      : '复制内容与当前树同源；来源记录不代表最优解。')));
     bar.appendChild(identity);
     if (str) {
       bar.appendChild(button(bundled ? '复制来源原串（含多英雄）' : '复制当前树天赋', 'primary tree-copy', function () {
-        if (AE.copyWithToast) AE.copyWithToast(str, bundled ? '含多英雄的来源原串' : '当前树天赋');
-        else if (AE.toast) AE.toast({ title: '请在对应来源展开原串，选中后按 Ctrl+C', kind: 'bad' });
+        if (AE.copyWithToast) AE.copyWithToast(str, tr(bundled ? '含多英雄的来源原串' : '当前树天赋'));
+        else if (AE.toast) AE.toast({ title: tr('请在对应来源展开原串，选中后按 Ctrl+C'), kind: 'bad' });
       }));
     }
     return bar;
@@ -2856,14 +2868,12 @@
     // 152 次渲染里只核对到 3 次。样式沿用（见 style.css 里那条并列选择器）。
     var head = el('div', 'lo-head mr-lo-head');
     head.appendChild(el('b', null, '这一套的导入串'));
-    head.appendChild(el('span', 'n', b.g.length + ' 个字符'));
+    head.appendChild(el('span', 'n', tn('{n} 个字符', { n: b.g.length })));
     if (bundled) {
-      var warn = el('span', 'lo-warn', '带着 ' + b.h.length + ' 条英雄天赋');
-      warn.setAttribute('data-tip',
-        'guide 把这一套配了 ' + b.h.length + ' 条英雄天赋打包在一个串里（'
-        + b.p + ' 点），而游戏里一个角色只能选一条。\n'
-        + '它的 Export 按钮导出来就是这样 —— 不是面板改坏的。\n'
-        + '导进游戏之后自己把不要的那条英雄天赋清掉；攻略树只显示当前选择的那条。');
+      var warn = el('span', 'lo-warn', tn('带着 {n} 条英雄天赋', { n: b.h.length }));
+      warn.setAttribute('data-tip', tn('guide 把这一套配了 {n} 条英雄天赋打包在一个串里（{pts} 点），而游戏里一个角色只能选一条。\n它的 Export 按钮导出来就是这样 —— 不是面板改坏的。\n导进游戏之后自己把不要的那条英雄天赋清掉；攻略树只显示当前选择的那条。', {
+        n: b.h.length, pts: b.p
+      }));
       head.appendChild(warn);
     }
     box.appendChild(head);
@@ -2876,7 +2886,7 @@
     ta.value = b.g;
     ta.readOnly = true;
     ta.rows = 2;
-    ta.setAttribute('aria-label', '天赋导入串，' + b.g.length + ' 个字符，只读');
+    ta.setAttribute('aria-label', tn('天赋导入串，{n} 个字符，只读', { n: b.g.length }));
     var details = el('details', 'lo-details mr-details');
     details.appendChild(el('summary', null, '查看原串与导入说明'));
     details.appendChild(ta);
@@ -2884,22 +2894,20 @@
     var act = el('div', 'lo-act');
     var copy = button('复制攻略原串', 'primary mr-copy', function () {
       if (AE.copyWithToast) AE.copyWithToast(b.g, '天赋导入串');
-      else if (AE.toast) AE.toast({ title: '请展开「查看原串与导入说明」，选中原串按 Ctrl+C', kind: 'bad' });
+      else if (AE.toast) AE.toast({ title: tr('请展开「查看原串与导入说明」，选中原串按 Ctrl+C'), kind: 'bad' });
     });
-    copy.setAttribute('data-tip',
-      '复制后在游戏里打开天赋界面，右下角「导入」粘贴。\n'
-      + (bundled
-        ? '这一套带着 ' + b.h.length + ' 条英雄天赋，导进去后自己清掉不要的那条。'
-        : '这一套只有一条英雄天赋，对应当前选择的 guide 攻略方案。'));
+    copy.setAttribute('data-tip', tn('复制后在游戏里打开天赋界面，右下角「导入」粘贴。\n{tail}', {
+      tail: bundled
+        ? tn('这一套带着 {n} 条英雄天赋，导进去后自己清掉不要的那条。', { n: b.h.length })
+        : tr('这一套只有一条英雄天赋，对应当前选择的 guide 攻略方案。')
+    }));
     act.appendChild(copy);
     act.appendChild(el('span', 'n', mrPtsText(b)
-      + (bundled ? '（串里合计 ' + b.p + ' 点）' : '')));
+      + (bundled ? tn('（串里合计 {n} 点）', { n: b.p }) : '')));
     box.appendChild(act);
 
     details.appendChild(el('p', 'note',
-      '这一串是 guide 页面里那个 blob 改了串头得到的（版本字节 130→2、'
-      + 'treeHash 全 0），和它每张卡片下面 Export 按钮给的串逐字符相同 —— '
-      + '节点位一个都没动。'));
+      '这一串是 guide 页面里那个 blob 改了串头得到的（版本字节 130→2、treeHash 全 0），和它每张卡片下面 Export 按钮给的串逐字符相同 —— 节点位一个都没动。'));
     box.appendChild(details);
     return box;
   }
@@ -2936,16 +2944,15 @@
     // 读 textContent 时行为不一致（测试脚手架里前一半会丢）。
     // 全用子元素，两边读出来的都是同一串字。
     var sum = el('summary');
-    sum.appendChild(el('span', 'ttl', title + '　' + list.length + ' 条'));
+    sum.appendChild(el('span', 'ttl', tn('{title}　{n} 条', { title: tr(title), n: list.length })));
     // **不能再写「句子英文」。** 第 19 轮加了人工整句模板（tools/translate-prio.js），
     // 现在大半句子已经是中文了，而这句标签还说「英文原文，没翻」——
     // 用户读着中文句子，被告知这是原文，于是对「译错了」这种可能完全没有防备。
     sum.appendChild(el('span', 'note', '　技能名中文，句子中英混排'));
-    sum.setAttribute('data-tip', tip
-      + '\n技能和天赋名是官方中文（按 guide 标的技能 ID 查的，查不到的留英文）。\n'
+    sum.setAttribute('data-tip', tr(tip) + tr(
+      '\n技能和天赋名是官方中文（按 guide 标的技能 ID 查的，查不到的留英文）。\n'
       + '句子按人工写的**整句**模板译：命中模板的整句变中文，没命中的整句原样留英文。\n'
-      + '不做半句翻译、不做 AI 润色 —— 机翻会把「unless」这种条件翻反，'
-      + '照着打就是错的，而界面上看不出来。');
+      + '不做半句翻译、不做 AI 润色 —— 机翻会把「unless」这种条件翻反，照着打就是错的，而界面上看不出来。'));
     wrap.appendChild(sum);
     list.forEach(function (r) {
       var row = el('div', 'note-row');
@@ -2981,7 +2988,7 @@
     var box = el('div', 'bis-tree');
     var sp = TR.specs[String(s.specId)];
     if (!sp) {
-      box.appendChild(el('p', 'note', '天赋树数据里没有 specID ' + s.specId + '。'));
+      box.appendChild(el('p', 'note', tn('天赋树数据里没有 specID {id}。', { id: s.specId })));
       return box;
     }
 
@@ -3005,20 +3012,19 @@
           state.mrSub = i;
           render();
         });
-        btn.setAttribute('data-tip',
-          '这一套 guide 同时给了 ' + subs.length + ' 条英雄天赋。'
-          + '游戏里只能选一条，所以这里一条一条画。');
+        btn.setAttribute('data-tip', tn('这一套 guide 同时给了 {n} 条英雄天赋。游戏里只能选一条，所以这里一条一条画。', {
+          n: subs.length
+        }));
         sbar.appendChild(btn);
       });
       box.appendChild(sbar);
       var sp2 = mrSplit(out);
       var mine = sp2 ? (sp2.base + (sp2.per[sub] || 0)) : null;
-      box.appendChild(el('p', 'note',
-        '这套方案里 guide 把 ' + subs.map(subTreeName).join(' 和 ')
-        + ' 两条英雄天赋写在同一个串里（串里合计 ' + out.pts + ' 点 —— '
-        + '游戏里配不出这个数，一个角色只能选一条）。上面选哪条，下面就画哪条'
-        + (mine ? '：现在这条是 ' + mine + ' 点' : '')
-        + '；职业树和专精树两条共用。'));
+      box.appendChild(el('p', 'note', tn('这套方案里 guide 把 {names} 两条英雄天赋写在同一个串里（串里合计 {pts} 点 —— 游戏里配不出这个数，一个角色只能选一条）。上面选哪条，下面就画哪条{now}；职业树和专精树两条共用。', {
+        names: subs.map(subTreeName).join(tr(' 和 ')),
+        pts: out.pts,
+        now: mine ? tn('：现在这条是 {n} 点', { n: mine }) : ''
+      })));
     } else {
       /*
        * **「共 N 点」和下面三棵树的表头得能对上账。**
@@ -3033,13 +3039,15 @@
         if (out.nr[id] && !out.granted[id]) drawn += out.nr[id].rank;
       });
       var off = out.pts - drawn;
-      box.appendChild(el('p', 'note',
-        '共 ' + out.pts + ' 点，英雄天赋：' + (sub ? subTreeName(sub) : '这套没点')
-        + '。高亮的是点了的节点，鼠标放上去看详情。'
-        + (off > 0
-          ? '（下面三棵树里 ' + drawn + ' 点，另 ' + off
-            + ' 点是「选哪条英雄天赋」那一下 —— 它不画在任何一棵树里。）'
-          : '')));
+      box.appendChild(el('p', 'note', tn('共 {pts} 点，英雄天赋：{hero}。高亮的是点了的节点，鼠标放上去看详情。{tail}', {
+        pts: out.pts,
+        hero: sub ? subTreeName(sub) : tr('这套没点'),
+        tail: off > 0
+          ? tn('（下面三棵树里 {drawn} 点，另 {off} 点是「选哪条英雄天赋」那一下 —— 它不画在任何一棵树里。）', {
+              drawn: drawn, off: off
+            })
+          : ''
+      })));
     }
 
 
@@ -3061,7 +3069,7 @@
     // 窄到放不下两棵 518 时它们还是会 wrap，那时一行一棵，仍然整齐。
     var heroRow = el('div', 'tree-cols hero-row');
     var mainRow = el('div', 'tree-cols main-row');
-    [[heroRow, heroIds, '英雄天赋' + (sub ? '：' + subTreeName(sub) : '')],
+    [[heroRow, heroIds, tr('英雄天赋') + (sub ? '：' + subTreeName(sub) : '')],
      [mainRow, sp.classNodes, '职业天赋'],
      [mainRow, sp.specNodes, '专精天赋']
     ].forEach(function (g) {
@@ -3103,11 +3111,11 @@
     // 所有统计 / 默认选择 / 来源玩家都从同一份筛选视图读取，不删节点伪装成完整方案。
     var quality = AE.TalentData.screen(td, tree());
     td = quality.data;
-    setSub(specLabel(s) + '　共 ' + quality.acceptedBuilds + ' 套可核对样本');
+    setSub(tn('{spec}　共 {n} 套可核对样本', { spec: specLabel(s), n: quality.acceptedBuilds }));
     if (quality.removedRows) {
-      host.appendChild(el('p', 'bis-warn', '已隔离 ' + quality.removedRows
-        + ' 条无法核对的天赋记录（跨专精、节点缺失或引用异常），不计入下方统计。'
-        + '原始数据保留；不会猜着补齐。'));
+      host.appendChild(el('p', 'bis-warn', tn('已隔离 {n} 条无法核对的天赋记录（跨专精、节点缺失或引用异常），不计入下方统计。原始数据保留；不会猜着补齐。', {
+        n: quality.removedRows
+      })));
     }
 
     // 为什么这一页长得和别的专精不一样，得说清楚。
@@ -3121,18 +3129,15 @@
     //     他会以为自己这里坏了。
     if (!tree() || !guide()) {
       host.appendChild(el('p', 'note',
-        '下面是「顶尖玩家实际在用什么」的统计。guide 的推荐方案还在加载，'
-        + '到了会自动换过来。'));
+        '下面是「顶尖玩家实际在用什么」的统计。guide 的推荐方案还在加载，到了会自动换过来。'));
     } else {
       var why = el('p', 'note');
       why.appendChild(el('b', null, 'guide 没有这个专精的天赋方案。'));
-      why.appendChild(doc.createTextNode(
-        '下面是随包自带的「顶尖玩家实际在用什么」统计 —— 所以这一页和别的专精长得不一样，'
-        + '不是坏了。'));
-      why.setAttribute('data-tip',
-        'guide 这个专精的指南里，天赋图是照上一版天赋树编的，解不开所以没收进来'
-        + '（实测 40 个专精里有 3 个这样）。\n'
-        + '装备页不受影响，guide 的「最佳推荐」40 个专精都有。');
+      why.appendChild(doc.createTextNode(tr(
+        '下面是随包自带的「顶尖玩家实际在用什么」统计 —— 所以这一页和别的专精长得不一样，不是坏了。')));
+      why.setAttribute('data-tip', tr(
+        'guide 这个专精的指南里，天赋图是照上一版天赋树编的，解不开所以没收进来（实测 40 个专精里有 3 个这样）。\n'
+        + '装备页不受影响，guide 的「最佳推荐」40 个专精都有。'));
       host.appendChild(why);
     }
 
@@ -3152,7 +3157,7 @@
         persist({ bisTalentCat: c[0] });
         render();
       });
-      b.setAttribute('data-tip', TCAT_TIP[c[0]]);
+      b.setAttribute('data-tip', tr(TCAT_TIP[c[0]]));
       seg.appendChild(b);
     });
     bar.appendChild(seg);
@@ -3257,19 +3262,17 @@
     // 就指向了页面顶端的空白处。这一块现在在上，guide 在下。
     head.appendChild(el('b', null, '榜上热门天赋串'));
     head.appendChild(el('span', 'n',
-      lo.total + ' 名玩家共 ' + lo.uniq + ' 种，下面是最热门的几种'));
+      tn('{total} 名玩家共 {kinds} 种，下面是最热门的几种', { total: lo.total, kinds: lo.uniq })));
     // **样本太少时说出来。** 团本那一类按专精差别极大（实测奥法 1537 人，
     // 火法 8 人、生存猎 6 人）—— 一队 20 人只有 2~3 个坦克治疗，冷门专精
     // 天然凑不够。8 个人里「#1 有 2 人用」和 500 个人里「#1 有 50 人用」
     // 在界面上长得一模一样，而前者基本等于没有统计意义。
     // 数字本来就摆在那儿，但**数字的分量**得写出来。
     if (lo.total < 20) {
-      var thin = el('span', 'lo-warn thin', '样本只有 ' + lo.total + ' 人');
-      thin.setAttribute('data-tip',
-        '这一类里这个专精只采样到 ' + lo.total + ' 个人，'
-        + '所以「最热门」的分量很轻 —— 换个人抓一遍，第一名可能就换了。\n'
-        + '团本里一队 20 人只有 2~3 个坦克 / 治疗，冷门专精天然凑不够。\n'
-        + '想要样本大的，看另一类。');
+      var thin = el('span', 'lo-warn thin', tn('样本只有 {n} 人', { n: lo.total }));
+      thin.setAttribute('data-tip', tn('这一类里这个专精只采样到 {n} 个人，所以「最热门」的分量很轻 —— 换个人抓一遍，第一名可能就换了。\n团本里一队 20 人只有 2~3 个坦克 / 治疗，冷门专精天然凑不够。\n想要样本大的，看另一类。', {
+        n: lo.total
+      }));
       head.appendChild(thin);
     }
     // 「和下面 guide 的方案不是同一套」这句**只在下面真的有 guide 那一块时才画**。
@@ -3283,13 +3286,11 @@
       // 树跟着这一串画的时候，把这件事说出来 —— 那正是用户报的「人数和树不匹配」
       // 的反面。**「和下面 guide 的方案不是同一套」这半句要留着**：guide 方案列表
       // 仍然在下面、仍然是另一套，而且 run-tests 的「方位词指空」那条断言认这句话。
-      var warn = el('span', 'lo-warn', '和下面 guide 的方案不是同一套'
-        + '（实际来源见树旁标题）');
-      warn.setAttribute('data-tip',
+      var warn = el('span', 'lo-warn', tr('和下面 guide 的方案不是同一套（实际来源见树旁标题）'));
+      warn.setAttribute('data-tip', tr(
         '这一块是排行榜上真实角色的天赋串，能一键导入。\n'
-        + '和下面 guide 那些方案不是同一套：拿一个专精逐节点比过，'
-        + '一边多 7 个节点，另一边多 8 个。\n'
-        + '要 guide 那一套，用它自己那一块的复制按钮。');
+        + '和下面 guide 那些方案不是同一套：拿一个专精逐节点比过，一边多 7 个节点，另一边多 8 个。\n'
+        + '要 guide 那一套，用它自己那一块的复制按钮。'));
       head.appendChild(warn);
     }
     box.appendChild(head);
@@ -3298,7 +3299,7 @@
     // 不只是开关。少画的话用户不知道自己看的是哪一类。
     var kbar = el('div', 'lo-kind');
     kinds.forEach(function (kd, i) {
-      var b = choiceButton(kd.label + '　' + kd.lo.total + ' 人',
+      var b = choiceButton(tn('{kind}　{people} 人', { kind: tr(kd.label), people: kd.lo.total }),
         i === ki ? 'on' : null, function () {
           state.loKind = kd.k;
           state.loadout = 0;          // 换类之后 #4 指的是另一串，回到 #1
@@ -3306,14 +3307,10 @@
           render();
         });
       b.setAttribute('data-tip', kd.k === 'raid'
-        ? '团本（史诗难度）首领榜上玩家的天赋，来自 Warcraft Logs。\n'
-          + '样本按专精差别很大：一队 20 人只有 2~3 个坦克 / 治疗。\n'
-          + '这里的人数是「多少个不同的角色」；同一个人在不同夜晚换过天赋的话，'
-          + '他在用过的每一套里各算一次，所以各套人数相加可能超过这个数。'
-        : '大秘境每专精排行榜上玩家的天赋，来自 raider.io。\n'
-          + '**这 ' + kd.lo.total + ' 人是抓取上限**（每个专精都只取榜前 '
-          + kd.lo.total + ' 名），不是榜上一共这么多人 —— '
-          + '所以别拿它和团本那个数比热度。\n一个角色只采一条天赋，所以百分比是真的占比。');
+        ? tr('团本（史诗难度）首领榜上玩家的天赋，来自 Warcraft Logs。\n样本按专精差别很大：一队 20 人只有 2~3 个坦克 / 治疗。\n这里的人数是「多少个不同的角色」；同一个人在不同夜晚换过天赋的话，他在用过的每一套里各算一次，所以各套人数相加可能超过这个数。')
+        : tn('大秘境每专精排行榜上玩家的天赋，来自 raider.io。\n**这 {n} 人是抓取上限**（每个专精都只取榜前 {n} 名），不是榜上一共这么多人 —— 所以别拿它和团本那个数比热度。\n一个角色只采一条天赋，所以百分比是真的占比。', {
+            n: kd.lo.total
+          }));
       kbar.appendChild(b);
     });
     box.appendChild(kbar);
@@ -3321,16 +3318,18 @@
     // 选串。只列前 6 种 —— 再往后都是 1 人用的，列出来只是噪音。
     var bar = el('div', 'lo-pick');
     lo.list.slice(0, 6).forEach(function (t, i) {
-      var b = choiceButton('#' + (i + 1) + '·' + lo.count[t] + '人',
+      var b = choiceButton(tn('#{n}·{people}人', { n: i + 1, people: lo.count[t] }),
         i === idx ? 'on' : null, function () {
           state.loadout = i;
           render();
         });
       b.setAttribute('data-tip', showPct
-        ? lo.count[t] + ' 名玩家用这一串，占 ' + pct(lo.count[t] * 100 / lo.total)
-        : lo.count[t] + ' 个角色用过这一串。**这一类不给百分比** —— '
-          + '同一个人换过天赋会在多套里各算一次，各套人数相加可能超过采样人数'
-          + '（' + lo.total + ' 人），除出来的比例加起来会超过 100%');
+        ? tn('{n} 名玩家用这一串，占 {pct}', {
+            n: lo.count[t], pct: pct(lo.count[t] * 100 / lo.total)
+          })
+        : tn('{n} 个角色用过这一串。**这一类不给百分比** —— 同一个人换过天赋会在多套里各算一次，各套人数相加可能超过采样人数（{total} 人），除出来的比例加起来会超过 100%', {
+            n: lo.count[t], total: lo.total
+          }));
       bar.appendChild(b);
     });
     box.appendChild(bar);
@@ -3341,7 +3340,7 @@
     ta.readOnly = true;
     ta.setAttribute('rows', '3');
     ta.setAttribute('spellcheck', 'false');
-    ta.setAttribute('aria-label', '天赋导入串，' + str.length + ' 个字符，只读');
+    ta.setAttribute('aria-label', tn('天赋导入串，{n} 个字符，只读', { n: str.length }));
     var details = el('details', 'lo-details ranked-details');
     details.appendChild(el('summary', null, '查看原串与导入说明'));
     details.appendChild(ta);
@@ -3349,23 +3348,22 @@
     var act = el('div', 'lo-act');
     var copy = button('复制榜单原串', 'primary lo-copy', function () {
       if (AE.copyWithToast) AE.copyWithToast(str, '天赋导入串');
-      else if (AE.toast) AE.toast({ title: '请展开「查看原串与导入说明」，选中原串按 Ctrl+C', kind: 'bad' });
+      else if (AE.toast) AE.toast({ title: tr('请展开「查看原串与导入说明」，选中原串按 Ctrl+C'), kind: 'bad' });
     });
-    copy.setAttribute('data-tip', '复制后在游戏里打开天赋界面，右下角「导入」粘贴');
+    copy.setAttribute('data-tip', tr('复制后在游戏里打开天赋界面，右下角「导入」粘贴'));
     act.appendChild(copy);
-    act.appendChild(el('span', 'n',
-      lo.count[str] + (showPct ? ' 人用这一串　' : ' 个角色用过这一串　')
-      + str.length + ' 个字符'));
+    act.appendChild(el('span', 'n', showPct
+      ? tn('{n} 人用这一串　{chars} 个字符', { n: lo.count[str], chars: str.length })
+      : tn('{n} 个角色用过这一串　{chars} 个字符', { n: lo.count[str], chars: str.length })));
     box.appendChild(act);
 
-    details.appendChild(el('p', 'note',
-      (cur.k === 'raid'
-        ? '这几串取自 Warcraft Logs 上 ' + ((global.AE_WCL && global.AE_WCL.raid) || '当前团本')
-          + '（史诗）首领榜玩家的战斗记录，原样转发，面板没有改动一个字符。'
-        : '这几串取自 raider.io 大秘境排行榜玩家身上，原样转发，'
-          + '面板没有改动一个字符。')
-      + '导入的位置：游戏里 N 打开天赋界面，右下角「导入/导出」→「导入」。'
-      + '串里带着它自己的专精编号，导错专精游戏会直接拒绝。'));
+    details.appendChild(el('p', 'note', tn('{source}导入的位置：游戏里 N 打开天赋界面，右下角「导入/导出」→「导入」。串里带着它自己的专精编号，导错专精游戏会直接拒绝。', {
+      source: cur.k === 'raid'
+        ? tn('这几串取自 Warcraft Logs 上 {raid}（史诗）首领榜玩家的战斗记录，原样转发，面板没有改动一个字符。', {
+            raid: (global.AE_WCL && global.AE_WCL.raid) || tr('当前团本')
+          })
+        : tr('这几串取自 raider.io 大秘境排行榜玩家身上，原样转发，面板没有改动一个字符。')
+    })));
     box.appendChild(details);
     return box;
   }
@@ -3393,13 +3391,11 @@
   function renderTreeMissing() {
     var box = el('div', 'bis-warn');
     box.appendChild(el('b', null, '天赋树数据没加载到'));
-    var p = el('p', null,
-      '发布包里本来带着 app/talent-tree.js（约 415 KB）。没读到它的话，'
-      + '要么文件被删了，要么你是从源码跑的但没生成它 —— 跑 tools\\fetch-talent-tree.js 就行。'
-      + '没有树就无法核对样本是否完整、是否属于本专精，因此暂不展示未核对的统计。');
+    var p = el('p', null, tr(
+      '发布包里本来带着 app/talent-tree.js（约 415 KB）。没读到它的话，要么文件被删了，要么你是从源码跑的但没生成它 —— 跑 tools\\fetch-talent-tree.js 就行。没有树就无法核对样本是否完整、是否属于本专精，因此暂不展示未核对的统计。'));
     box.appendChild(p);
-    var p2 = el('p', null,
-      '也可以自己做一份放成 app/talent-tree.js。它的格式就是生成器写出来的那个：');
+    var p2 = el('p', null, tr(
+      '也可以自己做一份放成 app/talent-tree.js。它的格式就是生成器写出来的那个：'));
     box.appendChild(p2);
     var pre = el('pre', 'fmt', TREE_FORMAT_DOC);
     box.appendChild(pre);
@@ -3613,7 +3609,7 @@
     var wrap = el('div', 'tree-grid');
     var head = el('div', 'tree-grid-head');
     head.appendChild(el('b', null, title));
-    head.appendChild(el('span', 'n', pts + ' 点'));
+    head.appendChild(el('span', 'n', tn('{n} 点', { n: pts })));
     wrap.appendChild(head);
 
     var canvas = el('div', 'tree-canvas');
@@ -3627,8 +3623,9 @@
     canvas.setAttribute('role', 'group');
     // title 本身已经是「职业天赋」/「专精天赋」/「英雄天赋：萨莱因」，
     // 后面再接「天赋树」会念成「职业天赋天赋树」—— 实际读出来才发现的。
-    canvas.setAttribute('aria-label',
-      title + '，共 ' + list.length + ' 个天赋，点了 ' + litCount + ' 个，合计 ' + pts + ' 点');
+    canvas.setAttribute('aria-label', tn('{title}，共 {total} 个天赋，点了 {lit} 个，合计 {pts} 点', {
+      title: title, total: list.length, lit: litCount, pts: pts
+    }));
 
     var pos = {}, inSet = {};
     list.forEach(function (id) {
@@ -3702,10 +3699,10 @@
           });
         }
       });
-      if (type === 'choice') tip.push('（二选一）');
-      if (n[4]) tip.push('本树满 ' + n[4] + ' 点才能点');
-      if (freeSet[id]) tip.push('白给的节点（不占点数）');
-      tip.push(hit ? '已点 ' + hit.rank + '/' + maxR : '这套没点');
+      if (type === 'choice') tip.push(tr('（二选一）'));
+      if (n[4]) tip.push(tn('本树满 {n} 点才能点', { n: n[4] }));
+      if (freeSet[id]) tip.push(tr('白给的节点（不占点数）'));
+      tip.push(hit ? tn('已点 {rank}/{max}', { rank: hit.rank, max: maxR }) : tr('这套没点'));
       b.setAttribute('data-tip', tip.join('\n'));
       canvas.appendChild(b);
     });
@@ -3719,7 +3716,7 @@
     var TR = tree();
     var sp = TR.specs[String(td.specId)] || TR.specs[td.specId];
     if (!sp) {
-      return el('p', 'note', '天赋树数据里没有 specID ' + td.specId + '。');
+      return el('p', 'note', tn('天赋树数据里没有 specID {id}。', { id: td.specId }));
     }
 
     var box = el('div', 'bis-tree');
@@ -3742,20 +3739,22 @@
     Object.keys(use).sort(function (a, b) { return use[b] - use[a]; })
       .slice(0, 8).forEach(function (k) {
         var idx = Number(k);
-        var b = choiceButton('#' + idx + '·' + use[k] + '人', idx === bi ? 'on' : null, function () {
+        var b = choiceButton(tn('#{n}·{people}人', { n: idx, people: use[k] }), idx === bi ? 'on' : null, function () {
           state.build = idx;
           render();
         });
-        b.setAttribute('data-tip', use[k] + ' 人用这一套，共 ' + buildPoints(td, idx) + ' 点');
+        b.setAttribute('data-tip', tn('{people} 人用这一套，共 {pts} 点', {
+          people: use[k], pts: buildPoints(td, idx)
+        }));
         bar.appendChild(b);
       });
     box.appendChild(bar);
-    box.appendChild(renderCurrentTree('插件套路 #' + bi, null, false, 'plugin'));
+    box.appendChild(renderCurrentTree(tn('插件套路 #{n}', { n: bi }), null, false, 'plugin'));
 
-    var info = el('p', 'note',
-      '画的是套路 #' + bi + '（' + (use[bi] || 0) + ' 人用，共 ' + total + ' 点）。'
-      + '英雄天赋：' + (sub ? subTreeName(sub) : '这套没点') + '。'
-      + '高亮的是点了的节点，鼠标放上去看详情。');
+    var info = el('p', 'note', tn('画的是套路 #{n}（{people} 人用，共 {pts} 点）。英雄天赋：{hero}。高亮的是点了的节点，鼠标放上去看详情。', {
+      n: bi, people: use[bi] || 0, pts: total,
+      hero: sub ? subTreeName(sub) : tr('这套没点')
+    }));
     box.appendChild(info);
 
     var heroIds = (sp.heroNodes || []).filter(function (id) {
@@ -3767,7 +3766,7 @@
     // 否则退到插件那份时整页会换个样子。
     var heroRow2 = el('div', 'tree-cols hero-row');
     var mainRow2 = el('div', 'tree-cols main-row');
-    [[heroRow2, heroIds, '英雄天赋' + (sub ? '：' + subTreeName(sub) : '')],
+    [[heroRow2, heroIds, tr('英雄天赋') + (sub ? '：' + subTreeName(sub) : '')],
      [mainRow2, sp.classNodes, '职业天赋'],
      [mainRow2, sp.specNodes, '专精天赋']
     ].forEach(function (g) {
@@ -3814,12 +3813,14 @@
 
     var h = el('details', 'sec');
     h.setAttribute('open', 'open');
-    var hs = el('summary', null, '热门英雄天赋　（' + players + ' 个角色'
-      + (rows !== players ? '，' + rows + ' 条记录' : '') + '）');
+    var hs = el('summary', null, tn('热门英雄天赋　（{players} 个角色{rows}）', {
+      players: players,
+      rows: rows !== players ? tn('，{n} 条记录', { n: rows }) : ''
+    }));
     if (rows !== players) {
-      hs.setAttribute('data-tip', '这份数据是按「人·首领」记的：同一个角色在几个首领榜上'
-        + '各出现一次，所以 ' + rows + ' 条记录只对应 ' + players + ' 个不同的角色。\n'
-        + '下面的人数和百分比都是**按角色去重后**的。');
+      hs.setAttribute('data-tip', tn('这份数据是按「人·首领」记的：同一个角色在几个首领榜上各出现一次，所以 {rows} 条记录只对应 {players} 个不同的角色。\n下面的人数和百分比都是**按角色去重后**的。', {
+        rows: rows, players: players
+      }));
     }
     h.appendChild(hs);
     var chips = el('div', 'chips');
@@ -3827,8 +3828,10 @@
       .forEach(function (hero) {
         var c = el('span', 'chip hero');
         c.appendChild(el('b', null, hero));
-        c.appendChild(el('span', 'n', sizeOf(heroSets[hero]) + ' 人　'
-          + pct(sizeOf(heroSets[hero]) / players * 100)));
+        c.appendChild(el('span', 'n', tn('{n} 人　{pct}', {
+          n: sizeOf(heroSets[hero]),
+          pct: pct(sizeOf(heroSets[hero]) / players * 100)
+        })));
         chips.appendChild(c);
       });
     h.appendChild(chips);
@@ -3870,7 +3873,7 @@
     list.forEach(function (enc) {
       var d = el('details', 'sec');
       var title = (enc.n || enc.en || '?') + (enc.m ? '　' + enc.m : '');
-      d.appendChild(el('summary', null, title + '　' + ((enc.p || []).length) + ' 人'));
+      d.appendChild(el('summary', null, title + tn('　{n} 人', { n: (enc.p || []).length })));
       var tbl = el('table', 'bis-tbl');
       var head = el('tr');
       ['#', '玩家', '服务器', '地区', '英雄天赋', '套路', '点数'].forEach(function (t) {
@@ -3969,10 +3972,10 @@
     resetOnlineData();
     if (AE.toast) {
       AE.toast({
-        title: '正在重新加载远端数据副本…',
-        body: '来源：' + onlineBase + '\n'
-            + '只对本次打开有效，不写盘；拉不到会自动退回包里的那份。\n'
-            + '图标仍是包里的（新 itemId 没有图会显示占位块）。',
+        title: tr('正在重新加载远端数据副本…'),
+        body: tn('来源：{source}\n只对本次打开有效，不写盘；拉不到会自动退回包里的那份。\n图标仍是包里的（新 itemId 没有图会显示占位块）。', {
+          source: onlineBase
+        }),
         ms: 6000
       });
     }
@@ -4024,8 +4027,9 @@
         // 而且没有重试入口。现在留着 false：再点一次会重新试一遍。
         if (host) {
           host.textContent = '';
-          host.appendChild(el('p', 'note', '装备数据读取失败：' + err
-            + '　再点一次「毕业装备」可以重试。'));
+          host.appendChild(el('p', 'note', tn('装备数据读取失败：{err}　再点一次「毕业装备」可以重试。', {
+            err: err
+          })));
         }
         return;
       }
