@@ -41,6 +41,7 @@ var fs = require('fs');
 var path = require('path');
 var https = require('https');
 var http = require('http');
+var crypto = require('crypto');
 
 var ROOT = path.resolve(__dirname, '..');
 var CACHE = path.join(__dirname, '.icon-cache.json');
@@ -280,16 +281,45 @@ function fetchNames(ids, cache, cb) {
 
 // ------------------------------------------------------------- 第二步：下图片
 
-function fetchImages(cache, extraNames, cb) {
+/**
+ * wowhead 图标名 → app/icons/ 下的文件名（也是写进 item-icons.js 的名字）。
+ *
+ * 图标名会拼进 <img src>，面板和 bis-tests 都只认 [a-z0-9_]。wowhead 偶尔给出
+ * 不合规的名字：实测 274494（手性骨髓移植器）给 `inv_-misc_herb_marrowroot_leaf`，
+ * 暴雪 CDN 403、zamimg 有图。去掉连字符的 `inv_misc_herb_marrowroot_leaf` 在暴雪
+ * CDN 上也有，但**不是同一张**（逐像素平均差 17/255，换一张无关图标是 51/255，
+ * 是同一底图的变色版）—— 所以不能删字符了事，也不能为它放宽那条断言。
+ *
+ * 做法和 tools/fetch-talent-icons.js 一样：文件名是我们自己的键，不是上游的名字。
+ * 下图仍按真名请求，存盘用「非法字符换成下划线 + 真名的短哈希」。哈希保证两个
+ * 不同的真名不会撞到同一个文件上；合规的名字原样返回。
+ */
+function safeIconKey(name) {
+  name = String(name);
+  if (/^[a-z0-9_]+$/.test(name)) return name;
+  var h = crypto.createHash('sha1').update(name).digest('hex').slice(0, 8);
+  return name.toLowerCase().replace(/[^a-z0-9_]+/g, '_') + '_x' + h;
+}
+
+function fetchImages(cache, ids, ownIcon, extraNames, cb) {
   if (!fs.existsSync(ICON_DIR)) fs.mkdirSync(ICON_DIR, { recursive: true });
 
-  var names = Object.create(null);
-  Object.keys(cache).forEach(function (id) {
-    if (cache[id] && cache[id].icon) names[cache[id].icon] = 1;
+  var names = Object.create(null);   // 文件名 → 上游真名
+  // 只下 writeJs 真会写进 item-icons.js 的那些：用 BisData 自带名的不下 wowhead 那张
+  // （241324/241326 的 `..._white-`、`..._red--` 就是这么成了没人引用的孤儿文件）。
+  ids.forEach(function (id) {
+    if (ownIcon[id]) return;
+    var real = cache[id] && cache[id].icon;
+    if (!real) return;
+    var key = safeIconKey(real);
+    if (names[key] && names[key] !== real) {
+      throw new Error('两个图标名撞到同一个文件 ' + key + '：' + names[key] + ' / ' + real);
+    }
+    names[key] = real;
   });
   // BisData 自带的那批图标名也要下。面板查不到 itemId 时会退回用它们，
   // 那条退路必须真的有文件，否则「有退路」只是句话。
-  (extraNames || []).forEach(function (n) { if (n) names[n] = 1; });
+  (extraNames || []).forEach(function (n) { if (n && !names[n]) names[n] = n; });
   var list = Object.keys(names).filter(function (n) {
     var f = path.join(ICON_DIR, n + '.jpg');
     return !fs.existsSync(f) || fs.statSync(f).size < 300;
@@ -327,7 +357,8 @@ function fetchImages(cache, extraNames, cb) {
       var tries = 0;
       (function attempt() {
         tries++;
-        get(src.url(name), src.proxy, function (err, code, body) {
+        // 按上游真名请求，存盘用 name（见 safeIconKey）。
+        get(src.url(encodeURIComponent(names[name])), src.proxy, function (err, code, body) {
           if (!err && code === 200 && body.length > 300) {
             fs.writeFileSync(path.join(ICON_DIR, name + '.jpg'), body);
             bySource[src.name] = (bySource[src.name] || 0) + 1;
@@ -366,7 +397,7 @@ function writeJs(info, cache) {
   }
   var ids = info.ids;
   var icons = {}, quals = {};
-  var missing = [];
+  var missing = [], renamed = [];
   var preferOwn = 0;
   ids.forEach(function (id) {
     var c = cache[id];
@@ -383,7 +414,8 @@ function writeJs(info, cache) {
       return;
     }
     if (!c || !c.icon) { missing.push(id); return; }
-    icons[id] = c.icon;
+    icons[id] = safeIconKey(c.icon);
+    if (icons[id] !== c.icon) renamed.push(id + ' ' + c.icon + ' → ' + icons[id]);
     if (c.quality != null) quals[id] = c.quality;
   });
 
@@ -425,6 +457,7 @@ function writeJs(info, cache) {
   console.log('  用自带图标名     ' + preferOwn);
   console.log('  本地有图片       ' + haveImage);
   console.log('  查不到名字       ' + missing.length);
+  if (renamed.length) console.log('  名字不合规换存盘名 ' + renamed.length + '：' + renamed.slice(0, 5).join('，'));
   if (noImage.length) console.log('  有名字但缺图片   ' + noImage.length + '：' + noImage.slice(0, 10).join(', '));
 
   var bytes = 0, n = 0;
@@ -458,7 +491,7 @@ console.log('');
 
 function step2() {
   if (NAMES_ONLY) { writeJs(info, cache); return; }
-  fetchImages(cache, info.extraNames, function () {
+  fetchImages(cache, info.ids, info.ownIcon, info.extraNames, function () {
     var r = writeJs(info, cache);
     if (r.missing > info.ids.length * 0.05) {
       console.log('');

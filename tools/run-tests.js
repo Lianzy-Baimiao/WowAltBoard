@@ -3587,7 +3587,10 @@ var VERIFIERS = [
   { label: '天赋更新保护', script: 'check-talent-update.js', own: true },
   // 12.1.5 的 DB2 多了个隐藏职业「旅行者」（4 个专精），骗过了旧的「专精数 >= 3」，
   // 更新数据.bat 第 1 步交叉校验失败。用假 DB2 钉住新判定。
-  { label: '职业名生成', script: 'check-class-names.js', own: true }
+  { label: '职业名生成', script: 'check-class-names.js', own: true },
+  // 2026-10-21 重抓：列表页没列 devourer，推导的 -mythic-plus-guide 404，
+  // 噬灭的大秘境视角静默没了。钉住 -mythic-guide 备用名（不联网）。
+  { label: 'guide 候选', script: 'check-guide-targets.js', own: true }
 ];
 VERIFIERS.forEach(function (v) {
   if (v.data && !fs.existsSync(path.join(ROOT, 'app', v.data))) {

@@ -122,6 +122,7 @@ $dropFromPkg = @(
     'tools\check-talent-integrity.js', # independent talent input/consumer regressions
     'tools\check-talent-update.js', # isolated publication/update regressions
     'tools\check-class-names.js', # fake-DB2 regression for the playable-class rule
+    'tools\check-guide-targets.js', # offline regression for the -mythic-guide fallback name
     'tools\check-talent-browser.cjs', # optional Playwright browser regression
     'tools\check-bis-visual.cjs', # optional fixed-width visual regression
     'tools\check-bis-tabs.cjs', # optional shared tab skin/selection browser regression
