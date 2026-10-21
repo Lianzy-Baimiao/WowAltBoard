@@ -207,7 +207,7 @@ var stats = { renders: 0, imgs: 0, ph: 0, badSrc: 0, trk: 0, trkBad: 0, cov: 0, 
               posChecked: 0, posScroll: 0, posSec: 0, posSecShut: 0, mrtKindSaved: 0,
               switchChecked: 0, switchReset: 0,
               // 视角迁移（第 16 轮撤掉 GearInsight 那两个视角）
-              vmChecked: 0, vmMigrated: 0, vmWrote: 0,
+              vmChecked: 0, vmMigrated: 0, vmWrote: 0, staleKey: 0,
               // 装等差距（第 16 轮：guide 不给装等，从本机两份实测数据借）
               ivGi: 0, ivRio: 0, ivNone: 0, ivZero: 0,
               gapBadge: 0, gapBad: 0, gapMath: 0, gapTop: 0, gapTopBad: 0,
@@ -702,6 +702,39 @@ specKeys.forEach(function (key) {
       } else {
         stats.vmWrote++;
       }
+    }
+  });
+})();
+
+// ---- 存档里的专精 key 换了英雄天赋：要落在同一个专精上，不是退回第一个
+//
+// key 是「职业/专精/英雄天赋」，第三段跟着 BisData 走。v1.19.0 换数据时 40 个
+// 专精里 25 个的热门英雄天赋变了；原来对不上就退回 firstKey()（鲜血死骑），
+// 升级上来的火法用户打开面板看到的是死骑，界面一切正常。判据：高亮的专精按钮
+// 必须属于存档里那个「职业/专精」，而且只有一个。
+(function checkStaleSpecKey() {
+  var tried = 0;
+  specKeys.forEach(function (key) {
+    var parts = key.split('/');
+    if (parts.length < 3 || key === specKeys[0]) return;
+    if (tried >= 3) return;
+    tried++;
+    settings.bisTab = 'gear';
+    settings.bisSpec = parts[0] + '/' + parts[1] + '/Not A Hero Talent';
+    settings.bisView = 'guide';
+    settings.bisChar = '';
+    body.children.length = 0;
+    load('app/bis.js');
+    g.AE.openBis();
+    var lit = [];
+    walk(body, function (n) {
+      if (n.tagName === 'BUTTON' && n.classList && n.classList.contains('spec')
+        && n.classList.contains('on')) lit.push(n.getAttribute('data-tip') || '');
+    });
+    stats.staleKey++;
+    if (lit.length !== 1 || lit[0].indexOf(parts[0] + '/' + parts[1]) !== 0) {
+      problems.push('存档专精 ' + settings.bisSpec + '（英雄天赋换过名）打开后高亮的是「'
+        + lit.join(' / ') + '」—— 应该还是 ' + parts[0] + '/' + parts[1]);
     }
   });
 })();
@@ -2657,6 +2690,9 @@ if (stats.vmMigrated < 3) {
   problems.push('只有 ' + stats.vmMigrated + ' 个存档值落在「最佳推荐」上，'
     + '应该是 3 个（raid / mplus 迁过来，加上 guide 自己）');
 }
+if (stats.staleKey !== 3) {
+  problems.push('「英雄天赋换过名的存档专精」只验了 ' + stats.staleKey + ' 次，应该是 3 次');
+}
 if (stats.vmWrote !== 2) {
   problems.push('只有 ' + stats.vmWrote + ' 个撤掉的视角名被写回成 guide，'
     + '应该是 2 个（raid / mplus）—— 迁移只改了内存没落盘');
@@ -3530,6 +3566,10 @@ var VERIFIERS = [
   // Same trap on the backups path (there it only lied in the console, the JS
   // stayed valid -- but the shape deserves the same pinned guard).
   { label: '备份扫描', script: 'check-scan-backups.js' },
+  // AlterEgo 1.6.6 moved Dungeons/Raids/Seasons into Libs\LiqUI\Data. The old
+  // scanner only read Data\, and nothing errored -- the page just lost its
+  // dungeon abbrs, raid order and season label. Both layouts are pinned here.
+  { label: '插件数据表', script: 'check-scan-addon-tables.js' },
   { label: 'Desktop scan', script: 'check-desktop-scan.js', own: true },
   { label: 'Launcher watch', script: 'check-launcher-watch.js', own: true },
   { label: 'Live refresh', script: 'check-live-refresh.js', own: true },

@@ -733,8 +733,27 @@
   function currentSpec() {
     var B = bis();
     if (!B) return null;
-    if (!B.specs[state.key]) state.key = firstKey();
+    if (!B.specs[state.key]) state.key = sameSpecKey(state.key) || firstKey();
     return B.specs[state.key] || null;
+  }
+
+  /**
+   * 存档里的专精 key 是「职业/专精/英雄天赋」，第三段跟着数据走：
+   * 换一份 BisData，榜上最热门的英雄天赋一变，key 就变了（v1.19.0 那次
+   * 40 个专精里 25 个换了，比如 MAGE/FIRE/Frostfire → MAGE/FIRE/Sunfury）。
+   * 原来对不上就退回第一个专精 —— 用户上次看的是火法，升级后打开却是鲜血死骑，
+   * 而且看不出为什么。所以先找同职业同专精的那一条。
+   */
+  function sameSpecKey(key) {
+    var B = bis();
+    var parts = String(key || '').split('/');
+    if (!B || parts.length < 2) return '';
+    var want = parts[0] + '/' + parts[1] + '/';
+    var keys = Object.keys(B.specs);
+    for (var i = 0; i < keys.length; i++) {
+      if (keys[i].indexOf(want) === 0) return keys[i];
+    }
+    return '';
   }
 
   /**

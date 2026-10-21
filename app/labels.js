@@ -220,6 +220,7 @@
     // Midnight season 2
     2987: '潮缚石窟',        // The Tidebound Grotto
     3004: '烈毒之渊',        // The Venomous Abyss
+    3095: '基希克斯破封',    // The Unbinding of Kith'ix (12.1.5)
     // Midnight season 1
     2912: '虚影尖塔',        // The Voidspire
     2913: '进军奎尔丹纳斯',  // March on Quel'Danas

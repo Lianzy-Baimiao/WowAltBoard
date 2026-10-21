@@ -22,15 +22,40 @@ var path = require('path');
 
 var BASE = path.resolve(__dirname, '..');
 var DEFAULT_LUA = 'E:\\World of Warcraft\\_retail_\\Interface\\AddOns\\GearInsight\\core\\BisData.lua';
-var DEFAULT_TOC = 'E:\\World of Warcraft\\_retail_\\Interface\\AddOns\\GearInsight\\GearInsight.toc';
 
 // ------------------------------------------------------------------ 参数
 var argv = process.argv.slice(2);
 var luaPath = DEFAULT_LUA;
-var tocPath = DEFAULT_TOC;
+var tocPath = null;
+var addonsArg = '';
 for (var i = 0; i < argv.length; i++) {
   if (argv[i] === '--lua' && argv[i + 1]) { luaPath = argv[++i]; }
   else if (argv[i] === '--toc' && argv[i + 1]) { tocPath = argv[++i]; }
+  else if (argv[i] === '--addons' && argv[i + 1]) { addonsArg = argv[++i]; }
+}
+// toc 默认跟着 --lua 走（…\GearInsight\core\BisData.lua → …\GearInsight\GearInsight.toc），
+// 不然换了来源，报出来的插件版本还是游戏目录那一份的。
+tocPath = tocPath || path.join(path.dirname(path.dirname(luaPath)), 'GearInsight.toc');
+
+/*
+ * 旁边那几个插件（AlterEgo 的升级轨道表、两份 zhCN locale）去哪儿找。
+ *
+ * 原来只认「BisData.lua 所在的那个 AddOns 目录」。可 GearInsight 不一定装在
+ * 游戏里 —— 12.1.5 这轮的 BisData 来自另一个整合包目录，那里没有 AlterEgo；
+ * 游戏目录里有 AlterEgo，却没有 GearInsight。所以按顺序找：
+ * --addons 指定的目录 → BisData.lua 旁边的 AddOns → 游戏默认的 AddOns。
+ */
+var ADDON_DIRS = [addonsArg,
+  path.dirname(path.dirname(path.dirname(luaPath))),
+  path.dirname(path.dirname(path.dirname(DEFAULT_LUA)))].filter(Boolean);
+function findCompanion(rels) {
+  for (var d = 0; d < ADDON_DIRS.length; d++) {
+    for (var r = 0; r < rels.length; r++) {
+      var p = path.join(ADDON_DIRS[d], rels[r]);
+      if (fs.existsSync(p)) return p;
+    }
+  }
+  return path.join(ADDON_DIRS[0], rels[0]);   // 都没有：报错时给第一个候选
 }
 
 // -------------------------------------------------------------- 加载解析器
@@ -67,9 +92,78 @@ function grab(name) {
   return v;
 }
 
+/*
+ * GearInsight 0.9x 起 BisData.lua 是「打包格式」（BisData.packFormat = 1）：
+ * 不再有 spec.bisBySlot / BisData.mplusBySlot 这两张大表，候选池存成紧凑串
+ * （spec._pb = 团本池，BisData._pm[key] = 大秘境池），物品的静态字段进
+ * BisData.items 字典，文本进 pool_n / pool_s / pool_c / pool_b / pool_h，
+ * 副属性和 bonusIDs 进 pool_st / pool_bo。插件运行时由 core/BisPack.lua 解开。
+ *
+ * 这里照 BisPack.lua 的 decodeEntry / DecodePool 逐字段还原成旧格式的条目
+ * （itemId / itemName / ilvl / source / … / usagePct），下面的转换一行都不用改，
+ * 去重时的一致性检查也照样生效。字段顺序、「覆盖段只要有一位非 0 就整段生效」、
+ * 「尾部的 0 被截掉、缺位按 0」这三条都是那个文件里写明的，别自己发挥。
+ * 排序不用另做：实测 628 个团本部位池全是使用率降序，插件默认（团本参照、
+ * 史诗档）也只是按使用率排。
+ */
+function makeUnpacker() {
+  var items = AE.asMap(grab('BisData.items'));
+  var pools = {};
+  ['pool_n', 'pool_s', 'pool_c', 'pool_b', 'pool_h', 'pool_st', 'pool_bo'].forEach(function (n) {
+    pools[n] = AE.asArray(grab('BisData.' + n));
+  });
+  var pm = AE.asMap(grab('BisData._pm'));
+  // Lua 下标从 1 起，0 表示「没有」。
+  function at(pool, i) { return i > 0 ? pools[pool][i - 1] : undefined; }
+  function nums(s, n) {
+    var out = String(s || '').split(',').filter(Boolean).map(function (v) { return Number(v) || 0; });
+    while (out.length < n) out.push(0);
+    return out;
+  }
+  // 物品字典一行：name, src, cat, boss, inst, enc, tier, hand, onuse, order
+  function entry(rec) {
+    var f = nums(rec, 13);
+    var row = items[f[0]];
+    if (row == null) return null;
+    var info = nums(row, 10);
+    var ovr = f[6] || f[7] || f[8] || f[9] || f[10];
+    var src = ovr ? f[6] : info[1], cat = ovr ? f[7] : info[2], boss = ovr ? f[8] : info[3];
+    var inst = ovr ? f[9] : info[4], enc = ovr ? f[10] : info[5];
+    return {
+      itemId: f[0],
+      itemName: at('pool_n', info[0]) || '',
+      ilvl: f[4],
+      source: at('pool_s', src) || '',
+      sourceCategory: at('pool_c', cat) || '',
+      bossName: at('pool_b', boss) || '',
+      isTier: info[6] === 1,
+      instanceId: inst || undefined,
+      encounterId: enc || undefined,
+      handedness: at('pool_h', info[7]),
+      onUse: info[8] === 1,
+      stats: at('pool_st', f[5]),
+      bonusIDs: at('pool_bo', f[2]),
+      mx: f[3] || undefined,
+      usagePct: f[1]
+    };
+  }
+  // "slot:条目;条目|slot:条目" → { slotId: [条目…] }
+  function pool(packed) {
+    var out = {};
+    String(packed || '').split('|').forEach(function (chunk) {
+      var m = /^(\d+):(.*)$/.exec(chunk);
+      if (!m) return;
+      out[m[1]] = m[2].split(';').filter(Boolean).map(entry).filter(Boolean);
+    });
+    return out;
+  }
+  return { pool: pool, pm: pm };
+}
+
 var meta       = grab('local BisData');
 var specs      = AE.asMap(grab('BisData.specs'));
-var mplus      = AE.asMap(grab('BisData.mplusBySlot'));
+var unpack     = AE.extractLuaAssignment(text, 'BisData.packFormat') === 1 ? makeUnpacker() : null;
+var mplus      = unpack ? null : AE.asMap(grab('BisData.mplusBySlot'));
 var consum     = AE.asArray(grab('BisData.consumables'));
 var specIds    = AE.asMap(grab('BisData.specIds'));
 var specRawCN  = AE.asMap(grab('BisData.specRawToCN'));
@@ -138,26 +232,40 @@ function harvestLocale() {
 //（ItemInfoOverlay/Utils.lua 的代码注释里把 Myth 写成「史诗」，那是注释不是 locale；
 //  两个 locale 都写「神话」，所以按 locale。）
 function harvestTracks() {
-  // luaPath = ...\AddOns\GearInsight\core\BisData.lua → 上三层是 AddOns
-  var addonsDir = path.dirname(path.dirname(path.dirname(luaPath)));
-  var trackPath = path.join(addonsDir, 'AlterEgo', 'Data', 'UpgradeTracks.lua');
-  var euiPath   = path.join(addonsDir, 'EllesmereUILocales', 'zhCN.lua');
-  var iioPath   = path.join(addonsDir, 'ItemInfoOverlay', 'Locales', 'zhCN.lua');
+  // AlterEgo 1.6.6 把这张表挪进了内嵌库：Libs\LiqUI\Data\UpgradeTracks.lua，
+  // 表名 Data.upgradeTracks → Data.upgradeSeasons，每条轨道前面多了 kind = "crest"。
+  var trackPath = findCompanion([path.join('AlterEgo', 'Libs', 'LiqUI', 'Data', 'UpgradeTracks.lua'),
+                                 path.join('AlterEgo', 'Data', 'UpgradeTracks.lua')]);
+  var euiPath   = findCompanion([path.join('EllesmereUILocales', 'zhCN.lua')]);
+  var iioPath   = findCompanion([path.join('ItemInfoOverlay', 'Locales', 'zhCN.lua')]);
 
   var txt;
   try { txt = fs.readFileSync(trackPath, 'utf8'); }
   catch (e) { return { err: '读不到 ' + trackPath }; }
+  // 只看轨道表那一段。1.6.6 同一个文件后面还有 craftedItemLevelBonusIDs /
+  // craftedQualityLadders，别让下面的正则扫到它们。
+  var at = txt.search(/Data\.upgrade(Seasons|Tracks)\s*=/);
+  if (at >= 0) {
+    var rest = txt.slice(at + 1);
+    var next = rest.search(/\nData\.[A-Za-z_]+\s*=/);
+    txt = next >= 0 ? txt.slice(at, at + 1 + next) : txt.slice(at);
+  }
 
-  // 按 seasonID 分段，段内再抳 {name = "X", bonusIDs = {a, b, ...}}
+  // 按 seasonID 分段，段内再抳 {[kind = "crest",] name = "X", bonusIDs = {a, b, ...}}。
+  // 只要五档升级轨道：1.6.6 新加的 kind = "label" 那几条（「Sporefused: Hero」这种
+  // 赛季活动标签）没有 locale 中文名，也不是升级等级 —— 名字带冒号和空格，这里的
+  // [A-Za-z]+ 本来就匹配不上，下面再按名字筛一次，免得以后换了写法混进来。
+  var CREST = /^(Explorer|Adventurer|Veteran|Champion|Hero|Myth)$/;
   var tracks = [];
   var seasonRe = /seasonID\s*=\s*(\d+)([\s\S]*?)(?=seasonID\s*=\s*\d+|$)/g;
   var sm;
   while ((sm = seasonRe.exec(txt))) {
     var season = Number(sm[1]);
     var body = sm[2];
-    var tr = /\{\s*name\s*=\s*"([A-Za-z]+)"\s*,\s*bonusIDs\s*=\s*\{([\d,\s]+)\}/g;
+    var tr = /\{\s*(?:kind\s*=\s*"crest"\s*,\s*)?name\s*=\s*"([A-Za-z]+)"\s*,\s*(?:maxLevel\s*=\s*\d+\s*,\s*)?bonusIDs\s*=\s*\{([\d,\s]+)\}/g;
     var tm;
     while ((tm = tr.exec(body))) {
+      if (!CREST.test(tm[1])) continue;
       var ids = tm[2].split(',').map(function (x) { return Number(x.trim()); })
                      .filter(function (x) { return x > 0; });
       if (ids.length) tracks.push({ en: tm[1], season: season, ids: ids });
@@ -389,8 +497,8 @@ specKeys.forEach(function (key) {
     },
     weapon: AE.asMap(weaponCfg[base] || {}),
     armor: classArmor[cls] || '',
-    raid: convertSlots(s.bisBySlot, key + ' raid'),
-    mplus: convertSlots(mplus[key], key + ' mplus'),
+    raid: convertSlots(unpack ? unpack.pool(s._pb) : s.bisBySlot, key + ' raid'),
+    mplus: convertSlots(unpack ? unpack.pool(unpack.pm[key]) : mplus[key], key + ' mplus'),
     gems: gems,
     ench: ench
   };

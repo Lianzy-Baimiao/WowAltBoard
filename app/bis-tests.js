@@ -487,11 +487,19 @@
       if (!B) return '装备数据未加载，跳过';
       // 本机实测 3601/3963 = 90.9%。解不出的多是上赛季物品和套装坯子。
       // 门槛定在 80%：真掉下去说明 AlterEgo 的轨道表没跟上新赛季，那正是要知道的事。
+      // 制造装不算：它走品质阶梯（AlterEgo 的 craftedQualityLadders），本来就没有
+      // 升级轨道。GearInsight 0.94.19 里制造装从 282 行涨到 717 行，混在分母里会
+      // 把这条测成「轨道表过时」。剩下 4014/4892 = 82.1%，解不出的主要是带 bonus
+      // 13848 的 344 装等（BonusRollConfirm 标的「344 轨道」，AlterEgo 1.6.6 的
+      // S2 轨道表还没收），这部分照旧算在分母里，表跟上了这条会自己涨回去。
       var total = 0, ok = 0;
-      eachRow(B, function (row) { total++; if (row[5]) ok++; });
+      eachRow(B, function (row) {
+        if (((B.srcs || [])[row[3]] || [])[1] === 'crafted') return;
+        total++; if (row[5]) ok++;
+      });
       if (!total) return '一行都没有';
       var r = ok / total;
-      return r >= 0.8 || '只有 ' + ok + '/' + total + ' 行（' + (r * 100).toFixed(1) + '%）能解出轨道';
+      return r >= 0.8 || '非制造装只有 ' + ok + '/' + total + ' 行（' + (r * 100).toFixed(1) + '%）能解出轨道';
     });
 
     t('升级轨道：mx（可升级上限）不小于当前装等', function () {

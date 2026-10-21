@@ -101,7 +101,11 @@
       try { return AE.extractLuaAssignment(t[file], name); } catch (e) { return undefined; }
     }
 
-    var dungeons = AE.asArray(ex('MythicPlus.lua', 'Data.dungeons'));
+    // AlterEgo 1.6.6 moved Data.dungeons into Libs\LiqUI\Data\Dungeons.lua;
+    // MythicPlus.lua now only has affixes/keystones. Older addon versions and
+    // older data.js snapshots still carry it in MythicPlus.lua.
+    var dungeons = AE.asArray(ex('Dungeons.lua', 'Data.dungeons'));
+    if (!dungeons.length) dungeons = AE.asArray(ex('MythicPlus.lua', 'Data.dungeons'));
     var raids    = AE.asArray(ex('Raids.lua', 'Data.raids'));
     var currencies = AE.asArray(ex('Currencies.lua', 'Data.currencies'));
 

@@ -124,10 +124,13 @@ test('an entirely incompatible source cannot replace the last usable snapshot', 
   assert.match(result.text, /no usable samples/);
   assert.equal(result.output, 'KEEP PREVIOUS DATA');
 });
-test('bundled data audit independently expects exactly six quarantined builds / ten source rows', () => {
+// Pinned to the bundled GearInsight_Talents 0.94.19 snapshot (v1.19.0). Re-pin
+// only after tools/verify-talent-tree.js independently reports the same
+// per-spec counts (there: cross-spec 4 + 4, unknown entryID 1).
+test('bundled data audit independently expects exactly nine quarantined builds / nine source rows', () => {
   const g = { window: {} };
   for (const f of ['talent-tree', 'talent-data']) vm.runInNewContext(fs.readFileSync(path.join(ROOT, 'app', f + '.js'), 'utf8'), g);
-  const expected = { 'MONK/MISTWEAVER': [50,85,89,94], 'WARRIOR/PROTECTION': [73,88] };
+  const expected = { 'DEMONHUNTER/VENGEANCE': [84,87,102,103], 'MONK/MISTWEAVER': [82], 'WARRIOR/PROTECTION': [81,95,108,112] };
   let builds = 0, rows = 0;
   for (const [key, s] of Object.entries(g.window.AE_TALENTS.specs)) {
     const result = app().TalentData.screen(s, g.window.AE_TALENT_TREE);
@@ -137,7 +140,7 @@ test('bundled data audit independently expects exactly six quarantined builds / 
       for (const p of enc.p) assert.ok(!(expected[key] || []).includes(p[0]));
     }
   }
-  assert.equal(builds, 3972); assert.equal(rows, 10);
+  assert.equal(builds, 4388); assert.equal(rows, 9);
 });
 test('verifier decodes base plus delta instead of reading rank numbers as indices', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'wow-talent-audit-'));

@@ -9,7 +9,8 @@
       powershell -NoProfile -ExecutionPolicy Bypass -File tools\update-bis-data.ps1
       ... -SkipRio            # skip the ~47-minute raider.io step
       ... -Only tree          # run just one step (name from the table below)
-      ... -Lua "D:\...\GearInsight\core\BisData.lua"
+      ... -Lua "D:\...\GearInsight\core\BisData.lua"   # GearInsight_Talents is
+                                                       # taken from the same AddOns folder
 
   Console output is deliberately pure ASCII (codepage 936 machine; see the
   same note in scan.ps1). All Chinese user-facing text lives in the panel.
@@ -92,7 +93,15 @@ function Find-AddonFile {
 }
 
 $bisLua   = if ($Lua)   { $Lua }   else { Find-AddonFile 'GearInsight\core\BisData.lua' }
-$talLua   = Find-AddonFile 'GearInsight_Talents\PopularTalents.lua'
+# -Lua usually points into another AddOns folder (an addon pack, not the game).
+# Take GearInsight_Talents from that same folder when it is there, so both
+# halves come from one GearInsight release instead of one each.
+$talLua   = $null
+if ($Lua) {
+    $sibling = Join-Path (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $Lua))) 'GearInsight_Talents\PopularTalents.lua'
+    if (Test-Path -LiteralPath $sibling) { $talLua = $sibling }
+}
+if (-not $talLua) { $talLua = Find-AddonFile 'GearInsight_Talents\PopularTalents.lua' }
 $wclAuth  = Join-Path $ToolsDir '.wcl-auth.json'
 
 # ---- the step table: name, args, pre-flight check ---------------------------

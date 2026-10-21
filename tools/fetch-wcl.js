@@ -49,6 +49,7 @@
  *   node tools\fetch-wcl.js --bosses 3      只用前 3 个首领的榜找报告（默认全部）
  *   node tools\fetch-wcl.js --pages 2       每个首领翻几页榜（默认 1，一页 100 条）
  *   node tools\fetch-wcl.js --report        只用缓存重算，不联网
+ *   node tools\fetch-wcl.js --max-age 0     团本表 / 首领榜缓存超过几天就重抓（默认 3）
  */
 'use strict';
 
@@ -78,6 +79,19 @@ var PAGES = Number(opt('--pages', 1)) || 1;
 var REPORT_ONLY = flag('--report');
 // 配额下限：剩这么多点就停手，留点余量给别的用途。
 var QUOTA_FLOOR = Number(opt('--quota-floor', 200)) || 200;
+/*
+ * 「名单」类缓存（zones 团本表、rank-* 首领榜）多少天后作废重抓。默认 3 天。
+ *
+ * 战斗 / 报告那些缓存（fight-* / actors-*）**永远有效**：一份已上传的报告
+ * 不会再变。会变的只有「现在有哪些团本、哪些首领、榜上是谁」—— 原来这两类
+ * 也是永久缓存，于是 12.1.5 加了基希克斯（zone 53 从 9 个首领变成 10 个）之后
+ * 再跑，拿到的还是 09-02 的首领表和榜，新首领一条串都采不到。
+ */
+var MAX_AGE_DAYS = Number(opt('--max-age', 3));
+if (!(MAX_AGE_DAYS >= 0)) MAX_AGE_DAYS = 3;
+function isListing(key) { return /^zones/.test(key) || /^rank-/.test(key); }
+// 实际用上的首领榜缓存里最旧的那页是什么时候抓的 —— updatedAt 写它（见 finish()）。
+var oldestRank = Date.now();
 
 if (!fs.existsSync(CACHE)) fs.mkdirSync(CACHE, { recursive: true });
 
@@ -182,10 +196,13 @@ var quota = { left: null, resetIn: null };
  * key 是缓存文件名（不带扩展名）。**给了 key 就一定先查缓存** —— 这个工具
  * 会发上千次请求，中断重跑必须能接着抓，而不是从头再来一遍。
  */
-function gql(key, query, cb) {
+function gql(key, query, cb, retried) {
   var file = key ? path.join(CACHE, key + '.json') : null;
-  if (file && fs.existsSync(file)) {
-    net.cacheHit++;
+  var stale = false;
+  if (file && fs.existsSync(file) && isListing(key) && !REPORT_ONLY) {
+    stale = Date.now() - fs.statSync(file).mtimeMs > MAX_AGE_DAYS * 86400000;
+  }
+  if (file && !stale && fs.existsSync(file)) {
     // **try 只包 JSON.parse，不许包 cb()。**
     // 原来写的是 `try { cb(null, JSON.parse(...)); return; } catch (e) {}` ——
     // 回调里抛出的任何异常都会被这个 catch 吞掉，然后往下走到「缓存里没有」那支
@@ -194,7 +211,12 @@ function gql(key, query, cb) {
     var data = null, ok = false;
     try { data = JSON.parse(fs.readFileSync(file, 'utf8')); ok = true; }
     catch (e) { ok = false; }        // 缓存坏了就往下重抓
-    if (ok) { cb(null, data); return; }
+    if (ok) {
+      net.cacheHit++;
+      if (/^rank-/.test(key)) oldestRank = Math.min(oldestRank, fs.statSync(file).mtimeMs);
+      cb(null, data);
+      return;
+    }
   }
   if (REPORT_ONLY) { cb(new Error('--report：缓存里没有 ' + key)); return; }
   if (quota.left !== null && quota.left < QUOTA_FLOOR) {
@@ -207,6 +229,22 @@ function gql(key, query, cb) {
   }, JSON.stringify({ query: query }), function (e, code, body) {
     net.q++;
     if (e) { net.errors++; cb(e); return; }
+    /*
+     * 401 = token 已经作废。**本地记的到期时间不可信**：12.1.5 这轮实测
+     * .token.json 说还有 311 天，服务器回 401 Unauthenticated。
+     * 以前这里只报错，而上面的缓存又全命中 —— 整个工具照样「跑完」，
+     * 产物是旧缓存重算出来的，日期却是今天。所以：扔掉 token、换一张、重试一次。
+     */
+    if (code === 401 && !retried && !REPORT_ONLY) {
+      try { fs.unlinkSync(TOKEN_FILE); } catch (e3) { /* 本来就没有 */ }
+      console.log('  token 被服务器拒了（401），换一张再试');
+      getToken(function (et, tok) {
+        if (et) { net.errors++; cb(et); return; }
+        TOKEN = tok;
+        gql(key, query, cb, true);
+      });
+      return;
+    }
     if (code !== 200) { net.errors++; cb(new Error('HTTP ' + code + '：' + body.slice(0, 160))); return; }
     var j;
     try { j = JSON.parse(body); } catch (e2) { net.errors++; cb(e2); return; }
@@ -569,7 +607,9 @@ function run(raid, list, ORDER, TREE) {
 
     var obj = {
       v: 1,
-      updatedAt: new Date().toISOString().slice(0, 10),
+      // 榜是哪天的，产物就写哪天 —— 不是「这次命令是哪天敲的」。
+      // --report 用旧缓存重算时，这里会老老实实写出那批榜的日期。
+      updatedAt: new Date(oldestRank).toISOString().slice(0, 10),
       source: 'Warcraft Logs（团本首领榜 → 报告 → ReportFight.talentImportCode）',
       raid: raid.zone.name,
       raidId: raid.zone.id,

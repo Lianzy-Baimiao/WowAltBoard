@@ -436,12 +436,34 @@
     });
 
     t('赛季裁列：旧赛季的副本 ID 不进当前列', function () {
-      var stale = m.characters.filter(function (c) { return c.seasonMismatch; });
-      if (!stale.length) return '没有旧赛季角色可验证';
+      var mm = m, stale = m.characters.filter(function (c) { return c.seasonMismatch; });
+      if (!stale.length) {
+        // 新赛季大家都登录过一遍之后，真实数据里就没有旧赛季角色了（本机原来那个
+        // 赛季 14 的号现在也是 18）。那就合成一份：真实插件表 + 一个当前赛季的号
+        // + 一个停在旧赛季、带着当前表里没有的副本 ID 的号。裁列失灵的话，9999
+        // 会被当成「插件表还不认识的新副本」补进列里，下面就能抓到。
+        var cur = m.activeSeason;
+        if (!(cur > 1)) return '当前赛季没解出来（' + cur + '），合成不了旧赛季角色';
+        var row = function (guid, name, season, cmID) {
+          return '["' + guid + '"] = { ["info"] = { ["name"] = "' + name + '", ["realm"] = "服" }, '
+            + '["currentSeason"] = ' + season + ', ["mythicplus"] = { ["dungeons"] = { '
+            + '{ ["challengeModeID"] = ' + cmID + ', ["level"] = 10, ["rating"] = 200 } } } }';
+        };
+        var lua = 'AlterEgoDB = { ["global"] = { ["characters"] = { '
+          + row('g1', '甲', cur, m.columns.dungeonIds[0] || 1) + ', '
+          + row('g2', '乙', cur - 1, 9999) + ' } } }';
+        mm = AE.buildModel({ sources: [{ id: 's1', account: 'a', lua: lua }],
+                             addonTables: global.AE_DATA.addonTables });
+        stale = mm.characters.filter(function (c) { return c.seasonMismatch; });
+        if (mm.activeSeason !== cur) return '合成快照的当前赛季是 ' + mm.activeSeason + '，该是 ' + cur;
+        if (stale.length !== 1 || stale[0].name !== '乙') {
+          return '合成的旧赛季角色没被认出来：标了 ' + stale.length + ' 个';
+        }
+      }
       var leaked = [];
       stale.forEach(function (ch) {
         Object.keys(ch.mp.byDungeon).forEach(function (cmID) {
-          if (m.columns.dungeonIds.indexOf(Number(cmID)) >= 0) leaked.push(cmID);
+          if (mm.columns.dungeonIds.indexOf(Number(cmID)) >= 0) leaked.push(cmID);
         });
       });
       return leaked.length === 0 || '旧赛季 ID 混进了列: ' + leaked.join(',');

@@ -60,8 +60,10 @@
  *   node tools\fetch-rio.js --target 40          # 每专精目标人数（默认 100）
  *   node tools\fetch-rio.js --maxpages 5         # 每专精最多翻几页（默认 6）
  *   node tools\fetch-rio.js --rank-only          # 只抓榜（拿天赋串和名单），不抓装备
- *   node tools\fetch-rio.js --offline            # 只用缓存，一个请求都不发
- *   node tools\fetch-rio.js --keep-names         # 复用已下好的 ItemSparse.csv（默认就复用）
+ *   node tools\fetch-rio.js --offline            # 只用缓存，一个请求都不发（不看缓存年龄）
+ *   node tools\fetch-rio.js --max-age 0          # 缓存超过几天就重抓（默认 3；0 = 全部重抓）
+ *   node tools\fetch-rio.js --keep-names         # 不管缺不缺名字都用已下好的 ItemSparse.csv
+ *                                                 # （默认：缺名字且 CSV 比 --max-age 旧才重下）
  */
 'use strict';
 
@@ -112,6 +114,21 @@ var MAXPAGES = Number(opt('--maxpages', 15)) || 15;
 var ONLY = String(opt('--specs', '')).split(',').filter(Boolean).map(Number);
 var RANK_ONLY = flag('--rank-only');
 var OFFLINE = flag('--offline');
+/*
+ * 缓存多旧就不算数（天）。**默认 3 天**，`--max-age 0` = 全部重抓，`--offline` 不看年龄。
+ *
+ * 这一条补的是又一次「没跑，但报成跑过了」：cached() 原来只看文件在不在，
+ * 于是 10-01 那次「重新生成」一个榜页、一份 profile 都没问，产物照样盖上
+ * updatedAt 2026-10-01 —— 而里面的榜和装备是 08-31 / 09-02 抓的。
+ * 版本更新（12.1.5 换了天赋、加了团本）之后再跑一次，结果还会是那一份旧数据。
+ * 三天够一次全量跑完、中途断了重跑也接得上，又不会把上个月的榜当成今天的。
+ */
+var MAX_AGE_DAYS = Number(opt('--max-age', 3));
+if (!(MAX_AGE_DAYS >= 0)) MAX_AGE_DAYS = 3;
+var KEEP_NAMES = flag('--keep-names');
+// 实际用到的缓存里最旧的那份是什么时候抓的。updatedAt 写它，不写「今天」——
+// 产物上的日期要说的是**数据**有多新，不是这次生成命令是哪天敲的。
+var oldestUsed = Date.now();
 
 /*
  * 限速参数。**默认值是撞出来的，不是猜的。**
@@ -321,10 +338,20 @@ function progress(done, total, note) {
 
 function cached(name) {
   var f = path.join(CACHE, name);
-  if (fs.existsSync(f) && fs.statSync(f).size > 300) {
-    try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch (e) { return null; }
-  }
-  return null;
+  if (!fs.existsSync(f)) return null;
+  var st = fs.statSync(f);
+  if (st.size <= 300) return null;
+  // 过期的缓存当作没有 —— 联网时重抓；--offline 本来就是「只用缓存」，不看年龄。
+  if (!OFFLINE && Date.now() - st.mtimeMs > MAX_AGE_DAYS * 86400000) return null;
+  var j;
+  try { j = JSON.parse(fs.readFileSync(f, 'utf8')); } catch (e) { return null; }
+  if (st.mtimeMs < oldestUsed) oldestUsed = st.mtimeMs;
+  return j;
+}
+
+/** 产物上的日期 = 实际用到的数据里最旧那份的日期（全是新抓的就是今天）。 */
+function dataDate() {
+  return new Date(oldestUsed).toISOString().slice(0, 10);
 }
 function store(name, body) {
   if (!fs.existsSync(CACHE)) fs.mkdirSync(CACHE, { recursive: true });
@@ -542,7 +569,30 @@ function itemNames(ids, cb) {
   }
 
   if (fs.existsSync(ITEM_CSV) && fs.statSync(ITEM_CSV).size > 1000000) {
-    cb(null, parse());
+    var res = parse();
+    var ageDays = (Date.now() - fs.statSync(ITEM_CSV).mtimeMs) / 86400000;
+    /*
+     * 已有的 CSV 缺名字、而且它比 --max-age 旧 → 重下一次再对。
+     *
+     * 原来是「文件在、够大就用」。可新版本的新装备（12.1.5 的新团本）在旧表里
+     * 根本没有 —— 命中率会从 100% 掉一截，但只要还在 95% 以上就照样产出，
+     * 那些新装备在面板上就是没有中文名，而且没人会知道为什么。
+     * --keep-names 表示「就用这份，别下」（没网、或者刚手工下过的时候）。
+     */
+    if (res.missed.length && !OFFLINE && !KEEP_NAMES && ageDays > MAX_AGE_DAYS) {
+      console.log('  缺 ' + res.missed.length + ' 个名字，而 ItemSparse.csv 已经是 '
+        + Math.floor(ageDays) + ' 天前下的 —— 重下一份再对');
+      downloadItemCsv(function (e) {
+        if (e) {
+          console.log('  重下失败（' + e.message + '），先用旧表的结果');
+          cb(null, res);
+          return;
+        }
+        cb(null, parse());
+      });
+      return;
+    }
+    cb(null, res);
     return;
   }
   if (OFFLINE) {
@@ -688,7 +738,7 @@ function emit(agg, names, meta) {
 
   var obj = {
     v: 1,
-    updatedAt: new Date().toISOString().slice(0, 10),
+    updatedAt: dataDate(),
     source: 'raider.io（大秘境每专精排行榜 + 角色 profile fields=gear）',
     season: SEASON,
     itemNameSource: 'wago.tools DB2 ItemSparse locale=zhCN',

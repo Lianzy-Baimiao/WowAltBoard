@@ -27,9 +27,11 @@ const { chromium } = require('playwright');
     await page.locator('.bis-tabs').getByRole('button', { name: '天赋', exact: true }).click();
     await page.waitForFunction(() => window.AE_TALENTS && window.AE_TALENT_DESC && window.AE_WCL);
     let categories = 0;
+    // Pinned to the bundled GearInsight_Talents 0.94.19 snapshot (v1.19.0): the same
+    // per-spec quarantine that tools/check-talent-integrity.js expects independently.
     for (const [key, cls, sid, rejected, count] of [
-      ['MONK/MISTWEAVER', '武僧', 270, [50,85,89,94], 8],
-      ['WARRIOR/PROTECTION', '战士', 73, [73,88], 2]
+      ['MONK/MISTWEAVER', '武僧', 270, [82], 1],
+      ['WARRIOR/PROTECTION', '战士', 73, [81,95,108,112], 4]
     ]) {
       // Exercise the original plugin fallback even when an editorial guide exists.
       await page.evaluate(sid => { window.AE_guide.specs[sid].views = {}; }, sid);
@@ -58,7 +60,7 @@ const { chromium } = require('playwright');
       window.AE.rerenderBis();
     });
     assert.ok(!(await page.locator('#bis-body').innerText()).includes('INVALID_SENTINEL'));
-    assert.ok((await page.locator('.bis-warn').allTextContents()).some(t => t.includes('已隔离 3 条')));
+    assert.ok((await page.locator('.bis-warn').allTextContents()).some(t => t.includes('已隔离 5 条')));
     await page.waitForFunction(() => [...document.querySelectorAll('.tnode img')].every(i => i.complete && i.naturalWidth > 0));
     await page.screenshot({ path: path.join(base, 'wow-1173-repair-talents.png') });
     await page.locator('.bis-tabs').getByRole('button', { name: '毕业装备', exact: true }).click();

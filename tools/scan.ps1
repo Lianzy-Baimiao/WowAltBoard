@@ -27,7 +27,7 @@ param()
 $ErrorActionPreference = 'Stop'
 
 $SCHEMA_VERSION = 1
-$TOOL_VERSION   = '1.18.1'
+$TOOL_VERSION   = '1.19.0'
 $REPO           = 'Lianzy-Baimiao/WowAltBoard'
 $AUTHOR         = '白描'
 
@@ -553,10 +553,18 @@ function Get-NoDataVerdict {
 # Embedding these means season -> challengeModeID -> abbr/name, raid lists, and
 # vault item levels update automatically whenever the user updates the addon,
 # instead of being hand-maintained in labels.js.
+#
+# AlterEgo 1.6.6 (patch 12.1.5) moved the shared tables into its embedded
+# library: Libs\LiqUI\Data\ now holds Dungeons/Raids/Seasons/Inventory/
+# UpgradeTracks, and Data.dungeons left MythicPlus.lua for Dungeons.lua. Only
+# Currencies/MythicPlus/Prey/Vault stay in Data\. LiqUI is searched first:
+# its TOC no longer loads Data\Raids.lua etc., so a copy left behind by an
+# overwrite install is stale and must not win over the file the game loads.
 function Get-AddonTables {
     param([Parameter(Mandatory)]$Roots)
-    $wanted = @('MythicPlus.lua', 'Raids.lua', 'Seasons.lua', 'Vault.lua',
+    $wanted = @('Dungeons.lua', 'MythicPlus.lua', 'Raids.lua', 'Seasons.lua', 'Vault.lua',
                 'Currencies.lua', 'Inventory.lua', 'Prey.lua', 'UpgradeTracks.lua')
+    $dataDirs = @('Libs\LiqUI\Data', 'Data')
     $tables  = @{}
     $version = ''
     foreach ($root in $Roots) {
@@ -577,9 +585,12 @@ function Get-AddonTables {
             }
             foreach ($w in $wanted) {
                 if ($tables.ContainsKey($w)) { continue }
-                $f = Join-Path $addonDir "Data\$w"
-                if (-not (Test-Path -LiteralPath $f)) { continue }
-                try { $tables[$w] = [System.IO.File]::ReadAllText($f, [System.Text.UTF8Encoding]::new($false)) } catch { }
+                foreach ($d in $dataDirs) {
+                    $f = Join-Path $addonDir "$d\$w"
+                    if (-not (Test-Path -LiteralPath $f)) { continue }
+                    try { $tables[$w] = [System.IO.File]::ReadAllText($f, [System.Text.UTF8Encoding]::new($false)) } catch { }
+                    if ($tables.ContainsKey($w)) { break }
+                }
             }
         }
     }
