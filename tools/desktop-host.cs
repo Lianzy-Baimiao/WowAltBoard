@@ -42,11 +42,12 @@ internal sealed class DashboardWindow : Form
     DashboardWindow(string baseDir)
     {
         root = baseDir;
-        // The query is how the page learns the native frame's language; a saved
-        // explicit choice in the page settings still takes priority over it.
-        var pageUri = new UriBuilder(new Uri(Path.Combine(root, "index.html")));
-        pageUri.Query = "lang=" + (UseEn ? "en" : "zh");
-        page = pageUri.Uri;
+        // The fragment is how the page learns the native frame's language; a
+        // saved explicit choice in the page settings still takes priority.
+        // Do NOT use a query here: .NET Framework's Uri escapes '?' in a file
+        // URI into the path ("index.html%3F..."), which fails to load at all.
+        page = new Uri(new Uri(Path.Combine(root, "index.html")).AbsoluteUri
+            + "#lang=" + (UseEn ? "en" : "zh"));
         themeFile = Path.Combine(root, "data", "desktop-theme.json");
         // Fixed in both languages: the launcher finds this window by this title
         // and index.html carries the same <title>.

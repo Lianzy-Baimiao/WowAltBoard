@@ -146,6 +146,20 @@ const { chromium } = require('playwright');
     assert.equal(await zh.title(), 'WowAltBoard');
     await zh.close();
 
+    // The launcher cannot put "?lang=" on a file:// URL (.NET escapes it into
+    // the path), so it passes "#lang=". A fresh context has no saved language,
+    // and this machine's navigator language is Chinese -- only the fragment can
+    // turn the page English.
+    const frag = await browser.newContext({ viewport: { width: 1600, height: 1100 } });
+    const enFrag = await frag.newPage();
+    enFrag.on('pageerror', e => errors.push(e.message));
+    await enFrag.route(/^https?:/, r => { network.push(r.request().url()); return r.abort(); });
+    await enFrag.goto(pathToFileURL(path.join(dir, 'index.html')).href + '#lang=en');
+    await enFrag.waitForFunction(() => window.AE && AE.state && AE.state.model);
+    assert.equal(await enFrag.evaluate(() => AE.i18n.lang()), 'en', 'file:// 片段语言必须生效');
+    assert.equal(await enFrag.evaluate(() => document.documentElement.lang), 'en');
+    await frag.close();
+
     assert.deepEqual(errors, [], '页面脚本错误');
     assert.deepEqual(network, [], '不应发出网络请求');
     console.log('英文巡检：主页 / 设置 5 页 / 详情 / 趋势 / 备份箱 / 导出 / 毕业装备 / 天赋 全部无漏翻，切回中文正常');

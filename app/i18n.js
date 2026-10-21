@@ -37,8 +37,13 @@
 
   function urlLang() {
     try {
-      var search = String((global.location && global.location.search) || '');
-      var m = /[?&]lang=(zh|en)(?:&|#|$)/i.exec(search);
+      var loc = global.location || {};
+      var m = /[?&]lang=(zh|en)(?:&|#|$)/i.exec(String(loc.search || ''));
+      if (m) return m[1].toLowerCase();
+      // The launcher hands the native/browser window a file:// URL. .NET
+      // Framework escapes '?' in a file URI into the path ("index.html%3F..."),
+      // so those windows pass the language in the fragment instead.
+      m = /(?:^#|&)lang=(zh|en)(?:&|$)/i.exec(String(loc.hash || ''));
       return m ? m[1].toLowerCase() : '';
     } catch (e) { return ''; }
   }

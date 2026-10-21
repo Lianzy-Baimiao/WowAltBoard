@@ -1493,8 +1493,9 @@ public static class Launcher
             catch { /* missing runtime or damaged optional host: browser fallback */ }
         }
 
-        string url = new Uri(PageFile).AbsoluteUri
-            + (PageFile.IndexOf('?') >= 0 ? "&" : "?") + "lang=" + (UseEn ? "en" : "zh");
+        // A fragment, not a query: .NET Framework escapes '?' in a file URI
+        // into the path, so "index.html?lang=zh" becomes a missing file.
+        string url = new Uri(PageFile).AbsoluteUri + "#lang=" + (UseEn ? "en" : "zh");
         string browser = FindBrowser();
         if (browser != null)
         {

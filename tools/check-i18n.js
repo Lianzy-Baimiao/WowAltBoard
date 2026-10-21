@@ -62,6 +62,20 @@ eq(AE.i18n.resolve('', '', 'en-GB', ''), 'en', 'resolve: navigator 的第一个�
 eq(AE.i18n.resolve('', '', 'fr-FR', ''), 'en', 'resolve: 不受支持的语言回落到英文');
 eq(AE.i18n.resolve('', '', '', ''), 'en', 'resolve: 什么都没有时用英文兜底');
 
+// urlLang(): ?lang= and #lang= are both accepted. The launcher passes the
+// fragment to native/browser windows because .NET file URIs mangle '?'.
+engine.navigator = { languages: ['en-US'], language: 'en-US' };
+engine.location = { search: '?lang=zh', hash: '' };
+eq(AE.i18n.use('auto'), 'zh', 'urlLang: ?lang=zh 生效');
+engine.location = { search: '', hash: '#lang=en' };
+eq(AE.i18n.use('auto'), 'en', 'urlLang: #lang=en 生效（原生窗口用片段）');
+engine.location = { search: '', hash: '#lang=zh&x=1' };
+eq(AE.i18n.use('auto'), 'zh', 'urlLang: 片段里带其他参数也能取到');
+engine.location = { search: '?lang=zh', hash: '#lang=en' };
+eq(AE.i18n.use('auto'), 'zh', 'urlLang: 查询串优先于片段');
+engine.location = { search: '', hash: '#section' };
+eq(AE.i18n.use('auto'), 'en', 'urlLang: 没有语言参数时跟随 navigator');
+
 // 中文模式：t / ts 原样返回；tn 只做占位符替换。
 engine.__AE_FORCE_LANG = 'zh';
 AE.i18n.use('');
