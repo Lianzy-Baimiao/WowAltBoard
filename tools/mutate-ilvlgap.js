@@ -5,17 +5,15 @@
  *
  * 为什么这一组要单独一份
  * ---------------------
- * 这一轮改的东西横跨三件事，而它们的失败方式互不相同：
- *   · **装等**：guide 自己不给装等（实测 81 篇缓存里 `Item Level` 只出现 2 次，
- *     都是正文提醒；`data-wow-item` 那个 blob 里 offset 2 的字段只有 16 个取值、
- *     257/259/261 占绝大多数，是标志位不是装等；backend 的 embed 接口要 OAuth）。
- *     所以装等是从本机两份**实测**数据借的。上一版从 rio 的物品池取 `ilvl` ——
+ * 这一组横跨三件事，而它们的失败方式互不相同：
+ *   · **装等**：模拟配装视角的装等多数是 SimC 配置自己给的；定不出的几格（多是制造装备）
+ *     从本机两份**实测**数据借。有一版从 rio 的物品池取 `ilvl` ——
  *     那个字段根本不存在，于是每一行都印着「0」，而套件全绿。
  *   · **装等差距**：它是个**算出来的数**，有符号。符号反了界面完全自洽
  *     （「高 14」配淡色，一致），只有拿提示里的原始两个数自己减一遍才抓得到。
  *   · **撤掉的视角**：删按钮很容易，难的是「存档里还留着那个视角名」——
  *     不迁移的话面板停在一个渲染一切正常、却切不回去的视角里。
- *     而迁移这段代码**天然容易写成死代码**（state.view 初值本来就是 guide），
+ *     而迁移这段代码**天然容易写成死代码**（state.view 初值本来就是 simc），
  *     所以有一条专门盯「有没有写回存档」。
  *
  * 严格程度和别的 mutate-*.js 一档：**每个变异体必须让指定的那句话出现在输出里**，
@@ -65,12 +63,12 @@ function textMutant(desc, file, from, to, want) {
 var MUTANTS = [
   // ---- 装等那一格 ----
 
-  // 退回上一版：从 rio 的物品池取 ilvl。那个字段不存在，于是每行都是 0。
-  // 这一条就是这一轮修的那个 bug 的回归。
-  textMutant('装等退回「从 rio 物品池取 ilvl」（上一版那个 bug）', BIS,
-    '    var MEAS = measuredGear();',
-    '    var MEAS = {};',
-    '行装等标着 GearInsight 来源，太少'),
+  // 借不到实测装等（等于以前「从 rio 物品池取 ilvl」那个 bug 的形状：取了个空表）。
+  // 定不出装等的那几格全变成「装等 ?」。
+  textMutant('借装等时拿了个空表（以前那个 bug 的形状）', BIS,
+    '      MEAS = MEAS || measuredGear();',
+    '      MEAS = MEAS || {};',
+    '没有一行装等是借本机实测数据的'),
 
   // 只去掉「0 不印」那道闸：查不到的行会印出 0 来。
   textMutant('装等为 0 也照印', BIS,
@@ -78,30 +76,31 @@ var MUTANTS = [
     '    if (true) {\n      var sub = el(\'span\', \'sub2\');',
     '装等该是正整数'),
 
-  // 装等来源标记丢掉：界面上「703」和「312」看着是同一种数。
-  textMutant('装等不标是谁测的', BIS,
-    "        sub.classList.add(ivSrc === 'r' ? 'iv-rio' : 'iv-gi');",
+  // 装等来源标记丢掉：界面上「344」和「331」看着是同一种数，其实一个是配置写的、一个是借来的。
+  textMutant('装等不标是谁给的', BIS,
+    "        sub.classList.add(cfgIv ? 'iv-sim' : (ivSrc === 'r' ? 'iv-rio' : 'iv-gi'));",
     '        /* mutant: 不标来源 */',
-    '行装等标着 GearInsight 来源，太少'),
+    '行装等标着 SimC 配置来源，太少'),
 
-  // rio 那条兜底分支去掉：15 行装等会变成「装等 ?」。
+  // rio 那条兜底分支去掉：只有 raider.io 有的物品会变成「装等 ?」。
+  // 真数据里借的格子恰好全在 GearInsight 里，这一条靠 checkBorrowedIlvl 造的那一格抓。
   textMutant('装等不退到 raider.io 的榜上均值', BIS,
     '      Object.keys(acc).forEach(function (id) {\n        if (out[id]) return;',
     '      Object.keys(acc).forEach(function (id) {\n        if (true) return;',
-    '没有一行装等来自 raider.io'),
+    '只有 raider.io，取「榜上均值」'),
 
   // 反过来：让 rio 覆盖 GearInsight。两个来源不是同一个量（中位差 10 点），
   // 混着用等于把「升满的样子」和「榜上平均的样子」当成一个数。
   textMutant('raider.io 的均值盖掉 GearInsight 的实测值', BIS,
     '        if (out[id]) return;            // GearInsight 已经给了，不覆盖',
     '        /* mutant: 覆盖 */',
-    '行装等标着 GearInsight 来源，太少'),
+    '两边都有，取 GearInsight 的「最高」'),
 
   // 查不到时不画「装等 ?」，静默留空 —— 用户分不出「没查到」和「没这一格」。
   textMutant('查不到装等时什么都不画', BIS,
-    "    } else if (isMr) {\n      var noiv = el('span', 'sub2 iv-none', '装等 ?');",
+    "    } else if (isSim) {\n      var noiv = el('span', 'sub2 iv-none', '装等 ?');",
     "    } else if (false) {\n      var noiv = el('span', 'sub2 iv-none', '装等 ?');",
-    '没有一行画出「装等 ?」'),
+    '两边都没有，画「装等 ?」'),
 
   // ---- 装等差距 ----
 
@@ -169,22 +168,22 @@ var MUTANTS = [
     "      ['raid', '团本视角', '来自 GearInsight 的团本参照表'],\n      ['rio', '实战分布',",
     '第 16 轮撤掉了它'),
 
-  // 迁移不写回存档。**这一条盯的是死代码**：state.view 初值本来就是 guide，
+  // 迁移不写回存档。**这一条盯的是死代码**：state.view 初值本来就是 simc，
   // 光不写回的话界面表现一模一样，只有「下次打开」才看得出区别。
   textMutant('旧视角只改内存不写回存档', BIS,
-    "      state.view = 'guide';\n      persist({ bisView: 'guide' });",
-    "      state.view = 'guide';",
+    "      state.view = 'simc';\n      persist({ bisView: 'simc' });",
+    "      state.view = 'simc';",
     '迁移没写回存档'),
 
-  // 迁到 rio 而不是 guide。用户选的是「团本毕业装」，给他一份实战分布统计。
-  textMutant('旧视角迁到「实战分布」而不是「最佳推荐」', BIS,
-    "      state.view = 'guide';\n      persist({ bisView: 'guide' });",
+  // 迁到 rio 而不是默认视角。用户没选过实战分布，给他一份统计是替他做了决定。
+  textMutant('旧视角迁到「实战分布」而不是「模拟配装」', BIS,
+    "      state.view = 'simc';\n      persist({ bisView: 'simc' });",
     "      state.view = 'rio';\n      persist({ bisView: 'rio' });",
     '迁移没写回存档'),
 
   // 旧值原样保留（连迁移都没有）。面板会停在一个没有按钮的视角里。
   textMutant('旧视角原样保留，不迁移', BIS,
-    "    if (s.bisView === 'rio' || s.bisView === 'guide') state.view = s.bisView;",
+    "    if (s.bisView === 'rio' || s.bisView === 'simc') state.view = s.bisView;",
     "    if (s.bisView) state.view = s.bisView;",
     '迁移没写回存档'),
 
@@ -205,17 +204,11 @@ var MUTANTS = [
       + "    else if (openSecs[k] === 0 && node.removeAttribute) node.removeAttribute('open');",
     '展开的折叠块在点了一下方案之后合上了'),
 
-  // 换专精不归零下标：会落在「别人的第 6 套」上，而界面完全自洽。
-  textMutant('换专精后落在别人的第 N 套上', BIS,
-    '    state.mrBuild = 0;\n    state.mrSub = 0;\n    state.loadout = 0;',
+  // 换专精不归零下标：会落在「别人的第 2 份」上，而界面完全自洽。
+  textMutant('换专精后落在别人的第 N 份上', BIS,
+    '    state.simIdx = 0;\n    state.simSub = 0;\n    state.loadout = 0;',
     '    /* mutant: 不归零 */',
-    '换专精没把「第几套」归零'),
-
-  // 团本 / 大秘境的选择不写回设置：换个专精又跳回大秘境，得重新点。
-  textMutant('「团本 / 大秘境」的选择不存', BIS,
-    "        persist({ bisMrKind: k[0] });",
-    '        /* mutant: 不存 */',
-    '换个专精或重开面板又会跳回大秘境'),
+    '换专精没把「第几份」归零'),
 
   // ---- 第 16 轮：卡顿 + 「比对要带上装等」 ----
 

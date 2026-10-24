@@ -78,7 +78,7 @@ function wantSpells() {
 
 /* ------------------------------------------------------- 网络（走代理） */
 
-/** 走 CONNECT 隧道的 https GET。和 tools/fetch-spell-names.js 里那份一样。 */
+/** 走 CONNECT 隧道的 https GET。和 tools/fetch-icons.js 里那份一样。 */
 function get(url, cb) {
   var u = new URL(url);
   if (!PROXY) {

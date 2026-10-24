@@ -238,7 +238,7 @@ function appFiles() {
   return fs.readdirSync(path.join(ROOT, 'app')).filter(function (f) {
     return /\.js$/.test(f) &&
       !/-tests\.js$/.test(f) &&
-      !/^(bis-data|talent-data|talent-tree|talent-desc|wcl-data|rio-data|guide-data|item-icons|class-names)\.js$/.test(f);
+      !/^(bis-data|talent-data|talent-tree|talent-desc|wcl-data|rio-data|simc-data|item-icons|class-names)\.js$/.test(f);
   }).sort();
 }
 

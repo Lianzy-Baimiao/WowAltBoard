@@ -1126,7 +1126,7 @@ body[data-theme="light"] #tip { box-shadow: 0 6px 20px rgba(0, 0, 0, .18); }
 body[data-theme="light"] #bis .bis-choice.cls {
   color: color-mix(in srgb, var(--class-color) 35%, var(--fg));
 }
-#bis .bis-choice.mrb { justify-content: flex-start; padding-block: 7px; }
+#bis .bis-choice.simb { justify-content: flex-start; padding-block: 7px; }
 
 /* ---- 职业 / 专精选择 */
 .bis-pick { margin-bottom: 10px; }
@@ -1251,8 +1251,8 @@ body[data-theme="light"] #bis .bis-choice.cls {
 .slot-top .tag { font-size: 10px; padding: 0 5px; border-radius: 8px; border: 1px solid var(--line); color: var(--fg2); flex: none; }
 
 /* ---- 完整分布：默认收起来，点格子头展开。
-   **行少的格子（.flat）不折**：guide 一格最多 4 行（首选 + 替代），折起来只会把
-   替代项藏掉；rio 里的瘦格子（副手这类 2~5 行）同理。 */
+   **行少的格子（.flat）不折**：SimC 一格只有一行，折起来只会多点一下；
+   rio 里的瘦格子（副手这类 2~5 行）同理。 */
 .slot-list { display: none; border-top: 1px solid var(--line); }
 .slot.open .slot-list, .slot.flat .slot-list { display: block; }
 .slot.flat .slot-head { cursor: default; }
@@ -1367,10 +1367,10 @@ body[data-theme="light"] #bis .bis-choice.cls {
   text-overflow: ellipsis;
 }
 .item .im .sub2 { display: block; color: var(--fg2); font-size: 11px; }
-/* 装等的来源在 guide 视角里有两种（GearInsight 实测最高 / raider.io 榜上均值）。
-   均值那一档画成虚下划线：提示里写着它是什么，但界面上也该有个「这个数不一样」
-   的记号，不然两种数混在一列里看着是同一种。 */
-.item .im .sub2.iv-rio { border-bottom: 1px dashed var(--line); display: inline-block; }
+/* 装等的来源在模拟配装视角里有几种：配置写的（iv-sim）是主体，少数定不出的格子借本机实测
+   （iv-gi 顶尖玩家最高 / iv-rio 榜上均值）。借来的两档画成虚下划线：提示里写着它是什么，
+   但界面上也该有个「这个数不一样」的记号，不然几种数混在一列里看着是同一种。 */
+.item .im .sub2:is(.iv-rio, .iv-gi) { border-bottom: 1px dashed var(--line); display: inline-block; }
 .item .im .sub2.iv-none { color: var(--fg3); font-style: italic; }
 .item .im .stats {
   display: inline-flex; flex-wrap: wrap; gap: 2px 6px;
@@ -1387,14 +1387,20 @@ body[data-theme="light"] #bis .bis-choice.cls {
 }
 .item .usage .track .fill { display: block; height: 100%; background: var(--accent); opacity: .7; }
 .item .usage .n { display: block; font-size: 10.5px; color: var(--fg2); text-align: right; }
-/* guide 视角：这一列放名次徽章而不是使用率条。宽度沿用 .usage 的 92px，
- * 所以三个视角切换时右侧那一列不会左右跳。 */
-.item .usage.rank { display: flex; justify-content: flex-end; align-items: center; }
-.item .tag.bis { color: var(--good, #4caf50); border-color: var(--good, #4caf50); }
-.item .tag.alt { color: var(--fg3); }
-/* 部位标题上的「首选 N ・替代 M」。跟 .tag.cov 同一族，但它不是百分比，
+/* 模拟配装视角：这一列放「配置」徽章而不是使用率条。宽度沿用 .usage 的 92px，
+ * 所以切换视角时右侧那一列不会左右跳。 */
+.item .usage.sim { display: flex; justify-content: flex-end; align-items: center; }
+.item .tag.cfg { color: var(--good, #4caf50); border-color: var(--good, #4caf50); }
+/* 部位标题上的「SimC」。跟 .tag.cov 同一族，但它不是百分比，
  * 所以不套 .no 那个「覆盖率太低」的警告色。 */
-.slot-head .tag.cov.mr { color: var(--fg2); }
+.slot-head .tag.cov.sim { color: var(--fg2); }
+/* 配置在这一格上写的附魔 / 宝石 / 装饰 / 制造副属性，挂在物品名下面一行。 */
+.item .im .sim-cfg { display: flex; flex-wrap: wrap; gap: 3px 6px; margin-top: 2px; }
+.item .im .sim-cfg .chip { font-size: 10.5px; }
+.item .im .sim-cfg .chip b { font-weight: 500; }
+.item .im .sim-cfg .chip .n { margin-left: 3px; color: var(--fg3); }
+.item .im .sim-cfg .chip img { vertical-align: -3px; margin-right: 3px; border-radius: 2px; }
+.bis-bar .sim-pick { flex-wrap: wrap; }
 /* 来源徽章（团本 / 钥石 / 套装转换…）的底样式。
  *
  * 这条以前是**漏的**：只写了 .tag.use 和 .tag.trk，没写 .item .tag 本身。
@@ -1481,9 +1487,9 @@ table.bis-tbl th { color: var(--fg2); font-weight: 600; }
   margin-top: 10px;
   background: var(--bg);
 }
-/* guide 那一套自己的导入串块。外观和下面 raider.io 那块一样，但**是两个类** ——
+/* SimC 那一份自己的导入串块。外观和上面 raider.io 那块一样，但**是两个类** ——
    bis-loadout 被测试按「每次渲染恰好一个」数着，共用会让计数翻倍。 */
-.mr-loadout {
+.sim-loadout {
   border: 1px solid var(--line);
   border-radius: 4px;
   padding: 7px 9px;
@@ -1493,8 +1499,8 @@ table.bis-tbl th { color: var(--fg2); font-weight: 600; }
 
 .lo-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
 .lo-head .n { color: var(--fg3); font-size: 11px; }
-/* 「和上面的方案不是同一套」。这一块（raider.io 的可导入串）就摆在 guide 那套
-   树的正下方，不标一句的话读起来像是「上面那套的导入串」—— 而两者是两套不同的
+/* 「和下面的配置不是同一套」。这一块（raider.io 的可导入串）就摆在 SimC 那份配置
+   的正上方，不标一句的话读起来像是「那份配置的导入串」—— 而两者是两套不同的
    天赋。用警告色而不是灰色：这是要避免误解，不是补充说明。 */
 .lo-head .lo-warn {
   font-size: 10px;
@@ -1513,9 +1519,9 @@ table.bis-tbl th { color: var(--fg2); font-weight: 600; }
   padding-bottom: 6px; border-bottom: 1px solid var(--line);
 }
 .lo-pick { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0; }
-/* guide 那块的串框。外观和 .lo-text 一样，但**是两个类** ——
+/* SimC 那块的串框。外观和 .lo-text 一样，但**是两个类** ——
    lo-text 被测试按「每次渲染恰好一个」数着。 */
-.mr-text,
+.sim-text,
 .lo-text {
   width: 100%;
   resize: vertical;
@@ -1533,12 +1539,12 @@ table.bis-tbl th { color: var(--fg2); font-weight: 600; }
 }
 .lo-act { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 5px; }
 /* 关闭的原串详情与复制同一行，展开后占满本块；不改变面板宽度。 */
-.bis-loadout, .mr-loadout { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px; }
-:is(.bis-loadout, .mr-loadout) > :is(.lo-head, .lo-kind, .lo-pick) { grid-column: 1 / -1; }
-:is(.bis-loadout, .mr-loadout) > .lo-details { align-self: center; }
-:is(.bis-loadout, .mr-loadout) > .lo-details[open] { grid-column: 1 / -1; }
+.bis-loadout, .sim-loadout { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px; }
+:is(.bis-loadout, .sim-loadout) > :is(.lo-head, .lo-kind, .lo-pick) { grid-column: 1 / -1; }
+:is(.bis-loadout, .sim-loadout) > .lo-details { align-self: center; }
+:is(.bis-loadout, .sim-loadout) > .lo-details[open] { grid-column: 1 / -1; }
 @media (max-width: 760px) {
-  :is(.bis-loadout, .mr-loadout) > :is(.lo-act, .lo-details) { grid-column: 1 / -1; }
+  :is(.bis-loadout, .sim-loadout) > :is(.lo-act, .lo-details) { grid-column: 1 / -1; }
 }
 .lo-details { margin-top: 5px; color: var(--fg2); font-size: 11px; }
 .lo-details > summary { cursor: pointer; padding: 3px 0; }
@@ -1552,70 +1558,24 @@ table.bis-tbl th { color: var(--fg2); font-weight: 600; }
 .bis-source-list .source-name { min-width: 150px; }
 .bis-source-list .source-status { color: var(--fg2); }
 .bis-source-list .source-caution { color: var(--warn); }
+.bis-source-list .source-license { color: var(--fg3); }
 #bis .iv-label { margin-left: 6px; color: var(--fg2); font-size: 10px; font-weight: normal; }
 
 .lo-act .n { color: var(--fg3); font-size: 11px; }
 
-/* 「guide 这套不给导入串」那句说明。
-   这里一度是一块和 .bis-loadout 一样的串框（显示 + 复制）。量过版本号之后
-   整块删了：guide 的串版本号是 130，游戏只认 2，粘进去必然被拒 ——
-   留一句话指向下面 raider.io 那块能导入的串，比留一个按钮诚实。 */
-.mr-nostr {
-  margin: 10px 0 0;
-  padding: 6px 9px;
-  border-left: 2px solid var(--line);
-  color: var(--fg3);
-  font-size: 11px;
-  line-height: 1.6;
-}
-
-/* guide 的方案列表。名字是页面上原样的英文长句（实测最长 62 字符，
-   中位 34），横排小按钮会挤成两行半读不出来，所以竖排一行一套。 */
-.mr-builds { display: flex; flex-direction: column; gap: 4px; margin: 8px 0; }
-.mrb {
+/* SimC 的配置列表（一个专精按英雄天赋各一份）。竖排一行一份，和插件那条路的套路列表同一个形状。 */
+.sim-builds { display: flex; flex-direction: column; gap: 4px; margin: 8px 0; }
+.simb {
   display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
   text-align: left;
-  /* 长名称仍独占一行；颜色、边框、选中态由 .bis-choice 统一管理。 */
+  /* 颜色、边框、选中态由 .bis-choice 统一管理。 */
 }
-.mrb .nm { flex: 1 1 auto; overflow-wrap: anywhere; }
-.mrb .mt { display: flex; gap: 6px; flex-wrap: wrap; flex: 0 0 auto; }
-.mrb .mt em { font-style: normal; color: var(--fg3); font-size: 11px; }
-.mrb .mt em.hero { color: var(--accent); }
-/* 「通用 N 处」：同一条串在 guide 页面上挂在 N 个小节下面。比点数更弱一档。 */
-.mrb .mt em.many { color: var(--fg3); opacity: .8; }
-
-/* 场景标签（单体 / AOE / 顺劈 / 多目标）。**可选** —— 实测 167 套方案里只有
-   51 套有，因为 guide 只有一部分专精按场景分天赋。
-   四个场景四个颜色，不是为了好看：用户在列表里找的就是「哪套是 AOE 的」，
-   靠颜色扫比读字快。单体用暖色（集中），AOE / 多目标用冷色（分散）。 */
-.mrb .mt em.scen, .note-row em.scen {
-  font-style: normal; font-size: 10px;
-  padding: 0 4px; border-radius: 3px;
-  border: 1px solid currentColor;
-  margin-left: 4px;
-}
-em.scen.st { color: var(--warn); }
-em.scen.aoe { color: var(--accent); }
-em.scen.cleave { color: var(--good); }
-em.scen.multi { color: var(--accent); opacity: .8; }
-
-/* 出手顺序 / 各首领·副本说明。正文是**英文原文**（首领名和技能名长在句子里，
-   本机没有官方中文译名，编一个会让人照着游戏里不存在的名字去找）。
-   所以这两块按「引文」排版：左边一道线，正文行高松一档，读长英文句子才不累。 */
-.mr-prio, .mr-boss { margin-top: 10px; }
-.mr-prio summary .ttl, .mr-boss summary .ttl { font-weight: 600; }
-.note-row {
-  padding: 5px 0 5px 9px;
-  border-left: 2px solid var(--line);
-  margin: 5px 0;
-}
-.note-row b { display: block; font-size: 12px; color: var(--fg); }
-.note-row p.en {
-  margin: 2px 0 0;
-  font-size: 11.5px;
-  line-height: 1.65;
-  color: var(--fg2);
-}
+.simb .nm { flex: 1 1 auto; overflow-wrap: anywhere; }
+.simb .mt { display: flex; gap: 6px; flex-wrap: wrap; flex: 0 0 auto; }
+.simb .mt em { font-style: normal; color: var(--fg3); font-size: 11px; }
+.simb .mt em.hero { color: var(--accent); }
+/* 「少 N 点」：配置本身没点满，导进去会剩点数。用警告色 —— 这是要提醒的事。 */
+.simb .mt em.short { color: var(--warn); }
 
 /* 天赋树。节点是绝对定位的方块，坐标由 app/bis.js 按网格算好写进 style，
    这里只管长相。方块宽 62px 是量出来的：3447 个天赋名里 2322 个正好 4 个字，
@@ -1751,18 +1711,15 @@ em.scen.multi { color: var(--accent); opacity: .8; }
 #bis .item .im .sub2 { line-height: 1.5; font-variant-numeric: tabular-nums; }
 #bis .item .usage { font-variant-numeric: tabular-nums; }
 #bis .item .usage .n { margin-top: 3px; }
-#bis .item .tag.bis { background: color-mix(in srgb, var(--good) 8%, var(--bg)); }
-#bis .item .tag.alt { color: var(--fg2); }
-#bis .bis-loadout, #bis .mr-loadout { border-radius: 6px; }
+#bis .item .tag.cfg { background: color-mix(in srgb, var(--good) 8%, var(--bg)); }
+#bis .bis-loadout, #bis .sim-loadout { border-radius: 6px; }
 #bis .lo-head { line-height: 1.6; }
 #bis .lo-head > b { font-size: 13px; }
 #bis .lo-head .n, #bis .lo-act .n { color: var(--fg2); }
-#bis .mr-text, #bis .lo-text { line-height: 1.5; }
-#bis .mrb .mt em { color: var(--fg2); }
-#bis .mrb .mt em.hero { color: var(--accent); }
-#bis .mrb .mt em.scen.st { color: var(--warn); }
-#bis .mrb .mt em.scen.aoe, #bis .mrb .mt em.scen.multi { color: var(--accent); }
-#bis .mrb .mt em.scen.cleave { color: var(--good); }
+#bis .sim-text, #bis .lo-text { line-height: 1.5; }
+#bis .simb .mt em { color: var(--fg2); }
+#bis .simb .mt em.hero { color: var(--accent); }
+#bis .simb .mt em.short { color: var(--warn); }
 #bis .tree-src { padding: 8px 0; border-top: 1px solid var(--line); }
 #bis .tree-grid-head { padding: 4px 0; }
 #bis .tree-canvas { border-radius: 6px; }

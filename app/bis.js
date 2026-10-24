@@ -40,12 +40,11 @@
    * 可互换的成对槽位：戒指 11/12、饰品 13/14。
    *
    * **为什么必须成对判断**：游戏里两个戒指格、两个饰品格是等价的，一件戒指戴在
-   * 哪个孔完全是玩家插进去的顺序。而推荐数据是按孔位存的（guide 的
-   * 「戒指1 / 戒指2」、rio 榜上采到的 finger1 / finger2），于是按孔位逐格比会
+   * 哪个孔完全是玩家插进去的顺序。而推荐数据是按孔位存的（SimC 配置里的
+   * finger1 / finger2、rio 榜上采到的 finger1 / finger2），于是按孔位逐格比会
    * 得出自相矛盾的结论：第 20 轮实测，一件阿曼尼督军的指环在同一屏上既出现在
-   * 「戒指1」的替代表里（没有已拥有底色，看着像你没这件），又在「戒指2」头上被
-   * 写成「你身上这件不在推荐列表里」。guide 的 80 个视角里 78 个两个戒指的列表
-   * 不同、80 个两个饰品的列表不同，160 组配对槽位里 **156 组**在两件调换后就断掉。
+   * 「戒指1」的列表里（没有已拥有底色，看着像你没这件），又在「戒指2」头上被
+   * 写成「你身上这件不在推荐列表里」。
    *
    * 主副手（16/17）**故意不配对** —— 那两个格子在游戏里不等价，武器不能互换着戴。
    */
@@ -80,45 +79,39 @@
   var state = {
     tab: 'gear',        // 'gear' | 'talents'
     key: '',            // 'DEATHKNIGHT/BLOOD/Deathbringer'
-    // 'guide' | 'rio'（第 16 轮：GearInsight 那两个视角撤了，见 renderGear 的 VIEWS）
-    //   guide = guide-site.invalid 的编辑推荐（**默认视角**，用户第 15 轮定的）
+    // 'simc' | 'rio'（第 16 轮：GearInsight 那两个视角撤了，见 renderGear 的 VIEWS）
+    //   simc = SimulationCraft 默认配置（**默认视角**）
     //   rio = raider.io 实战分布
     //
     // 界面上只有这两个按钮，但 effectiveView() 还会返回 'raid' / 'mplus' ——
-    // 那是 **GearInsight 兜底**，不是用户能选的视角：app/guide-data.js 是
-    // 懒加载的，首屏那一瞬间 mrPick() 还是 null，得有东西画。
-    view: 'guide',
+    // 那是 **GearInsight 兜底**，不是用户能选的视角：app/simc-data.js 是
+    // 懒加载的，首屏那一瞬间 simPick() 还是 null，得有东西画。
+    view: 'simc',
     tcat: 'raid',       // 'raid' | 'mplusHigh' | 'mplusFarm'
     charKey: '',        // 对照哪个角色的实际装备，'' = 不对照
     build: -1,          // 天赋树画哪一套，-1 = 该类别里用得最多的那套
     loadout: 0,         // 显示第几条官方导入串（rioLoadouts 排序后的下标）
     // 「榜上热门天赋串」看团本还是大秘境（第 20 轮）。
-    // **持久化**，和 mrKind 同一个道理：它是两个固定的字，而且一个人在准备打
-    // 团本的话每次打开都要看团本那份。两份数据来源不同 ——
-    // 大秘境是 raider.io，团本是 Warcraft Logs（见 loKinds()）。
+    // **持久化**：它是两个固定的字，而且一个人在准备打团本的话每次打开都要看
+    // 团本那份。两份数据来源不同 —— 大秘境是 raider.io，团本是 Warcraft Logs（见 loKinds()）。
     loKind: 'mplus',
-    // 天赋页的 guide 那一路（第 15 轮：天赋也按 guide 来）。
-    // mrKind 是 'mplus' | 'raid'，mrBuild 是该类型里第几套方案，
-    // mrSub 是「打包了两条英雄树」时画哪一条（0 = 用方案里第一条）。
+    // SimC 那一路：simIdx 是这个专精的第几份配置（有的专精按英雄天赋各一份），
+    // 装备页和天赋页**共用**，两页说的是同一份配置；simSub 是串里点了两条英雄天赋时
+    // 画哪一条（0 = 第一条）。
     //
-    // **mrKind 持久化，mrBuild / mrSub 不。** 两者性质不同：
-    //   · mrKind 是 'raid' / 'mplus' 两个**固定的字**，重抓数据也还是这两个。
-    //     一个人在准备打团本，那他每次打开天赋页要看的都是团本那一份 ——
-    //     不存的话每次都跳回大秘境，他得手动点回去（换个专精也要再点一次）。
-    //   · mrBuild / mrSub 是**数组下标**，重抓数据后会指向另一套方案。
-    //     存下来只会让用户下次打开看到一套他没选过的天赋，而界面上完全看不出来。
-    mrKind: '',
-    mrBuild: 0,
-    mrSub: 0,
-    // 下面那三棵树画哪一套：'mr' = guide 方案（默认），'lo' = 上面榜上选中那一条。
-    // **持久化**（和 mrKind 同一个道理：它是两个固定的字，不是数组下标）。
-    treeSrc: 'mr'
+    // **两个都不持久化**：它们是**数组下标**，重抓数据后会指向另一份配置。
+    // 存下来只会让用户下次打开看到一份他没选过的配置，而界面上完全看不出来。
+    simIdx: 0,
+    simSub: 0,
+    // 下面那三棵树画哪一套：'sim' = SimC 配置（默认），'lo' = 上面榜上选中那一条。
+    // **持久化**：它是两个固定的字，不是数组下标。
+    treeSrc: 'sim'
   };
 
   var gearLoaded = false, gearLoading = false;
   var talLoaded = false, talLoading = false;
   var rioLoaded = false, rioLoading = false;
-  var mrLoaded = false, mrLoading = false;
+  var simLoaded = false, simLoading = false;
 
   // ------------------------------------------------------------------ 小工具
 
@@ -196,7 +189,7 @@
   var DATA_SOURCES = [
     ['AE_BIS', '装备参照', 'bis-data.js'],
     ['AE_RIO', 'raider.io 榜单', 'rio-data.js'],
-    ['AE_guide', 'guide 攻略快照', 'guide-data.js'],
+    ['AE_SIMC', 'SimC 默认配置', 'simc-data.js'],
     ['AE_WCL', 'Warcraft Logs 天赋', 'wcl-data.js'],
     ['AE_TALENTS', '插件天赋', 'talent-data.js'],
     ['AE_TALENT_TREE', '天赋树结构', 'talent-tree.js'],
@@ -239,7 +232,13 @@
         ? tn('数据标注日期：{date}', { date: data.updatedAt || tr('未提供') })
           + (data.addonVersion ? tn(' · 插件版本 {v}', { v: data.addonVersion }) : '')
         : tr('数据日期：未读取')));
-      if (source[0] === 'AE_guide') row.appendChild(el('span', 'source-caution', '本地更新器保留快照，不自动抓取源站'));
+      // SimC 这份是 GPL-3.0 的衍生数据，许可和提交号就挂在它自己这一行上。
+      if (source[0] === 'AE_SIMC' && data) {
+        // class 不能是 note：.note 那一列是「数据标注日期」，测试按它数每个源一条日期。
+        var lic = el('span', 'source-license', tn('GPL-3.0 · 提交 {sha}', { sha: String(data.commit || '?').slice(0, 7) }));
+        lic.setAttribute('data-tip', tr('衍生自 SimulationCraft 的默认配置文件，按 GPL-3.0 发布，许可全文见 docs/LICENSE-simulationcraft.md。看板其余部分仍是 MIT。'));
+        row.appendChild(lic);
+      }
       list.appendChild(row);
     });
   }
@@ -328,69 +327,77 @@
   }
 
   /**
-   * guide 的编辑推荐（app/guide-data.js，实测 98.4 KB / 40 个专精 / 80 篇指南）。
+   * SimulationCraft 的默认配置（app/simc-data.js，实测 63 KB / 29 个专精 / 47 份配置）。
    *
    * **和上面两份都不是同一个东西。** 三份数据回答的是三个不同的问题：
    *   · BisData（GearInsight）：顶尖玩家的使用率，带属性权重 / 宝石附魔 / 掉落来源；
    *   · rio（raider.io）：榜上真实角色的分布，**带每个部位的真实样本量**；
-   *   · guide：**编辑给出的排序**（Best in Slot / Farmable Alternatives 两张表）。
+   *   · SimC：**模拟器维护者给每个专精配好的那一套**，每个部位一件。
    *
-   * guide 这份**没有样本量也没有使用率** —— 它不是统计，是推荐。
+   * SimC 这份**没有样本量也没有使用率，也没有名次** —— 它不是统计，也不是编辑排的榜。
    * 所以它的行不能画使用率条：那会凭空造出一个没人算过的百分比。
-   * 取而代之画名次（#1 / #2 …），并把 BiS 和「可刷替代」分开标。
+   * 治疗专精等 11 个专精 SimC 没有配置（它不模拟治疗），那些专精退回实战分布。
    */
-  function guide() { return global.AE_guide || null; }
+  function simc() { return global.AE_SIMC || null; }
 
-  /** specId + 类型 -> guide 里那个视角。kind 是 'raid' | 'mplus'。 */
-  function mrView(specId, kind) {
-    var M = guide();
-    if (!M || !M.specs) return null;
-    var s = M.specs[String(specId)];
-    if (!s || !s.views) return null;
-    return s.views[kind] || null;
+  /** specId -> 这个专精的配置列表（profiles[0] 是不带英雄天赋后缀的默认那份），没有就 null。 */
+  function simProfiles(specId) {
+    var S = simc();
+    var sp = S && S.specs ? S.specs[String(specId)] : null;
+    return sp && sp.profiles && sp.profiles.length ? sp.profiles : null;
+  }
+
+  /** 这次要用哪一份配置：{list, idx, p}，下标越界自纠正回 0（simIdx 不持久化）。 */
+  function simPick(specId) {
+    var list = simProfiles(specId);
+    if (!list) return null;
+    var i = state.simIdx;
+    if (!(i >= 0) || i >= list.length) i = 0;
+    return { list: list, idx: i, p: list[i] };
+  }
+
+  /** SimC 的物品元数据 {n 中文名, q 品质, i 图标名}。 */
+  function simItem(itemId) {
+    var S = simc();
+    if (!S || !S.items) return null;
+    return S.items[String(itemId)] || null;
   }
 
   /**
-   * guide 的一个专精挑一个视角出来。团本和大秘境两篇指南都可能有，
-   * 优先给大秘境（面板别处的锁定/进度也是以大秘境为主），没有再退到团本。
-   * 返回 {v 视角, kind 实际用的类型} 或 null。
+   * 配置的按钮名：英雄天赋中文名（来自天赋树的 DB2 名，不是我编的译名）。
+   * 同一专精两份配置的英雄天赋一样时（痛苦术士的默认和 Hellcaller 两份都是地狱召唤者），
+   * 光写名字分不开，就补上文件名后缀；默认那份标「默认」。
    */
-  function mrPick(specId) {
-    var mp = mrView(specId, 'mplus');
-    if (mp) return { v: mp, kind: 'mplus' };
-    var rd = mrView(specId, 'raid');
-    if (rd) return { v: rd, kind: 'raid' };
-    return null;
-  }
-
-  /** guide 的物品元数据 {n 中文名, i 图标名, q 品质}。 */
-  function mrItem(itemId) {
-    var M = guide();
-    if (!M || !M.items) return null;
-    return M.items[String(itemId)] || null;
+  function simLabels(list) {
+    // 英雄天赋名在 app/talent-tree.js 里；装备页是后台拉那棵树的，没到之前先用序号，到了会重画。
+    if (!tree()) {
+      return list.map(function (p, i) { return i === 0 ? tr('默认配置') : tn('配置 {n}', { n: i + 1 }); });
+    }
+    var base = list.map(function (p) {
+      return (p.h || []).map(subTreeName).join(' + ') || tr('（没点英雄天赋）');
+    });
+    var cnt = {};
+    base.forEach(function (n) { cnt[n] = (cnt[n] || 0) + 1; });
+    return base.map(function (n, i) {
+      var tag = i === 0 ? tr('默认') : String(list[i].f).slice(String(list[0].f).length - 5, -5).replace(/^_/, '').replace(/_/g, ' ');
+      if (cnt[n] > 1) return n + '（' + (tag || tr('默认')) + '）';
+      return i === 0 ? n + '（' + tag + '）' : n;
+    });
   }
 
   /**
-   * itemId → 实测装等 + 升级轨道。**guide 自己两样都不给。**
-   *
-   * 为什么要另找来源：guide 的 BiS 表只有「部位 / 物品名 / 掉落位置」三列，
-   * 装等是他们前端拿 `data-wow-item` 那个 blob 现算的，抓下来的 HTML 里没有
-   * （实测：81 篇缓存里 `Item Level` 只出现 2 次，都是一句提醒的正文；
-   * 那个 blob 里 97% 的串在 offset 2 处有个 9~11 位的字段落在装等区间，
-   * 但只有 16 个不同取值、257/259/261 占绝大多数 —— 那是标志位不是装等；
-   * 他们的 backend embed 接口要 OAuth，302 到 /oauth2/start，走不通）。
+   * itemId → 实测装等 + 升级轨道。只在 **SimC 配置定不出装等**的部位上借用
+   * （实测 738 个部位里 52 个，多数是制造装备 —— 装等跟着制造品质走，配置里不写）。
    *
    * 本机有两份**实测**值，都不用联网：
-   *   · GearInsight（app/bis-data.js）：顶尖玩家身上这件的装等 + 升级轨道，
-   *     实测覆盖 guide 的 1337/1358 次引用。同一件在不同专精 / 视角下
-   *     不一定一样（498 件里 274 件有分歧 —— 升级等级不同），这里取**最高**那条，
-   *     轨道和可升级上限跟着那条一起拿，免得三个数字来自三次不同的测量。
-   *   · raider.io（app/rio-data.js 的 slots[*].d[*][2]）：榜上玩家穿这件时的
-   *     **平均**装等，再补 15 次引用。
+   *   · GearInsight（app/bis-data.js）：顶尖玩家身上这件的装等 + 升级轨道。
+   *     同一件在不同专精 / 视角下不一定一样（498 件里 274 件有分歧 —— 升级等级不同），
+   *     这里取**最高**那条，轨道和可升级上限跟着那条一起拿，免得三个数字来自三次不同的测量。
+   *   · raider.io（app/rio-data.js 的 slots[*].d[*][2]）：榜上玩家穿这件时的**平均**装等。
    * 两边都有的 497 件里，GearInsight 的最高值比 rio 的均值中位高 10 点（p95 +23）
    * —— 一个是「顶尖玩家升满的样子」，一个是「榜上平均的样子」，不是同一个量，
    * 所以**不混着平均**：只记是哪个来源给的，界面上说清。
-   * 剩下 6 次引用两边都没有，那就不显示装等 —— 不猜。
+   * 两边都没有，那就不显示装等 —— 不猜。
    */
   var measuredCache = null;
   function measuredGear() {
@@ -438,59 +445,34 @@
   }
 
   /**
-   * guide 的一个视角 -> 面板要的行形状。
+   * SimC 的一份配置 -> 面板要的行形状。每个部位**只有一行**（配置里就一件）：
+   *   `[itemId, 装等, 使用率, 来源下标, 可升级上限, 轨道码, 人数, 部位原样, 装等是谁给的]`
    *
-   * 产物里每个槽位是 `bis: [itemId…]` 和 `alt: [itemId…]` 两个**有序**列表
-   * （顺序就是 guide 表里的顺序）。这里拼成面板的行形状：
-   *   `[itemId, 装等, 使用率, 来源下标, 可升级上限, 轨道码, 人数, 名次, 是不是替代件,
-   *     装等是谁测的]`
+   * 第 8 位是配置里那一格原样（附魔 / 宝石 / 装饰 / 制造副属性在它上面），第 9 位是装等来源：
+   *   'c' = 配置写明的 ilevel，'b' = 按 bonus_id 查表得到的（这两种是 SimC 自己的数），
+   *   'g' / 'r' = 配置定不出、从 measuredGear() 借的（GearInsight 实测最高 / raider.io 榜上均值），
+   *   '' = 都没有。不记来源的话「344」和「331」看着是同一种数，其实一个是配置写的、一个是借来的。
    *
-   * 最后三位是 guide 独有的（rio 的行到第 7 位，BisData 的行到第 6 位）。
-   * 装等 / 可升级上限 / 轨道码来自 measuredGear() —— guide 自己不给，见那个函数的注释。
+   * 来源下标写 **-3** 当标记（rio 用 -1）。为什么不用 undefined：0 是合法下标，
+   * 拿假值判断会把「来源下标为 0 的 BisData 行」一起吞掉。
    *
-   * 来源下标写 **-2** 当标记（rio 用 -1）。为什么不用 undefined：0 是合法下标，
-   * 拿假值判断会把「来源下标为 0 的 BisData 行」一起吞掉 —— rio 那边就是这么定的，
-   * 这里沿用同一套约定。
-   *
-   * 使用率一律写 **null**，不是 0 也不是 100。guide 没有这个量，
-   * 写 0 会画出一条空条，写 100 会画满 —— 两个都是在编数字。renderItem 见到
-   * null 就不画那条，改画名次徽章。
+   * 使用率一律写 **null**，不是 0 也不是 100。SimC 没有这个量，写 0 会画出一条空条，
+   * 写 100 会画满 —— 两个都是在编数字。renderItem 见到 null 就不画那条。
    */
-  function mrSlots(v) {
+  function simSlots(p) {
     var rows = {};
-    // n 是**空表**，而且必须存在。guide 没有样本量，但调用点会读 conv.n[slotId] ——
-    // 不给这个字段就是 TypeError（第一版就这么炸的：加了视角之后渲染检查直接崩）。
+    // n 是**空表**，而且必须存在：调用点会读 conv.n[slotId]，不给这个字段就是 TypeError。
     // 空表的语义正好对：查任何部位都得到 undefined，renderSlot 于是不画 N 徽章。
     var ns = {};
-    if (!v) return { rows: rows, n: ns };
-    var ITEMS = (guide() || {}).items || {};
-    var MEAS = measuredGear();
-    // 装等 / 可升级上限 / 轨道码都从 measuredGear() 借，第 10 位记**是谁给的**
-    // （'g' = GearInsight 顶尖玩家实测最高，'r' = raider.io 榜上均值，'' = 两边都没有）。
-    // 不记来源的话界面上「703」和「312」看着是同一种数，其实一个是升满的样子、
-    // 一个是榜上平均的样子。
-    function meas(id) { return MEAS[id] || { v: 0, mx: 0, trk: 0, src: '' }; }
-    Object.keys(v.bis || {}).forEach(function (k) {
-      var list = v.bis[k] || [];
-      rows[k] = list.map(function (id, i) {
-        var m = meas(id);
-        return [id, m.v, null, -2, m.mx, m.trk, null, i + 1, false, m.src];
-      });
+    if (!p || !p.slots) return { rows: rows, n: ns };
+    var MEAS = null;
+    Object.keys(p.slots).forEach(function (k) {
+      var r = p.slots[k];
+      if (r.v) { rows[k] = [[r.i, r.v, null, -3, 0, 0, null, r, r.s]]; return; }
+      MEAS = MEAS || measuredGear();
+      var m = MEAS[r.i] || { v: 0, mx: 0, trk: 0, src: '' };
+      rows[k] = [[r.i, m.v, null, -3, m.mx, m.trk, null, r, m.src]];
     });
-    // 可刷替代接在后面，标上 alt 位。同一件已经在 BiS 里就不重复列。
-    Object.keys(v.alt || {}).forEach(function (k) {
-      var list = v.alt[k] || [];
-      var into = rows[k] = rows[k] || [];
-      var seen = {};
-      into.forEach(function (r) { seen[r[0]] = 1; });
-      list.forEach(function (id, i) {
-        if (seen[id]) return;
-        var m = meas(id);
-        into.push([id, m.v, null, -2, m.mx, m.trk, null, i + 1, true, m.src]);
-      });
-    });
-    // ITEMS 只是拿来确认物品池在（校验器已经验过引用完整性），这里不再逐行查。
-    void ITEMS;
     return { rows: rows, n: ns };
   }
 
@@ -967,18 +949,17 @@
   /**
    * 换专精 / 换职业时，把「第几套」这类**下标型**状态归零。
    *
-   * 为什么必须做：mrBuild / mrSub / build / loadout 都是数组下标，而每个专精的
-   * 数组是各自的。不归零的话，在 A 专精选了第 6 套，切到 B 专精会**落在 B 的
-   * 第 6 套**上 —— 那是一套用户没选过的天赋，而界面上完全看不出异常
-   * （高亮、点数、树全都自洽，只是这套不是他挑的）。实测毁灭术士和射击猎人
-   * 的团本方案都有 10 套，切过去正好命中一套按首领分的方案。
+   * 为什么必须做：simIdx / simSub / build / loadout 都是数组下标，而每个专精的
+   * 数组是各自的。不归零的话，在 A 专精选了第 3 份，切到 B 专精会**落在 B 的
+   * 第 3 份**上 —— 那是一份用户没选过的配置，而界面上完全看不出异常
+   * （高亮、点数、树全都自洽，只是这份不是他挑的）。
    *
-   * mrKind 不在这里归零：它是 raid / mplus 两个**固定的字**，不是下标，
+   * loKind / treeSrc 不在这里归零：它们是两个**固定的字**，不是下标，
    * 换专精之后含义不变（见 state 那段注释）。
    */
   function resetPicks() {
-    state.mrBuild = 0;
-    state.mrSub = 0;
+    state.simIdx = 0;
+    state.simSub = 0;
     state.loadout = 0;
     state.build = -1;   // -1 = 该类别里用得最多的那套（插件那条路的默认）
   }
@@ -1048,21 +1029,24 @@
   /**
    * 当前视角的数据还没到（或这个专精没有）时该退到哪个视角。
    *
-   * 为什么需要它：默认视角是 guide，但 app/guide-data.js 是**懒加载**的，
-   * 首屏那一瞬间 mrPick() 恒为 null。不兜底的话面板会空着一下，
-   * 而「空一下」和「这个专精真的没数据」在界面上长得一模一样。
+   * 两种「没有」要分开：
+   *   · app/simc-data.js 还没到（**懒加载**，首屏那一瞬间 simPick() 恒为 null）——
+   *     先画 BisData 的大秘境那份占着，到了重画；不先跳到实战分布，免得首屏闪一下换个视角；
+   *   · 到了，但**这个专精 SimC 没有配置**（治疗等 11 个专精）—— 退到实战分布，
+   *     那是这些专精能给的最接近「该穿什么」的数据。
    *
    * **只改这一次渲染用哪个视角，不动 state.view** —— 数据到了会重画（见
-   * ensureguide 的回调），那时候就该自动回到用户选的 guide 视角。
+   * ensureSimc 的回调），那时候就该自动回到用户选的视角。
    * 把 state.view 改掉的话用户的选择就被我悄悄覆盖了。
    */
   function effectiveView(s) {
     var v = state.view;
-    if (v === 'guide' && !mrPick(s.specId)) {
-      // guide 还没到：退到 BisData 的大秘境视角（它是随包同步加载的，一定在）
-      return s.mplus && Object.keys(s.mplus).length ? 'mplus' : 'raid';
+    var gi = s.mplus && Object.keys(s.mplus).length ? 'mplus' : 'raid';
+    if (v === 'simc' && !simPick(s.specId)) {
+      if (!simc()) return gi;                        // 还在加载
+      v = 'rio';                                      // 这个专精 SimC 没有
     }
-    if (v === 'rio' && !rioSpec(s.specId)) return 'mplus';
+    if (v === 'rio' && !rioSpec(s.specId)) return gi;
     return v;
   }
 
@@ -1077,19 +1061,18 @@
     // 副标题要说清「你现在看的是哪份数据」——两份数据的日期和范围都不一样，
     // 混着显示一个日期是在撒谎。
     var subRs = view === 'rio' ? rioSpec(s.specId) : null;
-    var subMr = view === 'guide' ? mrPick(s.specId) : null;
+    var subSim = view === 'simc' ? simPick(s.specId) : null;
     if (subRs) {
       var R = rio();
       setSub(tn('数据 {date}　raider.io {season}　样本 {n} 人', {
         date: (R && R.updatedAt) || '?', season: (R && R.season) || '?', n: subRs.nGear || 0
       }));
-    } else if (subMr) {
-      // 这里**不写样本量**，因为 guide 没有。写来源指南的 slug ——
-      // 那是可追溯的东西：照着它能翻到原页面自己核对。
-      var M = guide();
-      setSub(tn('数据 {date}　guide-site.invalid　{guide}　编辑推荐，无样本量', {
-        date: (M && M.updatedAt) || '?',
-        guide: tr(subMr.kind === 'mplus' ? '大秘境指南' : '团本指南')
+    } else if (subSim) {
+      // 这里**不写样本量**，因为 SimC 没有。写配置文件名 ——
+      // 那是可追溯的东西：照着它和提交号能翻到原文件自己核对。
+      var SC = simc();
+      setSub(tn('数据 {date}　SimulationCraft {file}　模拟器默认配置，无样本量', {
+        date: (SC && SC.updatedAt) || '?', file: subSim.p.f
       }));
     } else {
       setSub(tn('数据 {date}　{zone}', { date: B.updatedAt || '?', zone: s.zone || '' }));
@@ -1100,19 +1083,21 @@
     var viewWrap = el('span', 'seg');
     // 第 16 轮撤掉了 GearInsight 的「团本视角 / 大秘境视角」两个按钮（用户定的）。
     // **数据文件 app/bis-data.js 留着**：它还喂着装等、升级轨道、掉落来源、
-    // 属性目标、宝石 / 附魔 / 消耗品，以及 guide 没加载时的兜底渲染 ——
-    // 删文件会让这些静默变空，而 guide 只能补回其中一部分。
+    // 属性目标、宝石 / 附魔 / 消耗品，以及 SimC 没加载时的兜底渲染 ——
+    // 删文件会让这些静默变空，而 SimC 只能补回其中一部分。
     var VIEWS = [
-      ['guide', '最佳推荐', 'guide-site.invalid 的职业指南：编辑给出的 Best in Slot 排序 '
-        + '+ 可刷替代。没有样本量也没有使用率 —— 它是推荐，不是统计'],
+      ['simc', '模拟配装', 'SimulationCraft 维护者给这个专精配好、拿来跑默认模拟的那一套：每个部位一件，'
+        + '团本和大秘境共用。没有名次、没有样本量 —— 它不是排行，也不是统计'],
       ['rio', '实战分布', 'raider.io 大秘境排行榜上真实角色的装备统计，每个部位都带样本量']
     ];
     VIEWS.forEach(function (v) {
-      // rio 视角只有在 app/rio-data.js 真的加载进来、而且这个专精有数据时才给。
+      // 视角只有在数据真的加载进来、而且这个专精有数据时才给。
       // 画一个点不下去的按钮比不画更糟。
       if (v[0] === 'rio' && !rioSpec(s.specId)) return;
-      if (v[0] === 'guide' && !mrPick(s.specId)) return;
-      var b = choiceButton(v[1], state.view === v[0] ? 'on' : null, function () {
+      if (v[0] === 'simc' && !simPick(s.specId)) return;
+      // 高亮按**这次真正画的视角**：没有 SimC 配置的专精退到实战分布时，亮的得是实战分布 ——
+      // 按 state.view 判的话一个按钮都不亮，看不出现在画的是哪份。
+      var b = choiceButton(v[1], view === v[0] ? 'on' : null, function () {
         state.view = v[0];
         persist({ bisView: v[0] });
         render();
@@ -1121,6 +1106,24 @@
       viewWrap.appendChild(b);
     });
     bar.appendChild(viewWrap);
+
+    // 一个专精有几份配置（按英雄天赋各一份）时给个开关。和天赋页共用 simIdx ——
+    // 两页说的是同一份配置，在这边选了「达拉然之民」，切到天赋页画的也是那一份。
+    var sim = view === 'simc' ? simPick(s.specId) : null;
+    if (sim && sim.list.length > 1) {
+      var pw = el('span', 'seg sim-pick');
+      var names = simLabels(sim.list);
+      sim.list.forEach(function (p, i) {
+        var pb = choiceButton(names[i], i === sim.idx ? 'on' : null, function () {
+          state.simIdx = i;
+          state.simSub = 0;
+          render();
+        });
+        pb.setAttribute('data-tip', tn('{file}\n同一专精按英雄天赋各配一份。有的几份装备完全一样、只差天赋。', { file: p.f }));
+        pw.appendChild(pb);
+      });
+      bar.appendChild(pw);
+    }
 
     var chars = characters(s.cls);
     if (chars.length) {
@@ -1153,22 +1156,29 @@
     }
     host.appendChild(bar);
 
-    // rio 视角走另一份数据：它的行形状不同（人数而不是百分比），所以先转一次。
-    var rs = view === 'rio' ? rioSpec(s.specId) : null;
-    var mr = view === 'guide' ? mrPick(s.specId) : null;
-    var conv = rs ? rioSlots(rs) : (mr ? mrSlots(mr.v) : null);
+    // 选的是模拟配装、但这个专精 SimC 没有配置：已经退到了别的视角，**必须说出来**，
+    // 不然「模拟配装」按钮凭空不见了，看着像功能坏了。
+    if (state.view === 'simc' && simc() && !simPick(s.specId)) {
+      var nosim = el('p', 'note sim-none', view === 'rio'
+        ? '这个专精 SimulationCraft 没有默认配置（它不模拟治疗，部分专精也还没有），下面是实战分布。'
+        : '这个专精 SimulationCraft 没有默认配置（它不模拟治疗，部分专精也还没有），下面是随包参照表的统计。');
+      host.appendChild(nosim);
+    }
 
-    host.appendChild(renderSpecMeta(s, mr ? mr.kind : null));
+    // rio / SimC 视角各走自己那份数据：行形状和 BisData 不同，所以先转一次。
+    var rs = view === 'rio' ? rioSpec(s.specId) : null;
+    var conv = rs ? rioSlots(rs) : (sim ? simSlots(sim.p) : null);
+
+    host.appendChild(renderSpecMeta(s));
     // 属性权重 / 达成度是 **GearInsight 独有的**，raider.io 的角色档案里没有，
     // 所以 rio 视角下不画 —— 脚注明写了「这个视角没有属性权重」，一边这么写一边
     // 把另一个数据源的权重摆在上面，那句话就成了假话。
     //
-    // guide 视角**改成画**（第 16 轮）。上一版不画，理由是「guide 的属性
-    // 优先级是正文文字，产物里没抓，不能借别的来源的数字充」。但第 16 轮撤掉了
-    // GearInsight 那两个视角，于是这一块在界面上**一次都不会出现**了 ——
-    // 用「宁缺毋滥」换来的是整块功能消失。现在画出来，并在标题里写明是谁给的：
+    // 模拟配装视角**画**：SimC 配置里没有属性目标，但第 16 轮撤掉了 GearInsight
+    // 那两个视角之后，不在这里画的话这一块在界面上**一次都不会出现** ——
+    // 用「宁缺毋滥」换来的是整块功能消失。画出来，并在标题里写明是谁给的：
     // 说清来源的借用不是撒谎，静默消失才是。
-    if (!rs) host.appendChild(renderStatTargets(s, mr ? mr.kind : null, !!mr));
+    if (!rs) host.appendChild(renderStatTargets(s, !!sim));
 
     // ---- 部位
     var slots = conv ? conv.rows : (s[view] || {});
@@ -1200,7 +1210,7 @@
      * 为什么会一样：rio 的 finger1 / finger2 是**两份独立采样**，而戴在哪个孔是玩家
      * 随手插的，所以同一枚热门戒指在两份里都排第一。实测 80 对里 **51 对（64%）**
      * 首选是同一件（奥法两格都是「窃来的珍贵指环」，42 人 / 40 人）。
-     * guide 那边只有 2/160 对撞（编辑自己列重了），同一条规则一起管。
+     * SimC 配置一格只有一件，两格本来就不同；同一条规则照样过一遍，不另开分支。
      *
      * 去重的办法是**第二格往下取一件**，而不是把两份分布合起来重算：
      * 合起来要换一个分母（200 个戒指孔）、把每一行的百分比含义也改掉，
@@ -1261,7 +1271,7 @@
         gapWant += g.want;
         if (!gapWorst || g.d > gapWorst.d) gapWorst = { d: g.d, slot: slotId };
       }
-      // conv.n 可能整个不存在（guide 那份没有样本量），所以这里不假设它在。
+      // conv.n 可能整个不存在（BisData 那份没有样本量），所以这里不假设它在。
       cells[slotId] = renderSlot(slotId, rows, mine, hit,
         conv && conv.n ? conv.n[slotId] : null, hitVia, worn, twinId, pickIdx);
     });
@@ -1299,7 +1309,7 @@
       sum.appendChild(el('b', null, ch.name));
       /*
        * **两个视角这句话说的不是同一件事，所以用词也不一样。**
-       *   · 最佳推荐（guide）：列表是编辑挑的几件，「对上」= 你穿的正是推荐件。
+       *   · 模拟配装（SimC）：每个部位就一件，「对上」= 你穿的正是配置里那件。
        *   · 实战分布（rio）：列表是 100 个采样玩家穿过的**一切**，不截断 ——
        *     全库 7249 行里 2273 行（31.4%）是「恰好 1 个人穿」。在这里说「对上」
        *     会让「和 1/100 的人一样」看起来跟「和 88/100 的人一样」一个分量。
@@ -1319,8 +1329,9 @@
           matched: matched, missing: missing,
           unknown: unknown ? tn('，{n} 个部位存档里没记录', { n: unknown }) : ''
         })));
-        sum.appendChild(el('span', 'note', tr(
-          '　「对上」= 身上这件正好在该部位的推荐列表里。装等更高的同名替代品不算。戒指和饰品按一对算 —— 两个格子在游戏里等价，戴在哪个孔都算对上。')));
+        sum.appendChild(el('span', 'note', tr(sim
+          ? '　「对上」= 身上这件正好是这份配置在该部位用的那件。戒指和饰品按一对算 —— 两个格子在游戏里等价，戴在哪个孔都算对上。'
+          : '　「对上」= 身上这件正好在该部位的推荐列表里。装等更高的同名替代品不算。戒指和饰品按一对算 —— 两个格子在游戏里等价，戴在哪个孔都算对上。')));
       }
       // ---- 装等差距汇总。「差 13 件」说不出**差多远**，这一行说。
       // 分母写出来：能比的只有 gapN 个部位（存档没记的、推荐件查不到装等的都比不了）。
@@ -1348,8 +1359,9 @@
             n: gapWorst.d
           })));
         }
-        gsum.appendChild(el('span', 'note', tr(
-          '　比的是你身上这件和这个部位首选那一件。推荐件的装等取自本机两份实测数据（见每一行的提示），是个参考量级。')));
+        gsum.appendChild(el('span', 'note', tr(sim
+          ? '　比的是你身上这件和这份配置在该部位用的那件。配置的装等多数是它自己写的；定不出的几格借本机实测数据（见每一行的提示）。'
+          : '　比的是你身上这件和这个部位首选那一件。推荐件的装等取自本机两份实测数据（见每一行的提示），是个参考量级。')));
         // **属性为什么只有一边。** 推荐件的属性有（下面每一行都印着），
         // 而你身上那件的属性**存档里没有** —— AlterEgo 存的是名字 / 装等 / 品质 /
         // 物品链接，没有属性字段；链接里的 bonusID 理论上能推出属性，但那要一张
@@ -1365,7 +1377,7 @@
         // 「展开上面的『属性目标』」**只在那一块真的画出来时才说**。
         // 上面 renderStatTargets 是 `if (!rs)` 才画的（实战分布视角不画它），
         // 而这句话原来无条件画，于是在那个视角里指向一个屏幕上不存在的折叠块 ——
-        // 和第 19 轮「和下面 guide 的方案不是同一套」指向空白是同一类错：
+        // 和第 19 轮「和下面的方案不是同一套」指向空白是同一类错：
         // **方位词和它指的那个东西必须一起判断。**
         if (!rs) {
           stNote.appendChild(el('span', 'note',
@@ -1394,13 +1406,10 @@
 
   /**
    * 专精那一行小字（毕业装等 / 英雄天赋 / 武器搭配）。
-   *
-   * kind 是当前看的是哪一篇 guide 指南（'raid' | 'mplus'），null = 不是 guide 视角。
-   * **武器分布按它取**，而不是按 state.view —— 第 16 轮撤掉「团本视角」按钮之后
-   * state.view 再也不会等于 'raid'，那个三元表达式于是恒取大秘境那一份，
-   * 看团本指南的人会拿到大秘境的武器搭配，界面上分不出来。
+   * 武器分布取 GearInsight 的大秘境高层那一份：第 16 轮撤掉「团本视角」之后，
+   * 面板上已经没有哪个视角是专门看团本的。
    */
-  function renderSpecMeta(s, kind) {
+  function renderSpecMeta(s) {
     var wrap = el('div', 'bis-meta');
     function cell(k, v, tip) {
       var c = el('span', 'mcell');
@@ -1417,7 +1426,7 @@
     wrap.appendChild(cell('英雄天赋', s.hero ? heroName(s.hero) : tr('(无)'),
       '这套推荐是按这个英雄天赋统计的'));
 
-    var w = s.weapon && s.weapon[kind === 'raid' ? 'raid' : 'mplusHigh'];
+    var w = s.weapon && s.weapon.mplusHigh;
     if (w) {
       var parts = Object.keys(w).sort(function (a, b) { return w[b] - w[a]; })
         .map(function (k) { return tr(WEAPON_ZH[k] || k) + ' ' + pct(w[k]); });
@@ -1434,14 +1443,13 @@
     '1hOff': '单手+副手', 'ranged': '远程', 'titansGrip': '泰坦之握'
   };
 
-  function renderStatTargets(s, kind, borrowed) {
+  function renderStatTargets(s, borrowed) {
     var B = bis();
     var wrap = el('details', 'sec bis-stats');
     var sum = el('summary', null, '属性目标');
     wrap.appendChild(sum);
 
-    var which = kind === 'raid' ? 'raid' : 'high';
-    var t = (s.target && s.target[which]) || {};
+    var t = (s.target && s.target.high) || {};
     var keys = ['crit', 'haste', 'mastery', 'versatility'];
     var total = 0;
     keys.forEach(function (k) { total += t[k] || 0; });
@@ -1453,18 +1461,12 @@
     sum.textContent = tr('属性目标') + '　' + keys.filter(function (k) { return t[k]; })
       .map(function (k) { return tr(B.statNames[k] || k) + ' ' + pct(t[k]); }).join('　');
     if (borrowed) {
-      // 借来的数字必须自己说明是借来的，否则在「最佳推荐」这个标题下面，
-      // 它看起来就是 guide 给的。
+      // 借来的数字必须自己说明是借来的，否则在「模拟配装」这个标题下面，
+      // 它看起来就是 SimC 给的。
       //
-      // 这句话原来有 40 多个字，塞在折叠标题那一行里会换行、把百分比顶下去。
-      // 折叠标题应该一眼扫过，长解释放 tooltip。
-      // 顺便修一处**说错的事实**：原来写「guide 的属性优先级写在正文里」——
-      // 不对。第 19 轮实测过：那是页面里一串编码（data-wow-data），
-      // 后端接口要 Discord 登录，用户实测 403。所以是「抓不到」，不是「在正文里」。
-      var from = el('span', 'note', '　本机实测数据，非 guide');
-      from.setAttribute('data-tip', tn('这一组是顶尖玩家的属性统计值（{content}），来自本机两份实测数据，不是 guide 给的。\nguide 的属性优先级在页面里是一串编码，后端接口要登录且实测 403，所以抓不到 —— 与其猜一个顺序，不如摆出这份能追溯的。', {
-        content: tr(kind === 'raid' ? '团本' : '大秘境')
-      }));
+      // 折叠标题应该一眼扫过（长了会换行、把百分比顶下去），长解释放 tooltip。
+      var from = el('span', 'note', '　本机实测数据，非 SimC');
+      from.setAttribute('data-tip', tr('这一组是顶尖玩家的属性统计值（大秘境），来自本机实测数据，不是 SimC 给的。\nSimC 的默认配置只写装备和天赋，不写属性目标。'));
       sum.appendChild(from);
     }
 
@@ -1521,8 +1523,9 @@
     var top = rows[pickIdx > 0 && rows[pickIdx] ? pickIdx : 0];
     var want = top[1];
     if (!want) return null;
-    var srcText = top[3] === -2
-      ? (top[9] === 'r' ? tr('raider.io 榜上均值') : tr('顶尖玩家实测最高'))
+    var srcText = top[3] === -3
+      ? (top[8] === 'c' || top[8] === 'b' ? tr('SimC 配置')
+        : top[8] === 'r' ? tr('raider.io 榜上均值') : tr('顶尖玩家实测最高'))
       : (top[3] === -1 ? tr('raider.io 榜上均值') : tr('顶尖玩家实测'));
     return { d: Math.round(want - mine.itemLevel), mine: mine.itemLevel, want: want, srcText: srcText };
   }
@@ -1548,9 +1551,9 @@
     rows.forEach(function (r) { sum += (typeof r[2] === 'number' ? r[2] : 0); });
     sum = Math.round(sum * 10) / 10;
 
-    // guide 的行认自己：来源下标 -2。判据放在数据上而不是外面传进来的参数上，
-    // 是因为这个函数已经有 5 个参数了，再加一个「视角」很容易和 sampleN 打架。
-    var mrRows = rows.length && rows[0][3] === -2;
+    // SimC 的行认自己：来源下标 -3。判据放在数据上而不是外面传进来的参数上，
+    // 是因为这个函数已经有 9 个参数了，再加一个「视角」很容易和 sampleN 打架。
+    var simRows = rows.length && rows[0][3] === -3;
 
     // 这一格推荐的是第几行。**必须在这里算**：成对的第二格在 renderGear 的
     // pickFor 里已经跳过了另一格占掉的那件（pickIdx 可能是 1），下面的装等
@@ -1559,19 +1562,13 @@
     // 徽章比的是被另一格占掉的那件，和本格显示的推荐件对不上。
     var pi = (pickIdx > 0 && rows[pickIdx]) ? pickIdx : 0;
 
-    if (mrRows) {
+    if (simRows) {
       // **既没有样本量也没有覆盖率。** 上面那个 sum 在这里恒等于 0
       // （使用率全是 null），所以走原来那条分支会画出「记录 0.0%」——
-      // 一个完全编出来的数字。这里改成报「几件首选 + 几件替代」，都是真的。
-      var nBis = 0, nAlt = 0;
-      rows.forEach(function (r) { if (r[8]) nAlt++; else nBis++; });
-      var mb2 = el('span', 'tag cov mr', nAlt
-        ? tn('首选 {bis} ・替代 {alt}', { bis: nBis, alt: nAlt })
-        : tn('首选 {bis}', { bis: nBis }));
-      mb2.setAttribute('data-tip', tn('guide 这个部位给了 {bis} 件首选{alt}。\n这份数据没有样本量也没有使用率 —— 它是编辑的推荐排序，不是统计。\n想看「多少人真的这么穿」，切到「实战分布」视角。', {
-        bis: nBis, alt: nAlt ? tn('、{n} 件可刷替代', { n: nAlt }) : ''
-      }));
-      head.appendChild(mb2);
+      // 一个完全编出来的数字。这里只说它是什么。
+      var sb = el('span', 'tag cov sim', 'SimC');
+      sb.setAttribute('data-tip', tr('SimulationCraft 默认配置在这个部位用的那一件。\n每个部位只有一件：没有名次、没有样本量，也不是使用率统计。\n想看「多少人真的这么穿」，切到「实战分布」视角。'));
+      head.appendChild(sb);
     } else if (sampleN) {
       // 有真实样本量：显示 N，并按统计学的老规矩提醒 N 太小的时候别当结论。
       // 30 这个界不是我拍的 —— 比例统计在 N=100 时 95% 置信区间约 ±10%，
@@ -1679,22 +1676,21 @@
      * 完整分布仍然在下面（默认折起来，点这一格的头展开），另外也塞进悬停提示里。
      */
     /*
-     * **行少的格子直接把行摆出来，不折叠**（第 21 轮用户定的：「最佳推荐请保持图标
-     * 和替代项」）。guide 那边一格最多 4 行（实测分布 {1:14, 2:1106, 3:118, 4:6}）——
-     * 首选 + 替代加起来就那么点，折起来只会把「替代项」藏掉，还得多点一下。
+     * **行少的格子直接把行摆出来，不折叠**（第 21 轮用户定的：「请保持图标和替代项」）。
+     * 行少的格子折起来只会把那几行藏掉，还得多点一下；SimC 一格就一行。
      * 实战分布那边一格 5~29 行，摘要 + 点开才有意义。
      * 判据用**行数**而不是视角：rio 里的副手这类瘦格子（2~5 行）也一样直接摆出来。
      */
-    var flat = mrRows || rows.length <= 4;
+    var flat = rows.length <= 4;
     if (flat) wrap.classList.add('flat');
 
     var top = rows[pi] || null;
     if (top && !flat) {
-      var tRi = (top[3] === -1 ? rioItem(top[0]) : (top[3] === -2 ? mrItem(top[0]) : null));
+      var tRi = (top[3] === -1 ? rioItem(top[0]) : (top[3] === -3 ? simItem(top[0]) : null));
       var tName = (tRi && tRi.n) || (B.items[top[0]] || {}).n || tn('物品 {id}', { id: top[0] });
       var line = el('div', 'slot-top');
-      // 星号 + 分量：rio 有真实使用率和人数，guide 只有名次（它不是统计）。
-      var badge = mrRows ? 'BiS' : (typeof top[2] === 'number' ? pct(top[2]) : '—');
+      // 星号 + 分量：rio 有真实使用率和人数，BisData 有使用率。
+      var badge = typeof top[2] === 'number' ? pct(top[2]) : '—';
       line.appendChild(el('span', 'star', '★'));
       // 图标也要留（用户要求）——只有名字的一行认起来比有图标慢得多。
       var tImg = iconImg(top[0], 20, tRi ? tRi.i : '');
@@ -1738,7 +1734,7 @@
 
     // 悬停提示：前 8 件 + 还有多少件。**放在格子头上**，所以不展开也能看个大概。
     var tipLines = rows.slice(0, 8).map(function (r) {
-      var ri2 = (r[3] === -1 ? rioItem(r[0]) : (r[3] === -2 ? mrItem(r[0]) : null));
+      var ri2 = (r[3] === -1 ? rioItem(r[0]) : (r[3] === -3 ? simItem(r[0]) : null));
       var nm2 = (ri2 && ri2.n) || (B.items[r[0]] || {}).n || tn('物品 {id}', { id: r[0] });
       var who2 = (r[3] === -1 && r[6] != null && sampleN)
         ? tn('　{people}/{total} 人', { people: r[6], total: sampleN })
@@ -1789,20 +1785,20 @@
     var B = bis();
     var itemId = r[0], ilvl = r[1], usage = r[2], srcIdx = r[3], mx = r[4], trk = r[5];
     var isRio = srcIdx === -1, people = r[6];
-    // guide 视角：来源下标 -2，使用率恒为 null（它不是统计，没有这个量），
-    // 第 7 位是名次，第 8 位标它是不是「可刷替代」。
-    var isMr = srcIdx === -2, rank = r[7], isAlt = r[8], ivSrc = r[9] || '';
+    // SimC 视角：来源下标 -3，使用率恒为 null（它不是统计，没有这个量），
+    // 第 8 位是配置里那一格原样（附魔 / 宝石 / 装饰 / 制造副属性），第 9 位是装等来源（见 simSlots）。
+    var isSim = srcIdx === -3, cfg = r[7] || {}, ivSrc = r[8] || '';
 
     // 物品元数据两边都有，但**各有各的洞**，所以按视角取，取不到再退到另一边：
     //   · rio 自带中文名 / 图标名 / 品质（2432 件，实测中文名 100%）；
     //   · BisData 只有中文名 + 属性，图标和品质要另查 app/item-icons.js。
     // 实测两边都有的 497 件里，品质一致 494（99.4%）、图标名一致 496（99.8%），
     // 所以混用不会打架；不一致的那几件按当前视角自己的数据显示。
-    // guide 的物品池也自带中文名 / 图标名 / 品质（36 件 rio 里没有的从 DB2 补过），
+    // SimC 的物品池也自带中文名 / 品质（暴雪 DB2），图标名能借的借了 rio 那份，
     // 所以它和 rio 走同一条路：优先用自己那份，缺了再退到 BisData。
-    var ri = isRio ? rioItem(itemId) : (isMr ? mrItem(itemId) : null);
+    var ri = isRio ? rioItem(itemId) : (isSim ? simItem(itemId) : null);
     var it = B.items[itemId] || {};
-    var src = (isRio || isMr) ? [] : (B.srcs[srcIdx] || []);
+    var src = (isRio || isSim) ? [] : (B.srcs[srcIdx] || []);
     var srcText = src[0] || '', cat = src[1] || '', boss = src[2] || '';
 
     var row = el('div', 'item' + (isTop ? ' top' : ''));
@@ -1830,13 +1826,13 @@
 
     var main = el('span', 'im');
     var name = el('b', null, (ri && ri.n) || it.n || tn('物品 {id}', { id: itemId }));
-    // 品质：rio / guide 自带 q；BisData 没有这个字段，要查 app/item-icons.js。
+    // 品质：rio / SimC 自带 q；BisData 没有这个字段，要查 app/item-icons.js。
     // 查不到就不上色，而不是默认紫色 —— 默认紫会把蓝色附魔和白色合剂都染错。
     //
     // **`q === 0` 当成「没有这个字段」**，不是「粗糙品质」。原来写的是
-    // `ri.q != null`，而 0 != null 成立：guide 的物品池里有 36 件是从 DB2
+    // `ri.q != null`，而 0 != null 成立：曾经有一份物品池里 36 件是从 DB2
     // 回填的、`q` 是 0（例如 271561「始源魔网守卫的镶宝带扣」，rio 和
-    // item-icons 都记着 q=4），于是三个法师专精两个视角的**腰带 BiS #1**
+    // item-icons 都记着 q=4），于是三个法师专精的腰带首选
     // 被染成灰色 —— 灰色在魔兽的颜色语言里等于卖店垃圾。
     // 装备行不存在真正的 0 级品质，所以拿 0 当缺失是安全的。
     var q = (ri && ri.q) ? ri.q : itemQuality(itemId);
@@ -1857,27 +1853,32 @@
       main.appendChild(sk);
     }
 
-    // 装等。**0 不能印出来** —— 上一版直接 String(ilvl)，guide 视角每一行
-    // 都写着「0」，因为那时候装等是从 rio 的物品池里取 ri.ilvl，而那个字段
-    // 根本不存在（物品池只有 {n, i, q, sock}）。现在装等从 measuredGear() 来，
-    // 真查不到就**什么都不写**，而不是写一个 0 让人以为这件装备装等是 0。
+    // 装等。**0 不能印出来** —— 真查不到就**什么都不写**（SimC 视角写「装等 ?」并说明），
+    // 而不是写一个 0 让人以为这件装备装等是 0。
     if (ilvl) {
       var sub = el('span', 'sub2');
       sub.appendChild(el('span', 'iv-value', String(ilvl) + (mx && mx > ilvl ? '→' + mx : '')));
-      if (isMr) {
-        // guide 视角的装等是借来的，得说清是谁测的 —— 两个来源不是同一个量。
-        sub.classList.add(ivSrc === 'r' ? 'iv-rio' : 'iv-gi');
-        sub.setAttribute('data-tip', ivSrc === 'r'
-          ? tn('装等 {n}：guide 不给装等，这是 raider.io 榜上玩家穿这件时的「平均」装等', { n: ilvl })
-          : tn('装等 {n}：guide 不给装等，这是顶尖玩家身上这件的「最高」装等{up}', {
-            n: ilvl, up: mx && mx > ilvl ? tn('，还能升到 {n}', { n: mx }) : ''
-          }));
+      var ivLabel = isRio || ivSrc === 'r' ? '榜单均值' : '实测最高';
+      if (isSim) {
+        // SimC 视角的装等有四种来源，得说清是谁给的 —— 它们不是同一个量。
+        var cfgIv = ivSrc === 'c' || ivSrc === 'b';
+        sub.classList.add(cfgIv ? 'iv-sim' : (ivSrc === 'r' ? 'iv-rio' : 'iv-gi'));
+        if (cfgIv) ivLabel = '配置装等';
+        sub.setAttribute('data-tip', ivSrc === 'c'
+          ? tn('装等 {n}：SimC 配置里写明的', { n: ilvl })
+          : ivSrc === 'b'
+            ? tn('装等 {n}：配置没写装等，按它的 bonus_id {bonus} 查升级轨道顶格对照表得到', { n: ilvl, bonus: cfg.b })
+            : ivSrc === 'r'
+              ? tn('装等 {n}：配置定不出这件的装等（多是制造装备，装等跟着品质走），这是 raider.io 榜上玩家穿这件时的「平均」装等', { n: ilvl })
+              : tn('装等 {n}：配置定不出这件的装等（多是制造装备，装等跟着品质走），这是顶尖玩家身上这件的「最高」装等{up}', {
+                n: ilvl, up: mx && mx > ilvl ? tn('，还能升到 {n}', { n: mx }) : ''
+              }));
       }
-      sub.appendChild(el('small', 'iv-label', isRio || (isMr && ivSrc === 'r') ? '榜单均值' : '实测最高'));
+      sub.appendChild(el('small', 'iv-label', ivLabel));
       main.appendChild(sub);
-    } else if (isMr) {
+    } else if (isSim) {
       var noiv = el('span', 'sub2 iv-none', '装等 ?');
-      noiv.setAttribute('data-tip', tr('guide 不给装等，而这一件在本机两份实测数据里都没出现（实测 1358 次引用里有 6 次这样）—— 所以这里不填，不猜一个数字上去'));
+      noiv.setAttribute('data-tip', tr('配置定不出这件的装等（多是制造装备，装等跟着品质走），本机两份实测数据里也没有它 —— 所以这里不填，不猜一个数字上去'));
       main.appendChild(noiv);
     }
 
@@ -1886,10 +1887,11 @@
       var tb = el('span', 'tag trk', tl);
       tb.setAttribute('data-tip', tn('升级轨道，从装备的 bonusID 解出来的\n（{label} = 这条轨道的第 {level} 级，满级 6 级）{tail}', {
         label: tl, level: trk % 10,
-        tail: isMr ? tr('\nguide 不给轨道，这一条和左边的装等出自同一次测量') : ''
+        tail: isSim ? tr('\n这一条和左边的装等出自同一次实测，不是 SimC 配置给的') : ''
       }));
       main.appendChild(tb);
     }
+    if (isSim) renderSimCfg(main, cfg);
 
     if (it.st) {
       var sp = el('span', 'stats');
@@ -1910,7 +1912,7 @@
 
     // 来源徽章。**rio 没有掉落来源**（profile 只说角色身上穿着什么，不说哪掉的），
     // 所以这里不能编一个「其他」出来 —— 那会让人以为查过了。写「?」并在提示里说清。
-    if (!isRio && !isMr) {
+    if (!isRio && !isSim) {
       var badge = el('span', 'tag', B.sourceCategories[cat] || cat || '?');
       badge.style.borderColor = catColor(cat);
       badge.style.color = catColor(cat);
@@ -1918,15 +1920,12 @@
       row.appendChild(badge);
     }
 
-    if (isMr) {
-      // **不画使用率条。** guide 没有这个量，画出来的任何宽度都是我编的。
-      // 画名次 + 它出自哪张表，这两个都是数据里真有的东西。
-      var mb = el('span', 'usage rank');
-      var tag = el('span', 'tag ' + (isAlt ? 'alt' : 'bis'),
-        isAlt ? tn('替代 #{n}', { n: rank }) : tn('BiS #{n}', { n: rank }));
-      tag.setAttribute('data-tip', isAlt
-        ? tn('guide 的「可刷替代」表里排第 {n}（拿得到的退而求其次的选择）', { n: rank })
-        : tn('guide 的「Best in Slot」表里排第 {n}（编辑给的首选）', { n: rank }));
+    if (isSim) {
+      // **不画使用率条。** SimC 没有这个量，画出来的任何宽度都是我编的。
+      // 这一格只说它是配置里的那一件 —— 数据里真有的就这么多。
+      var mb = el('span', 'usage sim');
+      var tag = el('span', 'tag cfg', '配置');
+      tag.setAttribute('data-tip', tr('SimC 默认配置在这个部位用的就是这一件。它不是排行，没有第二名。'));
       mb.appendChild(tag);
       row.appendChild(mb);
     } else {
@@ -1954,17 +1953,67 @@
     row.setAttribute('data-tip', ((ri && ri.n) || it.n || '') + '\nitemID ' + itemId
       + (ilvl ? '\n' + tn(isRio ? '平均装等 {n}' : '装等 {n}', { n: ilvl }) : '')
       + (mx && mx > ilvl ? tn('（可升到 {n}）', { n: mx }) : '')
-      + (isRio || isMr ? '' : '\n' + (srcText || tr('来源未知')))
-      // guide 那行故意不写「使用率」——它没有这个数，写了就是编。
-      + (isMr
-        ? tn('\nguide {table} 第 {rank}\n这是编辑给的推荐排序，不是使用率统计', {
-            table: tr(isAlt ? '可刷替代' : 'Best in Slot'), rank: rank
-          })
+      + (isRio || isSim ? '' : '\n' + (srcText || tr('来源未知')))
+      // SimC 那行故意不写「使用率」——它没有这个数，写了就是编。
+      + (isSim
+        ? tr('\nSimC 默认配置里的这一件\n这是模拟器的默认配置，不是使用率统计')
         : tn('\n使用率 {pct}{people}', {
             pct: pct(usage),
             people: isRio && people != null ? tn('（{n} 人）', { n: people }) : ''
           })));
     return row;
+  }
+
+  /**
+   * SimC 配置在这一格上写的附魔 / 宝石 / 装饰 / 制造副属性，挂在物品名下面一行。
+   * 这些是**这一份配置**的选择，不是统计 —— 下面「宝石 / 附魔」两块折叠才是顶尖玩家的使用率。
+   */
+  function renderSimCfg(main, cfg) {
+    var S = simc() || {}, B = bis();
+    var box = el('span', 'chips sim-cfg');
+    if (cfg.e) {
+      var en = (S.ench || {})[cfg.e] || {};
+      var c = el('span', 'chip ench');
+      c.appendChild(el('b', null, en.n || tn('附魔 {id}', { id: cfg.e })));
+      if (en.q) c.appendChild(el('span', 'n', tn('品质 {n}', { n: en.q })));
+      c.setAttribute('data-tip', tn('附魔 ID {id}　制造品质 {q}（名字来自暴雪 DB2）', { id: cfg.e, q: en.q || '-' }));
+      box.appendChild(c);
+    } else if (cfg.t) {
+      var ct = el('span', 'chip ench');
+      ct.appendChild(el('b', null, String(cfg.t).replace(/_/g, ' ')));
+      ct.setAttribute('data-tip', tn('SimC 配置这一格只写了附魔标识 {token}，没给附魔 ID，查不到中文名 —— 原样显示，不猜是哪一个', { token: cfg.t }));
+      box.appendChild(ct);
+    }
+    var gc = {}, order = [];
+    (cfg.g || []).forEach(function (id) { if (!gc[id]) order.push(id); gc[id] = (gc[id] || 0) + 1; });
+    order.forEach(function (id) {
+      var gm = simItem(id) || {};
+      var g = el('span', 'chip gem');
+      var gi = iconImg(id, 16, gm.i);
+      if (gi) g.appendChild(gi);
+      var gn = el('b', null, gm.n || tn('宝石 {id}', { id: id }));
+      var q = gm.q || itemQuality(id);
+      if (q && L.qualityColors[q]) gn.style.color = L.qualityColors[q];
+      g.appendChild(gn);
+      if (gc[id] > 1) g.appendChild(el('span', 'n', '×' + gc[id]));
+      g.setAttribute('data-tip', tn('宝石 itemID {id}', { id: id }));
+      box.appendChild(g);
+    });
+    if (cfg.m) {
+      var m = el('span', 'chip emb');
+      m.appendChild(el('b', null, tn('装饰：{name}', { name: String(cfg.m).replace(/_/g, ' ') })));
+      m.setAttribute('data-tip', tn('SimC 配置里的装饰标识 {token}（制造装备上的附加效果）。配置只给了标识没给编号，所以是英文原样', { token: cfg.m }));
+      box.appendChild(m);
+    }
+    if (cfg.c && cfg.c.length) {
+      var cs = el('span', 'chip crafted');
+      cs.appendChild(el('b', null, tr('制造副属性') + ' ' + cfg.c.map(function (k) {
+        return tr(B.statNames[k] || k);
+      }).join(' / ')));
+      cs.setAttribute('data-tip', tr('制造这件时选的两条副属性（SimC 配置的 crafted_stats）'));
+      box.appendChild(cs);
+    }
+    if (box.children.length) main.appendChild(box);
   }
 
   var CAT_GLYPH = {
@@ -2122,7 +2171,7 @@
     upd.appendChild(el('p', 'note',
       '在线重新加载：读取仓库或自定义地址的数据副本，仅本次会话有效，不写入本地；远端失败会回退包内。这里显示的是数据文件标注日期，不是刚才点击按钮的时间，也不保证源站最新。'));
     upd.appendChild(el('p', 'note',
-      '本地更新：运行 更新数据.bat，成功的步骤写入本地，失败或跳过的步骤保留旧文件，完成后重启看板。guide 自动抓取已停用，本地更新保留现有快照；不会绕过源站访问限制。'));
+      '本地更新：运行 更新数据.bat，成功的步骤写入本地，失败或跳过的步骤保留旧文件，完成后重启看板。模拟配装那一步从 GitHub 上的 SimulationCraft 仓库取默认配置（GPL-3.0）。'));
     // 第二段说明：凭证那一截挂详细申请步骤（悬停）。段落是纯文本拼的，
     // 这里拆开组装，让「Warcraft Logs 凭证」那几个字带上 tip。
     var p2 = el('p', 'note');
@@ -2181,27 +2230,27 @@
   function renderFootnoteText(s) {
     var B = bis();
     var p = el('p', 'note bis-foot');
-    // 用**这次真正渲染的视角**，不是 state.view —— 首屏 guide 还没加载时
+    // 用**这次真正渲染的视角**，不是 state.view —— 首屏 SimC 还没加载时
     // 画的是 mplus，脚注要跟着说 mplus 那份数据的事。
     var view = s ? effectiveView(s) : state.view;
     var rs = view === 'rio' && s ? rioSpec(s.specId) : null;
-    var mr = view === 'guide' && s ? mrPick(s.specId) : null;
+    var sim = view === 'simc' && s ? simPick(s.specId) : null;
 
-    if (mr) {
-      var M = guide();
-      p.appendChild(doc.createTextNode(tn('数据来自 {source}，抓取日期 {date}，这个专精用的是{guide}指南（{slug}）。', {
-        source: (M && M.source) || 'guide-site.invalid',
-        date: (M && M.updatedAt) || '?',
-        guide: tr(mr.kind === 'mplus' ? '大秘境' : '团本'),
-        slug: mr.v.slug || '?'
+    if (sim) {
+      var SC = simc();
+      p.appendChild(doc.createTextNode(tn('数据来自 {source}，提交 {sha}（{date}），这一份是 {file}。', {
+        source: (SC && SC.source) || 'SimulationCraft',
+        sha: String((SC && SC.commit) || '?').slice(0, 7),
+        date: (SC && SC.commitDate) || '?',
+        file: sim.p.f
       })));
       p.appendChild(el('br'));
-      // 界面上没有百分比，得说一句为什么，否则看起来像数据缺了。
+      // 界面上没有百分比也没有名次，得说一句为什么，否则看起来像数据缺了。
       p.appendChild(doc.createTextNode(tr(
-        '这是编辑的推荐排序，不是使用率统计，所以只有名次没有百分比。想看多少人这么穿，切到「实战分布」。')));
+        '这是模拟器维护者给这个专精配的默认那一套，每个部位一件，团本和大秘境共用 —— 不是编辑排的榜，也不是使用率统计，所以没有名次和百分比。想看多少人这么穿，切到「实战分布」。')));
       p.appendChild(el('br'));
       p.appendChild(doc.createTextNode(tr(
-        '装等来自本机两份实测数据（guide 的表里没有），每行的装等上写着是谁测的。物品中文名来自暴雪 DB2。')));
+        '装等、附魔、宝石是配置里写的（少数制造装备的装等借本机实测数据，每行的装等上写着是谁给的）。物品和附魔的中文名来自暴雪 DB2。这份数据按 GPL-3.0 发布，见 docs/LICENSE-simulationcraft.md。')));
       return p;
     }
 
@@ -2228,7 +2277,7 @@
         src: (R && R.itemNameSource) || '?'
       })));
       p.appendChild(el('br'));
-      p.appendChild(doc.createTextNode(tr('属性权重 / 宝石 / 附魔 / 掉落来源在「最佳推荐」里，raider.io 的角色档案没有这些。')));
+      p.appendChild(doc.createTextNode(tr('属性目标和宝石 / 附魔的使用率在「模拟配装」里，raider.io 的角色档案没有这些。')));
       return p;
     }
 
@@ -2251,10 +2300,10 @@
     if (talLoading) return;
     talLoading = true;
     setSub(tr('正在加载天赋数据…'));
-    // guide 的方案也是天赋页要用的（第 15 轮：天赋按 guide 来）。
+    // SimC 的配置也是天赋页要用的（天赋页先画 SimC 那一套）。
     // 它自己带回调重画，所以这里只是**触发**，不等它 —— 等它的话
     // 天赋页会为了一份可选数据多空一会儿。
-    ensureguide();
+    ensureSimc();
     // 团本天赋串（第 20 轮）。同上，只触发不等。
     ensureWcl();
     loadDataFile('talent-data.js', 'AE_TALENTS', function (err) {
@@ -2268,7 +2317,7 @@
       }
       // 树结构是另一个文件（app/talent-tree.js，约 415 KB）。
       // 以前它是**可选的**：加载不到就退回「只有统计、没有树」。
-      // 现在 guide 那条路要靠它解串，所以加载不到就只剩插件那份统计 ——
+      // 现在 SimC 那条路要靠它解串，所以加载不到就只剩插件那份统计 ——
       // 仍然不当错误（面板照样能用），但那时 renderTalents 会走 popular 那条。
       /*
        * 树已经在内存里就不用再拉 —— **但说明文字那一步不能跟着跳过**（第 21 轮的 bug）。
@@ -2278,7 +2327,7 @@
        * AE_TALENT_TREE 已经在了，这里直接 return，而 ensureTalentDesc() 只写在
        * 下面那个 loadDataFile 的回调里 —— 于是 app/talent-desc.js **一次都不会被请求**，
        * 99 个天赋节点的提示里只有名字。
-       * 实测顺序：开装备页 → 请求 bis-data / item-icons / rio-data / guide-data /
+       * 实测顺序：开装备页 → 请求 bis-data / item-icons / rio-data / simc-data /
        * **talent-tree** → 切天赋页 → 只请求 wcl-data / talent-data，desc 不在其中。
        * 「先开天赋页」那条路一直是好的，所以套件（预载全部数据）也看不见这个洞。
        */
@@ -2332,58 +2381,23 @@
   var TCAT = [['raid', '团本'], ['mplusHigh', '冲分'], ['mplusFarm', '割草']];
 
   /**
-   * guide 的天赋方案。
-   *
-   * 产物形状：specs[specId].views[raid|mplus].talents = [{n 方案名, s 导入串,
-   * p 点数, h [英雄子树id…]}…]。串是**原样**的（生成器只把 URL-safe base64 换成
-   * 标准表），点数和英雄子树是生成时**声明**的 —— 这里解出来的必须和声明一致，
-   * 不一致由 tools/verify-guide-data.js 判红，面板不负责发现这种事。
+   * SimC 的天赋：每份配置一条 `talents=` 串，**原样**就是游戏的导入串（串头版本 2，
+   * 和游戏里导出的同一种格式）。点数和英雄子树是生成时**声明**的 —— 这里解出来的必须和声明一致，
+   * 不一致由 tools/verify-simc-data.js 判红，面板不负责发现这种事。
    */
-  function mrTalents(specId, kind) {
-    var v = mrView(specId, kind);
-    var list = v && v.talents;
-    return (list && list.length) ? list : null;
-  }
-
-  /** 这个专精有天赋方案的类型，大秘境在前（面板别处也是以大秘境为主）。 */
-  function mrTalentKinds(specId) {
-    return ['mplus', 'raid'].filter(function (k) { return mrTalents(specId, k); });
-  }
 
   /**
-   * 这次要画哪一套 guide 天赋。返回 null = 这个专精没有（实测 3 个：
-   * 战士武器、德鲁伊平衡、武僧织雾 —— 它们的串全是照着上一版天赋树编的，
-   * 一条都解不开，所以生成器一条都没收）。
+   * 把一条串的点数按英雄树拆开：{base 职业树+专精树, per {子树id: 点数}}。
    *
-   * 下标越界一律**自纠正**回 0，不报错：state.mrKind / mrBuild 不持久化，
-   * 但同一次会话里换专精之后旧下标就可能指向不存在的方案。
+   * 为什么需要这个：有的配置**两条英雄树都点了**（MID2 实测野德 95 点 = 69 + 13 + 13，
+   * 射击猎 84 点 = 69 + 14 + 1）。游戏里一个角色只能选一条，所以串里那个总数在游戏里
+   * 配不出来 —— 直接印出来，就是在给用户一个他永远点不出来的点数。界面上要印的是
+   * 「选一条之后真实的总点数」。
+   *
+   * 白给的节点（out.granted）不算点数，和 app/talent-decode.js 里 out.pts 同一个判据；
+   * 否则点数会多出系统白给的那几个，和游戏里对不上。解不开返回 null。
    */
-  function mrTalentPick(specId) {
-    var kinds = mrTalentKinds(specId);
-    if (!kinds.length) return null;
-    var kind = kinds.indexOf(state.mrKind) >= 0 ? state.mrKind : kinds[0];
-    var list = mrTalents(specId, kind);
-    var i = state.mrBuild;
-    if (!(i >= 0) || i >= list.length) i = 0;
-    // v 是**整个视角对象**，不只是 talents 数组 —— 出手顺序（prio）和
-    // 首领说明（boss）挂在视角上，不在单套方案里。
-    return { kinds: kinds, kind: kind, list: list, idx: i, build: list[i],
-      v: mrView(specId, kind) || {} };
-  }
-
-  /**
-   * 把一套方案的点数按英雄树拆开：{base 职业树+专精树, per {子树id: 点数}}。
-   *
-   * 为什么需要这个：guide 有「一套方案打包两条英雄天赋」的（实测去重后 167 套
-   * 里 82 套），产物里声明的 p 是两条**加在一起**的（95 = 68 + 13 + 13）。
-   * 游戏里一个角色只能选一条，所以 95 这个数字在游戏里配不出来 —— 列表上直接
-   * 印 95，就是在给用户一个他永远点不出来的点数。界面上要印的是「选一条之后
-   * 真实的总点数」。
-   *
-   * 白给的节点（out.granted）不算点数，和 app/talent-decode.js 里 out.pts 同一个
-   * 判据；否则 82 点会变成 90 多，和游戏里对不上。解不开返回 null。
-   */
-  function mrSplit(out) {
+  function heroSplit(out) {
     var TR = tree();
     if (!TR || !out || out.err || !out.nr) return null;
     var base = 0, per = {};
@@ -2398,179 +2412,41 @@
     return { base: base, per: per };
   }
 
-  /**
-   * 一套方案在界面上该印的点数：选一条英雄树之后真实的总点数。
-   * 两条英雄树点数不一样时印两个数（实测都是 13/13，所以基本只会印一个）。
-   * 解不开就退回产物声明的 p —— 那时树也画不出来，界面上有单独的警告。
-   */
-  function mrPtsText(t) {
+  /** 一份配置在界面上该印的点数：选一条英雄树之后真实的总点数（两条不一样时印两个）。 */
+  function simPtsText(p) {
     var dec = AE.TalentDecode, TR = tree(), o = null;
     if (dec && TR) {
-      try { o = dec.decode(t.s, TR); } catch (e) { o = null; }
+      try { o = dec.decode(p.s, TR); } catch (e) { o = null; }
     }
-    var sp = mrSplit(o);
-    if (!sp) return tn('{n} 点', { n: t.p });
+    var sp = heroSplit(o);
+    if (!sp) return tn('{n} 点', { n: p.p });
     var seen = {}, vals = [];
-    ((t.h && t.h.length) ? t.h : [0]).forEach(function (sid) {
+    ((p.h && p.h.length) ? p.h : [0]).forEach(function (sid) {
       var v = sp.base + (sp.per[sid] || 0);
       if (!seen[v]) { seen[v] = 1; vals.push(v); }
     });
-    return vals.length ? tn('{list} 点', { list: vals.join(' / ') }) : tn('{n} 点', { n: t.p });
+    return vals.length ? tn('{list} 点', { list: vals.join(' / ') }) : tn('{n} 点', { n: p.p });
   }
-
-  /**
-   * 方案列表的短名。**这一组名字唯一的区别在中间**，两头全是重复的。
-   *
-   * 实测（167 套）：guide 的方案名中位 45 字符、最长 72，而一个专精一个类型
-   * 下的 9~10 行长这样 ——
-   *   Marksmanship Hunter Nek'zali Raid Talents
-   *   Marksmanship Hunter Entombed Sentinels Raid Talents
-   *   Marksmanship Hunter Vashnik Raid Talents
-   * 而它们的点数、英雄天赋标签**全都一样**（都是 82 点 / 同一条英雄树），
-   * 于是每一行看上去完全相同，唯一的区别是夹在两段重复短语中间的首领名。
-   * 用户要在这十行里选一行，靠的正是那个词。
-   *
-   * 做法：**按组内词频删共有词**，不写死词表。「Marksmanship」「Hunter」
-   * 「Raid」「Talents」这些在组里几乎每行都出现，删掉；剩下的就是那一行
-   * 自己的东西。阈值取 2/3（实测中位 45 → 16 字符）：
-   *   · 取 1（必须每行都有）漏得掉 —— guide 自己有错别字，
-   *     「Destruction WarlockTwin Fangs」少一个空格，Warlock 就不再是「每行都有」，
-   *     于是整组的 Warlock 一个都删不掉；
-   *   · 取 1/2 反而更差（29 组退回全名）—— 半数以上的行会被删到撞车。
-   *
-   * **删完必须仍然两两不同**，否则整组退回全名：把两行不同的方案显示成同一个
-   * 名字，比名字长得多要糟 —— 用户会以为面板重复列了同一套。
-   * 全名不丢，挂在 data-tip 上。
-   */
-  function mrShortNames(list) {
-    var full = list.map(function (t) { return t.n || tr('（这套没写名字）'); });
-    if (list.length < 2) return full;
-    var cnt = {};
-    full.forEach(function (n) {
-      var seen = {};
-      mrWords(n).forEach(function (w) {
-        var k = w.toLowerCase();
-        if (!seen[k]) { seen[k] = 1; cnt[k] = (cnt[k] || 0) + 1; }
-      });
-    });
-    var need = Math.ceil(list.length * 2 / 3);
-    var out = full.map(function (n) {
-      var kept = mrWords(n).filter(function (w) { return cnt[w.toLowerCase()] < need; });
-      return kept.length ? kept.join(' ') : null;
-    });
-    var seen2 = {}, ok = true;
-    out.forEach(function (s) {
-      if (!s) { ok = false; return; }
-      var k = s.toLowerCase();
-      if (seen2[k]) ok = false;
-      seen2[k] = 1;
-    });
-    return mrUniqNames(ok ? out : full, list);
-  }
-
-  /**
-   * 把重名的行改成能分辨的。
-   *
-   * 为什么需要这一步：**上游自己就有重名**，缩名之前就有，退回全名也躲不掉
-   * （实测 167 套里）：
-   *   · 13 套**压根没有名字** —— 全都显示「（这套没写名字）」，一个专精能连着三行；
-   *   · 4 组不同的串**共用一个名字**，例如冰法团本有两行都叫
-   *     「Spellslinger Frost Mage cleave talents in Raids」（一条标 cleave、
-   *     一条标 aoe），而元素萨有两行同名却是 75 点和 81 点两套不同的树。
-   * 两行印着同一个名字，用户点哪一行都不知道自己点的是什么 —— 而这不是
-   * 显示的错，是数据本来就没给出区别。面板能做的是**把区别找出来印上**。
-   *
-   * 找区别的顺序，按「对用户有多少意义」排：
-   *   ① 场景（单体 / AOE / 顺劈 / 多目标）—— guide 自己标的，最能说明差别；
-   *   ② 英雄天赋名 —— 中文，来自天赋树；
-   *   ③ 点数 —— 元素萨那两行真正的区别就是它（75 vs 81）；
-   *   ④ 「第 N 套」—— 兜底。前三样都一样时只剩顺序，硬编一个也比两行同名好：
-   *      顺序至少和列表上下一致，用户能对上。
-   * 只给重名的行加后缀，没重名的一个字都不动。
-   */
-  function mrUniqNames(names, list) {
-    var cnt = {};
-    names.forEach(function (n) {
-      var k = String(n).toLowerCase();
-      cnt[k] = (cnt[k] || 0) + 1;
-    });
-    var dup = false;
-    Object.keys(cnt).forEach(function (k) { if (cnt[k] > 1) dup = true; });
-    if (!dup) return names;
-
-    return names.map(function (n, i) {
-      if (cnt[String(n).toLowerCase()] < 2) return n;
-      var t = list[i] || {};
-      var tags = [];
-      var sc = t.sc && t.sc.length ? t.sc[0] : null;
-      if (sc && SCEN_ZH[sc]) tags.push(SCEN_ZH[sc]);
-      if (t.h && t.h.length === 1) {
-        var hn = subTreeName(t.h[0]);
-        if (hn) tags.push(hn);
-      }
-      var pts = mrPtsText(t);
-      if (pts) tags.push(pts);
-      tags.push(tn('第 {n} 套', { n: i + 1 }));
-      // 逐个往上加，直到这一行和别人不一样了。加到「第 N 套」必然唯一。
-      for (var k = 1; k <= tags.length; k++) {
-        var cand = n + '（' + tags.slice(0, k).join(' · ') + '）';
-        var clash = false;
-        names.forEach(function (m, j) {
-          if (j !== i && String(m).toLowerCase() === String(cand).toLowerCase()) clash = true;
-        });
-        if (!clash && k === tags.length) return cand;
-        if (!clash) {
-          // 还要保证别的重名行加同样多的标签之后不会撞上来
-          var same = false;
-          names.forEach(function (m, j) {
-            if (j === i || cnt[String(m).toLowerCase()] < 2) return;
-            if (String(m).toLowerCase() !== String(n).toLowerCase()) return;
-            var t2 = list[j] || {};
-            var tg2 = [];
-            var sc2 = t2.sc && t2.sc.length ? t2.sc[0] : null;
-            if (sc2 && SCEN_ZH[sc2]) tg2.push(SCEN_ZH[sc2]);
-            if (t2.h && t2.h.length === 1) {
-              var hn2 = subTreeName(t2.h[0]);
-              if (hn2) tg2.push(hn2);
-            }
-            var p2 = mrPtsText(t2);
-            if (p2) tg2.push(p2);
-            tg2.push(tn('第 {n} 套', { n: j + 1 }));
-            if (tg2.slice(0, k).join(' · ') === tags.slice(0, k).join(' · ')) same = true;
-          });
-          if (!same) return cand;
-        }
-      }
-      return n + tn('（第 {n} 套）', { n: i + 1 });
-    });
-  }
-
-  function mrWords(n) {
-    return String(n).split(/[^A-Za-z0-9']+/).filter(Boolean);
-  }
-
   function renderTalents(host) {
     var s = currentSpec();
     if (!s) return;
 
-    // guide 优先 —— 第 15 轮定的：天赋页也按 guide 来。
-    // 它需要两份数据：guide 的方案（懒加载）和天赋树（画树用，也是懒加载）。
-    // 两份都在才走这条路，否则退回插件那份统计。
-    var pick = tree() ? mrTalentPick(s.specId) : null;
-    if (pick) { renderMrTalents(host, s, pick); return; }
+    // SimC 优先：天赋页先画 SimC 那一套。它需要两份数据：配置（懒加载）和天赋树
+    // （画树用，也是懒加载）。两份都在、而且这个专精有配置才走这条路，否则退回插件那份统计。
+    var pick = tree() ? simPick(s.specId) : null;
+    if (pick) { renderSimTalents(host, s, pick); return; }
 
     // **还在加载就说「在加载」，不要先画一版插件那份统计。**
     //
-    // 这两条路画出来的东西**完全不一样**（一边是方案列表 + 三棵树 + 说明，
-    // 一边是「热门套路 + 点数分布」）。先画插件那份、等 guide 到了再
+    // 这两条路画出来的东西**完全不一样**（一边是配置列表 + 三棵树，
+    // 一边是「热门套路 + 点数分布」）。先画插件那份、等 SimC 到了再
     // render() 一次的话，用户正在读的整页会在他眼前换掉 ——
-    // 他刚点开的折叠块、刚选中的套路全没了。guide 那份现在 284 KB，
-    // 这个空档是看得见的。
+    // 他刚点开的折叠块、刚选中的套路全没了。
     //
-    // 加载**失败**时不留在这个状态：ensureguide 无论成败都会置 mrLoaded,
+    // 加载**失败**时不留在这个状态：ensureSimc 无论成败都会置 simLoaded，
     // 那时这个分支不成立，自然落到下面插件那条路。
-    if (mrLoading || (!mrLoaded && !guide())) {
-      var wait = el('p', 'note', '正在加载 guide 的天赋方案…');
+    if (simLoading || (!simLoaded && !simc())) {
+      var wait = el('p', 'note', '正在加载 SimC 的天赋配置…');
       wait.appendChild(el('span', 'note',
         '　加载不到的话会退回插件自带的天赋统计，功能不受影响。'));
       host.appendChild(wait);
@@ -2581,144 +2457,81 @@
   }
 
   /**
-   * guide 天赋页。
+   * SimC 天赋页：每份配置一个按钮（一个专精按英雄天赋各配一份），选中的那份给导入串、画三棵树。
    *
-   * 和插件那份统计最大的差别是**选择的粒度**：那边只有「团本 / 冲分 / 割草」
-   * 三个笼统类别，选完还要在一堆「#3·5人」里猜；guide 每套方案自带名字
-   * （「Sunfury Arcane Mage Mythic+ Build in Altar of Fangs」），一眼能选。
-   * 方案名**原样显示英文** —— 那是从页面上取下来的字符串，翻译它就得自己编词。
+   * 和插件那份统计回答的不是同一个问题：那边是「顶尖玩家在用什么」（三个笼统类别），
+   * 这边是「模拟器默认点的那一套」，串原样就能导进游戏。
    */
-  function renderMrTalents(host, s, pick) {
-    var M = guide();
-    var b = pick.build;
+  function renderSimTalents(host, s, pick) {
+    var SC = simc();
+    var b = pick.p;
     var dec = AE.TalentDecode;
     var out = dec ? dec.decode(b.s, tree()) : { err: tr('天赋解码器没加载（app/talent-decode.js）') };
 
-    // 标题（setTitle）在天赋页已经写着「天赋」，副标题**不要再写一遍** ——
-    // 两个拼在一起是「天赋　天赋　鲜血　guide-site.invalid …」，同一个词连着两遍。
-    setSub(tn('{spec}　guide-site.invalid {date}　{guide} 共 {n} 套', {
-      spec: specLabel(s),
-      date: (M && M.updatedAt) || '?',
-      guide: tr(pick.kind === 'mplus' ? '大秘境指南' : '团本指南'),
-      n: pick.list.length
+    // 标题（setTitle）在天赋页已经写着「天赋」，副标题**不要再写一遍**。
+    setSub(tn('{spec}　SimC 默认配置 {date}　共 {n} 份', {
+      spec: specLabel(s), date: (SC && SC.updatedAt) || '?', n: pick.list.length
     }));
 
-    // **raider.io 那一块放在最上面**（用户第 18 轮定的）。
-    //
-    // 它和下面 guide 那一整块**不是同一套天赋**，也不是同一个问题的答案：
-    // 这块是榜上最多人用的串（验证过能导入，来自能进排行榜的真实角色），
-    // 下面那块是 guide 编辑推荐的方案。放最上面是因为「照抄一套能用的」
-    // 是最常见的来意，而它自成一块、不依赖下面选了哪套方案。
-    //
-    // 位置换了但内容一字没改 —— 尤其是「这不是上面那套的可导入版本」那句话
-    // 还在（见 renderLoadouts）：两块相邻时更容易被读成同一套，那句必须留着。
+    // **raider.io 那一块放在最上面**（用户第 18 轮定的）。它和下面 SimC 那一块
+    // **不是同一套天赋**：这块是榜上最多人用的串（来自能进排行榜的真实角色），
+    // 下面那块是模拟器的默认配置。「这不是下面那套的可导入版本」那句话还在
+    // （见 renderLoadouts）：两块相邻时更容易被读成同一套，那句必须留着。
     var lo = renderLoadouts(s);
     if (lo) host.appendChild(lo);
-
-    // 团本 / 大秘境。只有一种时也画出来 —— 少一个按钮比「为什么没有团本」好解释。
-    var bar = el('div', 'bis-bar');
-    var seg = el('span', 'seg');
-    [['mplus', '大秘境'], ['raid', '团本']].forEach(function (k) {
-      if (pick.kinds.indexOf(k[0]) < 0) return;
-      var btn = choiceButton(k[1], pick.kind === k[0] ? 'on' : null, function () {
-        state.mrKind = k[0];
-        state.mrBuild = 0;      // 换类型必须归零：两边套数不一样，留着下标会越界
-        state.mrSub = 0;
-        persist({ bisMrKind: k[0] });
-        render();
-      });
-      btn.setAttribute('data-tip', tn('{n} 套方案', { n: mrTalents(s.specId, k[0]).length }));
-      seg.appendChild(btn);
-    });
-    bar.appendChild(seg);
-    host.appendChild(bar);
-
-    // 方案列表。名字长，所以竖着一行一个，不挤成一排小按钮。
-    var pickBox = el('div', 'mr-builds');
+    // 配置列表。只有一份时也画出来 —— 它同时说明了「这是哪一条英雄天赋」。
+    var pickBox = el('div', 'sim-builds');
     pickBox.setAttribute('role', 'group');
-    pickBox.setAttribute('aria-label', tn('天赋方案，共 {n} 套', { n: pick.list.length }));
-    var shortNames = mrShortNames(pick.list);
-    pick.list.forEach(function (t, i) {
-      var btn = choiceButton('', 'mrb' + (i === pick.idx ? ' on' : ''), function () {
-        state.mrBuild = i;
-        state.mrSub = 0;        // 换方案，英雄树的选择跟着重置
+    pickBox.setAttribute('aria-label', tn('SimC 天赋配置，共 {n} 份', { n: pick.list.length }));
+    var names = simLabels(pick.list);
+    pick.list.forEach(function (p, i) {
+      var btn = choiceButton('', 'simb' + (i === pick.idx ? ' on' : ''), function () {
+        state.simIdx = i;
+        state.simSub = 0;       // 换配置，英雄树的选择跟着重置
         render();
       });
-      var full = t.n || tr('（这套没写名字）');
-      btn.appendChild(el('span', 'nm', shortNames[i]));
+      btn.appendChild(el('span', 'nm', names[i]));
       var meta = el('span', 'mt');
-      var ptsText = mrPtsText(t);
-      // 印的是「选一条英雄树之后」的点数，不是产物里的 p —— 见 mrSplit 的注释。
+      var ptsText = simPtsText(p);
+      // 印的是「选一条英雄树之后」的点数，不是产物里的 p —— 见 heroSplit 的注释。
       meta.appendChild(el('em', null, ptsText));
-      // 一条串在 guide 页面上挂在多个小节下面（每副本 / 每首领各一个天赋图）时，
-      // 生成器并成一套，c 是共用它的小节数。这里得说出来：名字里只留了第一个
-      // 小节（「… in Altar of Fangs」），不说的话会以为这套只适用于那一个副本。
-      if (t.c > 1) meta.appendChild(el('em', 'many', tn('通用 {n} 处', { n: t.c })));
-      // 场景（单体 / AOE / 顺劈 / 多目标）。**可选字段** —— 实测 guide 80 篇里
-      // 只有 28 篇按场景分天赋，其余按英雄天赋或副本分。没有就不画这个标签，
-      // 而不是默认标成「单体」（那是编的）。
-      (t.sc || []).forEach(function (code) {
-        var e = el('em', 'scen ' + code, SCEN_ZH[code] || code);
-        e.setAttribute('data-tip', tr(SCEN_TIP[code] || ''));
-        meta.appendChild(e);
-      });
+      // 没点满的要说出来（MID2 实测冰霜死骑两份 54 / 55 点）：导进去会剩点数。
+      if (p.p < SC.fullPts) {
+        var sh = el('em', 'short', tn('少 {n} 点', { n: SC.fullPts - p.p }));
+        sh.setAttribute('data-tip', tn('这份配置只点了 {pts} 点，同一批配置最常见的是 {full} 点 —— 导进游戏后剩下的点数要自己补', {
+          pts: p.p, full: SC.fullPts
+        }));
+        meta.appendChild(sh);
+      }
       // 英雄天赋名走 subTreeName()：那是 DB2 的中文名，不是我编的译名。
       // 结构是 <em class="hero"><b>名字</b></em>，和插件那条路的 chip 一样 ——
-      // run-tests.js 的「英雄天赋名不许是英文」那条断言认的就是这个结构，
-      // 换个写法它就悄悄少验 40 个专精。
-      t.h.forEach(function (sid) {
+      // run-tests.js 的「英雄天赋名不许是英文」那条断言认的就是这个结构。
+      p.h.forEach(function (sid) {
         var e = el('em', 'hero');
         e.appendChild(el('b', null, subTreeName(sid)));
         meta.appendChild(e);
       });
       btn.appendChild(meta);
-      // 提示的**第一行是全名**，而且是产物里那个 n 一字不改的原文 ——
-      // 界面上显示的是删过共有词的短名（见 mrShortNames），全名只剩这一处。
-      // run-tests.js 的「名字」那条断言认的就是这一行，换个顺序它会报红。
-      btn.setAttribute('data-tip', full + '\n' + ptsText
-        + (t.h.length > 1
-          ? tn('（串里两条英雄天赋合计 {n} 点，游戏里只能选一条）', { n: t.p }) : '')
-        + tn('\n英雄天赋：{list}', { list: t.h.map(subTreeName).join(' / ') })
-        + (t.c > 1 ? tn('\nguide 有 {n} 个小节用的是同一套', { n: t.c }) : ''));
+      // 提示的**第一行是文件名**：照着它和提交号能在 SimC 仓库里翻到原文件。
+      btn.setAttribute('data-tip', p.f + '\n' + ptsText
+        + (p.h.length > 1 ? tn('（串里两条英雄天赋合计 {n} 点，游戏里只能选一条）', { n: p.p }) : '')
+        + tn('\n英雄天赋：{list}', { list: p.h.map(subTreeName).join(' / ') }));
       pickBox.appendChild(btn);
     });
     host.appendChild(pickBox);
 
-
-    // g 是现有快照的游戏格式原串；保留原值，多英雄打包必须明确提示。
-    if (b.g) host.appendChild(renderMrLoadout(b, pick));
-    else {
-      host.appendChild(el('p', 'mr-nostr',
-        '这一套没有导入串（生成时串头改写失败）—— 树还是能看的。'));
-    }
-
-    // 出手顺序（优先级列表）。见 renderMrNotes 的注释。
-    //
-    // 「各首领 / 副本说明」第 19 轮**撤掉了**（用户：「这个数据没用，没人看」）。
-    // 生成器也不再产出 boss 字段，所以这里没有兜底分支可写 —— 产物里就没有了。
-    var pr = renderMrNotes(pick.v.prio, 'mr-prio', '出手顺序',
-      'guide 指南里的 Priority List —— 就是「技能时间轴」的文字版。');
-    if (pr) host.appendChild(pr);
-
-    // ---- 三棵树放**最后**（第 20 轮的易用性调整）。
-    //
-    // 实测这一页在 1440×900 下高 2494 像素，其中树占 1731 —— 快三屏。
-    // 原来的顺序是「方案列表 → 树 → 导入串 → 出手顺序」，也就是要复制那个串、
-    // 或者想看一眼出手顺序，都得先滚过一整棵树。而串和出手顺序是**拿来用的**
-    // （复制、照着打），树是**拿来看的**（确认这套点了什么）。
-    // 所以改成「先给能用的，再给能看的」。
+    host.appendChild(renderSimLoadout(b));
+    // ---- 三棵树放**最后**（第 20 轮的易用性调整）：串是拿来用的（复制），
+    // 树是拿来看的（确认这套点了什么），所以先给能用的，再给能看的。
     /*
-     * **树画哪一套：guide 的方案，还是上面榜上选中的那一串。**（第 21 轮）
+     * **树画哪一套：SimC 的配置，还是上面榜上选中的那一串。**（第 21 轮）
      *
      * 用户报的：「人数和天赋树还是不匹配」。原因是版面骗人 —— 页顶那块写着
-     * 「#1·50人」（raider.io / WCL 榜上 50 个真实角色在用这一串），而页底只有一棵树，
-     * 画的是 guide 编辑那一套。一页上只有一棵树，谁都会以为它画的是刚选中的那条。
-     * 而且这一页在不同专精上意思还不一样：guide 缺方案的那 3 个专精走插件兜底，
-     * 那里的树画的正是「套路 #N·M人」那一套 —— 人数和树本来就是同一套。
-     *
-     * 所以给一个开关，默认仍是 guide（那是这一页的主线），切到「榜上」时树就画
-     * 那一串，标题里把人数写出来。两边共用 loSelection()，所以「上面高亮 #3、
-     * 树画 #1」这种自相矛盾不可能出现。
+     * 「#1·50人」（榜上 50 个真实角色在用这一串），而页底只有一棵树。
+     * 一页上只有一棵树，谁都会以为它画的是刚选中的那条。
+     * 所以给一个开关，默认是 SimC（这一页的主线），切到「榜上」时树就画那一串，
+     * 标题里把人数写出来。两边共用 loSelection()，所以「上面高亮 #3、树画 #1」
+     * 这种自相矛盾不可能出现。
      */
     var selT = loSelection(s.specId);
     var wantLo = state.treeSrc === 'lo' && selT && selT.str;
@@ -2731,12 +2544,12 @@
     if (selT && selT.str) {
       var tbar = el('div', 'tree-src');
       tbar.appendChild(el('span', 'lb', '天赋树来源'));
-      [['mr', tr('guide 方案')],
+      [['sim', tr('SimC 配置')],
        ['lo', tn('榜上 #{n}·{people}人', { n: selT.idx + 1, people: selT.count })]].forEach(function (k) {
         var on = (k[0] === 'lo') === !!wantLo;
         var btn = choiceButton(k[1], on ? 'on' : null, function () {
           state.treeSrc = k[0];
-          state.mrSub = 0;      // 两套的英雄树不一样，下标留着会指错
+          state.simSub = 0;     // 两套的英雄树不一样，下标留着会指错
           persist({ bisTreeSrc: k[0] });
           render();
         });
@@ -2744,11 +2557,11 @@
           ? tn('画上面「榜上热门天赋串」里现在选中的那一条（{kind} 榜，{n} 个角色在用）。换上面那排 #N 按钮，这棵树跟着换。', {
             kind: tr(selT.cur.label), n: selT.count
           })
-          : tr('guide 编辑写的那一套方案（上面方案列表里高亮的那条）。它和榜上那些串不是同一套天赋。'));
+          : tr('SimC 默认配置里的那一套（上面配置列表里高亮的那份）。它和榜上那些串不是同一套天赋。'));
         tbar.appendChild(btn);
       });
       if (wantLo && !loOut) {
-        tbar.appendChild(el('span', 'note', '　这一条解不开，先画 guide 那套'));
+        tbar.appendChild(el('span', 'note', '　这一条解不开，先画 SimC 那套'));
       }
       host.appendChild(tbar);
     }
@@ -2760,25 +2573,24 @@
       host.appendChild(renderLoTree(s, selT, loOut));
     } else if (out.err) {
       var w = el('div', 'bis-warn');
-      w.appendChild(el('b', null, '这套方案的串解不开'));
+      w.appendChild(el('b', null, '这份配置的串解不开'));
       w.appendChild(el('p', null, tn('{msg} —— 树画不出来。', { msg: out.err })));
       host.appendChild(w);
     } else {
-      host.appendChild(renderCurrentTree('guide · ' + (b.n || tr('当前攻略方案')),
-        b.g, (b.h || []).length > 1, 'mr'));
-      host.appendChild(renderMrTree(s, b, out));
+      host.appendChild(renderCurrentTree('SimC · ' + b.f, b.s, (b.h || []).length > 1, 'sim'));
+      host.appendChild(renderSimTree(s, b, out));
     }
 
     // 天赋页也挂「更新这些数据」入口 —— 用户问「天赋怎么拉最新数据」时，
-    // 看的正是这一页。装备页那份在 renderFootnote 里，这里单独挂（天赋页
-    // 的数据来源说明在副标题上，不吃装备页的脚注）。
+    // 看的正是这一页。装备页那份在 renderFootnote 里。
     host.appendChild(renderUpdateHint());
   }
+
 
   /**
    * 用「榜上热门天赋串」那一条画三棵树。
    *
-   * 和 renderMrTree 的差别只有标题那一句（这边能说出人数，那边说 guide 的点数），
+   * 和 renderSimTree 的差别只有标题那一句（这边能说出人数，那边说配置的点数），
    * 树本身是同一个 renderTreeGrid —— 两条路画出来的形状必须一样，否则切一下开关
    * 整页会换个样子。
    */
@@ -2843,147 +2655,79 @@
   }
 
   /**
-   * guide 这一套的**游戏导入串**。
+   * SimC 这一份的**游戏导入串**：配置里 `talents=` 那一串，原样，一个字符都不改。
    *
-   * 产物里 g 是页面那个 blob 改完串头的结果（版本 130→2、treeHash 全 0），
-   * 和 guide 每张卡片下面 Export 按钮给的串逐字符相同。
-   *
-   * 打包两条英雄天赋那 82 套要**单独说清楚**：它们的串是 95 点的（68 职业专精
-   * + 13 + 13），而游戏里一个角色只能选一条英雄树。这不是我们改坏的 ——
-   * guide 的 Export 按钮导出来就是这个样子。实测 raider.io 3722 条真实玩家串里
-   * 点亮两条子树的有 299 条，但**全部低于 82 点**（最高 78），那是没点满的角色
-   * 在换树途中，没有一条是 95 点。所以这串导进去之后得自己删掉一条英雄树,
-   * 界面上必须说，不能让它看着和单树那些一样。
+   * 两种情况要**单独说清楚**：
+   *   · 两条英雄树都点了（MID2 实测野德、射击猎）：游戏里一个角色只能选一条，
+   *     导进去之后得自己清掉一条 —— 不能让它看着和单树那些一样；
+   *   · 没点满（MID2 实测冰霜死骑两份）：导进去会剩点数。
    */
-  function renderMrLoadout(b, pick) {
+  function renderSimLoadout(b) {
+    var SC = simc() || {};
     var bundled = (b.h || []).length > 1;
     // class **不能沿用 bis-loadout** —— 那个类被「每次渲染恰好一个导入串块」
-    // 那条断言数着（它盯的是下面 raider.io 那一块），共用会让计数翻倍。
-    // 和 gap-sum 那次是同一个形状，都是断言当场抓出来的。
-    var box = el('div', 'mr-loadout');
+    // 那条断言数着（它盯的是上面 raider.io 那一块），共用会让计数翻倍。
+    var box = el('div', 'sim-loadout');
 
-    // class 是 **mr-lo-head**，不和 raider.io 那一块的 .lo-head 共用 ——
-    // 第 20 轮加「标题里的人数必须对得上产物」那条断言时，测试按 .lo-head
-    // 找标题，两块共用于是取到了后画的那个（guide 这个），
-    // 152 次渲染里只核对到 3 次。样式沿用（见 style.css 里那条并列选择器）。
-    var head = el('div', 'lo-head mr-lo-head');
-    head.appendChild(el('b', null, '这一套的导入串'));
-    head.appendChild(el('span', 'n', tn('{n} 个字符', { n: b.g.length })));
+    // class 是 **sim-lo-head**，不和 raider.io 那一块的 .lo-head 混用 ——
+    // 测试按 .lo-head 找那一块的标题，两块共用会取到后画的那个。
+    // 样式沿用（见 style.css 里那条并列选择器）。
+    var head = el('div', 'lo-head sim-lo-head');
+    head.appendChild(el('b', null, '这一份的导入串'));
+    head.appendChild(el('span', 'n', tn('{n} 个字符', { n: b.s.length })));
     if (bundled) {
       var warn = el('span', 'lo-warn', tn('带着 {n} 条英雄天赋', { n: b.h.length }));
-      warn.setAttribute('data-tip', tn('guide 把这一套配了 {n} 条英雄天赋打包在一个串里（{pts} 点），而游戏里一个角色只能选一条。\n它的 Export 按钮导出来就是这样 —— 不是面板改坏的。\n导进游戏之后自己把不要的那条英雄天赋清掉；攻略树只显示当前选择的那条。', {
+      warn.setAttribute('data-tip', tn('这份 SimC 配置在串里点了 {n} 条英雄天赋（合计 {pts} 点），而游戏里一个角色只能选一条。\n导进游戏之后自己把不要的那条英雄天赋清掉；下面的树只显示当前选择的那条。', {
         n: b.h.length, pts: b.p
       }));
       head.appendChild(warn);
     }
+    if (b.p < SC.fullPts) {
+      var shortW = el('span', 'lo-warn', tn('没点满（{pts}/{full} 点）', { pts: b.p, full: SC.fullPts }));
+      shortW.setAttribute('data-tip', tr('SimC 这份配置本身就没把点数点满，导进游戏后剩下的点数要自己补。'));
+      head.appendChild(shortW);
+    }
     box.appendChild(head);
 
     // readOnly 但可选中：复制失败时还能手动选（file:// 下剪贴板 API 不总是可用）。
-    // class **不能带 lo-text** —— 那个类被 checkLoadouts 按「每次渲染恰好一个串框」
-    // 数着（它盯的是 raider.io 那一块）。这是同一个坑的第三次（前两次是 gap-sum
-    // 和 bis-loadout）：复用别人的 class 会把别人的计数弄乱。
-    var ta = el('textarea', 'mr-text');
-    ta.value = b.g;
+    // class **不能带 lo-text** —— 那个类被 checkLoadouts 按「每次渲染恰好一个串框」数着。
+    var ta = el('textarea', 'sim-text');
+    ta.value = b.s;
     ta.readOnly = true;
     ta.rows = 2;
-    ta.setAttribute('aria-label', tn('天赋导入串，{n} 个字符，只读', { n: b.g.length }));
-    var details = el('details', 'lo-details mr-details');
+    ta.setAttribute('aria-label', tn('天赋导入串，{n} 个字符，只读', { n: b.s.length }));
+    var details = el('details', 'lo-details sim-details');
     details.appendChild(el('summary', null, '查看原串与导入说明'));
     details.appendChild(ta);
-
     var act = el('div', 'lo-act');
-    var copy = button('复制攻略原串', 'primary mr-copy', function () {
-      if (AE.copyWithToast) AE.copyWithToast(b.g, '天赋导入串');
+    var copy = button('复制 SimC 原串', 'primary sim-copy', function () {
+      if (AE.copyWithToast) AE.copyWithToast(b.s, '天赋导入串');
       else if (AE.toast) AE.toast({ title: tr('请展开「查看原串与导入说明」，选中原串按 Ctrl+C'), kind: 'bad' });
     });
     copy.setAttribute('data-tip', tn('复制后在游戏里打开天赋界面，右下角「导入」粘贴。\n{tail}', {
       tail: bundled
-        ? tn('这一套带着 {n} 条英雄天赋，导进去后自己清掉不要的那条。', { n: b.h.length })
-        : tr('这一套只有一条英雄天赋，对应当前选择的 guide 攻略方案。')
+        ? tn('这一份带着 {n} 条英雄天赋，导进去后自己清掉不要的那条。', { n: b.h.length })
+        : tr('这一份只有一条英雄天赋，对应当前选中的 SimC 配置。')
     }));
     act.appendChild(copy);
-    act.appendChild(el('span', 'n', mrPtsText(b)
+    act.appendChild(el('span', 'n', simPtsText(b)
       + (bundled ? tn('（串里合计 {n} 点）', { n: b.p }) : '')));
     box.appendChild(act);
 
     details.appendChild(el('p', 'note',
-      '这一串是 guide 页面里那个 blob 改了串头得到的（版本字节 130→2、treeHash 全 0），和它每张卡片下面 Export 按钮给的串逐字符相同 —— 节点位一个都没动。'));
+      '这一串是 SimC 配置文件里 talents= 那一行，原样转发，面板没有改动一个字符。串头版本 2，和游戏里导出的串是同一种格式。'));
     box.appendChild(details);
     return box;
   }
 
-  // 场景码 → 中文。这四个词是**通用战斗术语**，不是游戏里的官方译名
-  // （不像首领名 / 技能名那样有官方中文），所以可以写。
-  var SCEN_ZH = { st: '单体', aoe: 'AOE', cleave: '顺劈', multi: '多目标' };
-  var SCEN_TIP = {
-    st: 'guide 把这套标为单目标（Single Target）场景',
-    aoe: 'guide 把这套标为 AOE 场景',
-    cleave: 'guide 把这套标为顺劈（Cleave，少量目标）场景',
-    multi: 'guide 把这套标为多目标（Multi-Target）场景'
-  };
-
   /**
-   * 「出手顺序」和「各首领 / 副本说明」两块。形状一样，所以一个函数。
+   * 画 SimC 这一份的三棵树。
    *
-   * **技能名是中文，句子是英文原文。** 技能 / 天赋名在生成时按 guide 标的
-   * data-wow-id 换成了官方中文名（见 tools/fetch-guide.js 的 substSpells），
-   * 所以「Cast Shadow Bolt as your filler」在产物里已经是「Cast 暗影箭 as your
-   * filler」—— 名字能直接拿去游戏里搜。句子没翻：整句机翻会把「unless」这类
-   * 条件翻反，而界面上看不出来。
-   *
-   * 面板这一侧**一个字都不加工**：产物给什么就显示什么。截断、去标点、再翻译
-   * 都会让它和产物不一致，测试逐字节比对就是在钉这件事。
-   *
-   * 用 <details> 折叠：实测一个专精有 3~9 条首领说明，全展开会把天赋树顶到屏幕外。
+   * 英雄树那一棵：串里**两条英雄树都点了**时（见 renderSimLoadout），游戏里一个角色只能选一条，
+   * 这里**分开画**并给出选择，而不是把两条挤在一起 —— 两条树的坐标是各自树内的 5×5，
+   * 挤在一起会叠成一团，画出一个游戏里做不到的形状。
    */
-  function renderMrNotes(list, cls, title, tip) {
-    if (!list || !list.length) return null;
-    var wrap = el('details', 'sec ' + cls);
-    // 标题拆成两个 <span>，**不写 summary 自己的文字再往里 appendChild** ——
-    // 那样在浏览器里两段都在，而 DOM 里「元素自己的文字 + 子元素」这种混合形状
-    // 读 textContent 时行为不一致（测试脚手架里前一半会丢）。
-    // 全用子元素，两边读出来的都是同一串字。
-    var sum = el('summary');
-    sum.appendChild(el('span', 'ttl', tn('{title}　{n} 条', { title: tr(title), n: list.length })));
-    // **不能再写「句子英文」。** 第 19 轮加了人工整句模板（tools/translate-prio.js），
-    // 现在大半句子已经是中文了，而这句标签还说「英文原文，没翻」——
-    // 用户读着中文句子，被告知这是原文，于是对「译错了」这种可能完全没有防备。
-    sum.appendChild(el('span', 'note', '　技能名中文，句子中英混排'));
-    sum.setAttribute('data-tip', tr(tip) + tr(
-      '\n技能和天赋名是官方中文（按 guide 标的技能 ID 查的，查不到的留英文）。\n'
-      + '句子按人工写的**整句**模板译：命中模板的整句变中文，没命中的整句原样留英文。\n'
-      + '不做半句翻译、不做 AI 润色 —— 机翻会把「unless」这种条件翻反，照着打就是错的，而界面上看不出来。'));
-    wrap.appendChild(sum);
-    list.forEach(function (r) {
-      var row = el('div', 'note-row');
-      // 小节名过一遍 heroName()：出手顺序的小节名基本都是英雄天赋名
-      // （Sunfury / Hellcaller…），而 app/talent-tree.js 的子树表里有它们的
-      // 官方中文名。**这是查表不是翻译** —— 查不到就原样显示英文
-      // （首领说明的小节名是首领 / 副本名，本机没有译名，全部走这条）。
-      var h = el('b', null, heroName(r.n));
-      // 带场景的那几条（实测 183 条优先级列表里有 14 条）在名字后面标出来。
-      if (r.s) {
-        var sc = el('em', 'scen ' + r.s, SCEN_ZH[r.s] || r.s);
-        sc.setAttribute('data-tip', SCEN_TIP[r.s] || '');
-        h.appendChild(sc);
-      }
-      row.appendChild(h);
-      row.appendChild(el('p', 'en', r.t));
-      wrap.appendChild(row);
-    });
-    return wrap;
-  }
-
-  /**
-   * 画 guide 这一套的三棵树。
-   *
-   * 英雄树那一棵有个 guide 特有的情况：**一个 embed 里点了两条英雄树**
-   * （实测 587 套里 275 套是这样，点数 95 = 68 职业专精 + 13 + 13，而正常的是 82）。
-   * 游戏里一个角色只能选一条，所以那是 guide 把「同一套配两条英雄树」打包成了
-   * 一个串。这里**分开画**并给出选择，而不是把两条挤在一起 —— 挤在一起的话
-   * 界面上会出现一个游戏里做不到的形状。
-   */
-  function renderMrTree(s, b, out) {
+  function renderSimTree(s, b, out) {
     var TR = tree();
     var box = el('div', 'bis-tree');
     var sp = TR.specs[String(s.specId)];
@@ -2993,34 +2737,31 @@
     }
 
     var subs = out.subs.length ? out.subs : b.h;
-    var si = (state.mrSub >= 0 && state.mrSub < subs.length) ? state.mrSub : 0;
+    var si = (state.simSub >= 0 && state.simSub < subs.length) ? state.simSub : 0;
     var sub = subs[si] || 0;
 
-    // 只画选中那条英雄树的节点。不筛的话两条树的节点会摆在同一张网格上，
-    // 坐标是各自树内的 5×5，直接叠成一团（实测）。
-    // **算在这里**：下面那句「共 N 点」要拿它算「三棵树里画了多少点」。
+    // 只画选中那条英雄树的节点。**算在这里**：下面那句「共 N 点」要拿它算「三棵树里画了多少点」。
     var heroIds = (sp.heroNodes || []).filter(function (id) {
       var n = TR.nodes[id];
       return n && (!sub || n[6] === sub);
     });
-
     if (subs.length > 1) {
       var sbar = el('div', 'tree-pick');
       sbar.appendChild(el('span', 'lb', '英雄天赋'));
       subs.forEach(function (sid, i) {
         var btn = choiceButton(subTreeName(sid), i === si ? 'on' : null, function () {
-          state.mrSub = i;
+          state.simSub = i;
           render();
         });
-        btn.setAttribute('data-tip', tn('这一套 guide 同时给了 {n} 条英雄天赋。游戏里只能选一条，所以这里一条一条画。', {
+        btn.setAttribute('data-tip', tn('这一份 SimC 配置同时点了 {n} 条英雄天赋。游戏里只能选一条，所以这里一条一条画。', {
           n: subs.length
         }));
         sbar.appendChild(btn);
       });
       box.appendChild(sbar);
-      var sp2 = mrSplit(out);
+      var sp2 = heroSplit(out);
       var mine = sp2 ? (sp2.base + (sp2.per[sub] || 0)) : null;
-      box.appendChild(el('p', 'note', tn('这套方案里 guide 把 {names} 两条英雄天赋写在同一个串里（串里合计 {pts} 点 —— 游戏里配不出这个数，一个角色只能选一条）。上面选哪条，下面就画哪条{now}；职业树和专精树两条共用。', {
+      box.appendChild(el('p', 'note', tn('这份配置在串里把 {names} 两条英雄天赋都点了（合计 {pts} 点 —— 游戏里配不出这个数，一个角色只能选一条）。上面选哪条，下面就画哪条{now}；职业树和专精树两条共用。', {
         names: subs.map(subTreeName).join(tr(' 和 ')),
         pts: out.pts,
         now: mine ? tn('：现在这条是 {n} 点', { n: mine }) : ''
@@ -3031,8 +2772,7 @@
        *
        * 实测差 1 点，而且不是算错：选「哪一条英雄天赋」那一下本身也花 1 点，
        * 而那个节点不在 classNodes / specNodes / heroNodes 任何一份里，
-       * 所以哪棵树都不画它（109 个样本里 105 个是这样，另 4 个是 0）。
-       * 两个数上下相邻，不说清就是「加一下对不上」。
+       * 所以哪棵树都不画它。两个数上下相邻，不说清就是「加一下对不上」。
        */
       var drawn = 0;
       [].concat(sp.classNodes || [], sp.specNodes || [], heroIds).forEach(function (id) {
@@ -3050,23 +2790,11 @@
       })));
     }
 
-
-    // **英雄天赋排在最前面**（用户第 18 轮定的）。游戏里三棵树是职业 → 专精 →
-    // 英雄，但这个面板不是拿来照着点的：英雄天赋是「这套方案是哪一套」的标识
-    // （方案列表上的徽章、上面那个选择条、名字里的区分后缀都是它），
-    // 而职业树 / 专精树在同一个专精的十套方案之间差别很小。
-    // 先给最能区分的那棵，长的两棵往后放。插件那条路同样调了顺序，
-    // 两条路的形状必须一致，否则退到插件那份时整页会换个样子。
-    // 分**两行**放，不是让三棵树自己去 wrap（第 20 轮用户报的）。
-    //
-    // 三棵树宽度是 370（英雄）/ 518（职业）/ 518（专精）。原来三棵在一个
-    // .tree-cols 里一起 flex-wrap，于是常见宽度下排成「英雄 + 职业」一行、
-    // 「专精」孤零零占第二行 —— 两棵大小差一倍的凑一行，另一棵同样大的反而
-    // 单独一行，看起来像排版坏了。
-    //
-    // 现在固定成：英雄自己一行（它最窄，也是「这是哪一套」的标识，第 18 轮定的
-    // 要放最前），职业和专精一行（两棵一样宽，凑一行是齐的）。
-    // 窄到放不下两棵 518 时它们还是会 wrap，那时一行一棵，仍然整齐。
+    // **英雄天赋排在最前面**（用户第 18 轮定的）：它是「这份配置是哪一套」的标识，
+    // 而职业树 / 专精树在同一专精的几份配置之间差别很小 —— 先给最能区分的那棵。
+    // 分**两行**放（第 20 轮）：英雄自己一行（最窄），职业和专精一行（两棵一样宽，凑一行是齐的）。
+    // 三棵一起 flex-wrap 的话常见宽度下会排成「英雄 + 职业」一行、「专精」孤零零一行。
+    // 插件那条路同样是这个顺序 —— 两条路的形状必须一致，否则退到插件那份时整页会换个样子。
     var heroRow = el('div', 'tree-cols hero-row');
     var mainRow = el('div', 'tree-cols main-row');
     [[heroRow, heroIds, tr('英雄天赋') + (sub ? '：' + subTreeName(sub) : '')],
@@ -3081,12 +2809,13 @@
     return box;
   }
 
+
   /**
    * 插件那份「顶尖玩家实际在用什么」的统计。
    *
-   * guide 没有这个专精的方案时走这条（实测 3 个专精），或者 guide / 天赋树
+   * SimC 没有这个专精的配置时走这条（治疗等 11 个专精），或者 SimC 配置 / 天赋树
    * 还没加载完的首屏那一瞬间。它保留下来不是为了兼容 —— 它回答的是另一个问题
-   * （「大家在用什么」而不是「推荐什么」），guide 那边没有这个量。
+   * （「大家在用什么」而不是「模拟器默认点什么」），SimC 那边没有这个量。
    */
   function renderPopularTalents(host, s) {
     var T = talents();
@@ -3122,28 +2851,27 @@
     //
     // 两种情况都会落到这条路，而它们对用户的含义完全不同：
     //   · 数据还没加载完 —— 等一下就会自己换过来；
-    //   · **guide 没有这个专精的天赋方案** —— 换不过来了，这就是最终形态。
-    //     实测 3 个专精是这样（它们指南里的天赋图是照上一版天赋树编的，解不开
-    //     所以不收）。上一版只写了第一种情况的话，这 3 个专精的用户会一直等一个
-    //     永远不会来的东西；而别的专精那一页是「方案列表 + 三棵树」，
-    //     他会以为自己这里坏了。
-    if (!tree() || !guide()) {
+    //   · **SimC 没有这个专精的配置** —— 换不过来了，这就是最终形态。
+    //     MID2 实测 11 个专精是这样（SimC 不模拟治疗，部分专精也还没有）。只写第一种
+    //     情况的话，这些专精的用户会一直等一个永远不会来的东西；而别的专精那一页是
+    //     「配置列表 + 三棵树」，他会以为自己这里坏了。
+    if (!tree() || !simc()) {
       host.appendChild(el('p', 'note',
-        '下面是「顶尖玩家实际在用什么」的统计。guide 的推荐方案还在加载，到了会自动换过来。'));
+        '下面是「顶尖玩家实际在用什么」的统计。SimC 的默认配置还在加载，到了会自动换过来。'));
     } else {
       var why = el('p', 'note');
-      why.appendChild(el('b', null, 'guide 没有这个专精的天赋方案。'));
+      why.appendChild(el('b', null, 'SimC 没有这个专精的默认配置。'));
       why.appendChild(doc.createTextNode(tr(
         '下面是随包自带的「顶尖玩家实际在用什么」统计 —— 所以这一页和别的专精长得不一样，不是坏了。')));
       why.setAttribute('data-tip', tr(
-        'guide 这个专精的指南里，天赋图是照上一版天赋树编的，解不开所以没收进来（实测 40 个专精里有 3 个这样）。\n'
-        + '装备页不受影响，guide 的「最佳推荐」40 个专精都有。'));
+        'SimulationCraft 不模拟治疗，部分专精这一版也还没有默认配置。\n'
+        + '上面「榜上热门天赋串」照样能用：那是排行榜上真实角色的串，能直接导入。'));
       host.appendChild(why);
     }
 
-    // **raider.io 那一块在这条路上也放最上面**（位置和 guide 路对齐）。
-    // 它不依赖 guide，而是从数据包独立解出来的 —— 在这条路上说明
-    // 「guide 没方案，但你可以抄别的能用的」。上面那段解释已经说了
+    // **raider.io 那一块在这条路上也放最上面**（位置和 SimC 那条路对齐）。
+    // 它不依赖 SimC，而是从数据包独立解出来的 —— 在这条路上说明
+    // 「SimC 没配置，但你可以抄别的能用的」。上面那段解释已经说了
     // 「这页和别的专精长得不一样」，把两条路形状统一能减少困惑。
     var lo = renderLoadouts(s);
     if (lo) host.appendChild(lo);
@@ -3168,7 +2896,7 @@
 
     host.appendChild(renderBuildStats(td));
     host.appendChild(renderEncounters(T, td));
-    // 插件兜底那条路同样要有「更新这些数据」入口（见 renderMrTalents 末尾）。
+    // 插件兜底那条路同样要有「更新这些数据」入口（见 renderSimTalents 末尾）。
     host.appendChild(renderUpdateHint());
   }
 
@@ -3212,7 +2940,7 @@
    * 「榜上热门天赋串」现在选的是哪一类、哪一条。
    *
    * 抽出来是因为**下面那三棵树也要用它**（第 21 轮：树可以画榜上这一串，而不只是
-   * guide 那一套）。两处各写一遍选择逻辑的话，界面上会出现「上面高亮 #3、
+   * SimC 那一套）。两处各写一遍选择逻辑的话，界面上会出现「上面高亮 #3、
    * 树画的是 #1」这种自相矛盾。
    */
   function loSelection(specId) {
@@ -3258,8 +2986,8 @@
     var box = el('div', 'bis-loadout');
     var head = el('div', 'lo-head');
     // 标题里「不是同一套」这句是必需的，而且**方位词跟着版面走**：
-    // 第 18 轮把这一块提到了 guide 上面，原来写的「和上面的方案不是同一套」
-    // 就指向了页面顶端的空白处。这一块现在在上，guide 在下。
+    // 第 18 轮把这一块提到了配置那一块上面，原来写的「和上面的方案不是同一套」
+    // 就指向了页面顶端的空白处。这一块现在在上，SimC 配置在下。
     head.appendChild(el('b', null, '榜上热门天赋串'));
     head.appendChild(el('span', 'n',
       tn('{total} 名玩家共 {kinds} 种，下面是最热门的几种', { total: lo.total, kinds: lo.uniq })));
@@ -3275,22 +3003,20 @@
       }));
       head.appendChild(thin);
     }
-    // 「和下面 guide 的方案不是同一套」这句**只在下面真的有 guide 那一块时才画**。
+    // 「和下面 SimC 的配置不是同一套」这句**只在下面真的有 SimC 那一块时才画**。
     //
-    // 实测 3 个专精（平衡德 102、织雾僧 270、武器战 71）的 guide 天赋图是照
-    // 上一版天赋树编的、串解不开，所以不收 —— 那 3 个专精走插件兜底那条路，
-    // 页面上根本没有 guide 方案列表，而这句话照样画着，指向下面一片空白。
-    // 这和用户第 19 轮报的那个 bug 是同一类（那次是版面调过之后「上面」变成了
-    // 「下面」）：**方位词和它指的那个东西必须一起判断，不能各写各的。**
-    if (tree() && mrTalentPick(s.specId)) {
-      // 树跟着这一串画的时候，把这件事说出来 —— 那正是用户报的「人数和树不匹配」
-      // 的反面。**「和下面 guide 的方案不是同一套」这半句要留着**：guide 方案列表
-      // 仍然在下面、仍然是另一套，而且 run-tests 的「方位词指空」那条断言认这句话。
-      var warn = el('span', 'lo-warn', tr('和下面 guide 的方案不是同一套（实际来源见树旁标题）'));
+    // 没有 SimC 配置的专精（治疗等 11 个）走插件兜底那条路，页面上根本没有配置列表 ——
+    // 这句话照样画着的话，就指向下面一片空白。这和用户第 19 轮报的那个 bug 是同一类
+    // （那次是版面调过之后「上面」变成了「下面」）：
+    // **方位词和它指的那个东西必须一起判断，不能各写各的。**
+    if (tree() && simPick(s.specId)) {
+      // **「和下面 SimC 的配置不是同一套」这半句要留着**：配置列表仍然在下面、
+      // 仍然是另一套，而且 run-tests 的「方位词指空」那条断言认这句话。
+      var warn = el('span', 'lo-warn', tr('和下面 SimC 的配置不是同一套（实际来源见树旁标题）'));
       warn.setAttribute('data-tip', tr(
         '这一块是排行榜上真实角色的天赋串，能一键导入。\n'
-        + '和下面 guide 那些方案不是同一套：拿一个专精逐节点比过，一边多 7 个节点，另一边多 8 个。\n'
-        + '要 guide 那一套，用它自己那一块的复制按钮。'));
+        + '和下面 SimC 的默认配置不是同一套：一边是榜上真实角色在用的，一边是模拟器默认点的。\n'
+        + '要 SimC 那一套，用它自己那一块的复制按钮。'));
       head.appendChild(warn);
     }
     box.appendChild(head);
@@ -3599,7 +3325,7 @@
      * 「共 N 点」用的是同一个口径（app/talent-decode.js 里 out.pts 只在
      * purchased 时累加，那条是拿 raider.io 的 grantedNode 真值比过 32 份角色的）。
      * 原来这里把 nr 里所有 rank 都加了，于是三棵树的表头相加比「共 N 点」多 1~3 点，
-     * 而那两个数上下相邻，加一下就对不上（实测 167 套 guide 方案 167 套都不等）。
+     * 而那两个数上下相邻，加一下就对不上（当时实测的 167 套方案 167 套都不等）。
      */
     var pts = 0;
     list.forEach(function (id) {
@@ -3761,8 +3487,8 @@
       var n = TR.nodes[id];
       return n && (!sub || n[6] === sub);
     });
-    // 顺序和分行都跟 guide 那条路一致：英雄自己一行、职业+专精一行。
-    // 理由见 renderMrTree 的同一处 —— **两条路的形状必须一样**，
+    // 顺序和分行都跟 SimC 那条路一致：英雄自己一行、职业+专精一行。
+    // 理由见 renderSimTree 的同一处 —— **两条路的形状必须一样**，
     // 否则退到插件那份时整页会换个样子。
     var heroRow2 = el('div', 'tree-cols hero-row');
     var mainRow2 = el('div', 'tree-cols main-row');
@@ -3950,7 +3676,7 @@
    */
   function resetOnlineData() {
     dataLoads = {};
-    ['AE_BIS', 'AE_ITEM_ICONS', 'AE_ITEM_QUALITY', 'AE_RIO', 'AE_guide',
+    ['AE_BIS', 'AE_ITEM_ICONS', 'AE_ITEM_QUALITY', 'AE_RIO', 'AE_SIMC',
      'AE_TALENT_TREE', 'AE_TALENTS', 'AE_TALENT_DESC', 'AE_WCL'
     ].forEach(function (k) { delete global[k]; });
     byClass = null;
@@ -3958,8 +3684,8 @@
     entryNodeMap = null;
     heroZhMap = null;
     openSecs = {};
-    gearLoaded = talLoaded = rioLoaded = mrLoaded = false;
-    gearLoading = talLoading = rioLoading = mrLoading = false;
+    gearLoaded = talLoaded = rioLoaded = simLoaded = false;
+    gearLoading = talLoading = rioLoading = simLoading = false;
     wclLoaded = wclLoading = false;
     descLoaded = descLoading = false;
     treeLoading = false;
@@ -3998,25 +3724,24 @@
     // 上次选的专精 / 视角
     var s = settings();
     if (s.bisSpec) state.key = s.bisSpec;
-    // 只认现在还存在的两个视角。'raid' / 'mplus' 是上一版存下来的
-    // GearInsight 视角，第 16 轮撤掉了 —— 老设置要**迁到 guide**，
-    // 不然升级上来的用户会停在一个界面上已经没有按钮的视角里，
+    // 只认现在还存在的两个视角。别的值都是撤掉的视角留下的（'raid' / 'mplus' 是
+    // 第 16 轮撤掉的 GearInsight 视角；v1.21.0 换掉了默认视角的数据源）——
+    // 老设置要**迁到 simc**，不然升级上来的用户会停在一个界面上已经没有按钮的视角里，
     // 而那个视角一切正常地渲染着，谁也看不出为什么切不回去。
     //
-    // 迁移要**写回设置**，不能只改 state：state.view 的初值本来就是 'guide'，
+    // 迁移要**写回设置**，不能只改 state：state.view 的初值本来就是 'simc'，
     // 光不赋值的话这段代码是死的（删掉行为一模一样，任何断言都抓不到）。
     // 写回去才是真做了事 —— 存档里那个不存在的视角名被清掉了。
-    if (s.bisView === 'rio' || s.bisView === 'guide') state.view = s.bisView;
-    else if (s.bisView === 'raid' || s.bisView === 'mplus') {
-      state.view = 'guide';
-      persist({ bisView: 'guide' });
+    if (s.bisView === 'rio' || s.bisView === 'simc') state.view = s.bisView;
+    else if (s.bisView) {
+      state.view = 'simc';
+      persist({ bisView: 'simc' });
     }
     if (s.bisTab === 'gear' || s.bisTab === 'talents') state.tab = s.bisTab;
     if (s.bisTalentCat) state.tcat = s.bisTalentCat;
     // 团本 / 大秘境：只认那两个字，别的一律当没存过（设置文件是用户能手改的）。
-    if (s.bisMrKind === 'raid' || s.bisMrKind === 'mplus') state.mrKind = s.bisMrKind;
     if (s.bisLoKind === 'raid' || s.bisLoKind === 'mplus') state.loKind = s.bisLoKind;
-    if (s.bisTreeSrc === 'lo' || s.bisTreeSrc === 'mr') state.treeSrc = s.bisTreeSrc;
+    if (s.bisTreeSrc === 'lo' || s.bisTreeSrc === 'sim') state.treeSrc = s.bisTreeSrc;
     if (s.bisChar) state.charKey = s.bisChar;
 
     loadDataFile('bis-data.js', 'AE_BIS', function (err) {
@@ -4040,7 +3765,7 @@
         if (state.tab === 'talents') ensureTalents(render);
         else render();
         ensureRio();
-        ensureguide();
+        ensureSimc();
         // **装备页也要那棵树** —— 不是为了画树，是为了 heroName()：
         // 英雄天赋的中文名在 app/talent-tree.js 的子树表里，没有它装备页那一格
         // 只能显示英文（「英雄天赋 San'layn」），而天赋页写的是「萨莱因」，
@@ -4099,30 +3824,33 @@
   }
 
   /**
-   * 后台加载 app/guide-data.js（实测 98.4 KB）。
+   * 后台加载 app/simc-data.js（实测 63 KB）。
    *
    * 跟 ensureRio 同一套规矩，理由也一样：**可选数据的失败只能影响它自己**。
-   * 没加载成功的话「最佳推荐」按钮不出现（mrPick() 恒为 null），
+   * 没加载成功的话「模拟配装」按钮不出现（simPick() 恒为 null），
    * 而不是出一个点了没反应的按钮。
    *
-   * 它比 rio 小得多（98 KB vs 849 KB），但还是不放进 index.html ——
-   * 打开面板才需要，跟 bis-data.js 一样按需加载。
+   * **失败也要重画一次**：天赋页在等它的时候画的是「正在加载 SimC 的天赋配置…」，
+   * 失败后不重画的话那句话会一直挂着，直到别的什么碰巧触发一次 render()。
+   * render() 是幂等的，多画一次无害。
+   *
+   * 不放进 index.html —— 打开面板才需要，跟 bis-data.js 一样按需加载。
    */
-  function ensureguide() {
-    if (mrLoaded || mrLoading) return;
-    if (global.AE_guide) { mrLoaded = true; return; }
-    mrLoading = true;
-    loadDataFile('guide-data.js', 'AE_guide', function () {
-      mrLoading = false;
-      mrLoaded = true;
-      if (global.AE_guide && gearLoaded) render();
+  function ensureSimc() {
+    if (simLoaded || simLoading) return;
+    if (global.AE_SIMC) { simLoaded = true; return; }
+    simLoading = true;
+    loadDataFile('simc-data.js', 'AE_SIMC', function () {
+      simLoading = false;
+      simLoaded = true;
+      if (gearLoaded) render();
     });
   }
 
   /**
    * 团本天赋串（app/wcl-data.js，约 90 KB）。
    *
-   * 单独懒加载，和 guide 那份一样只是**触发**、不等它：天赋页有大秘境那半
+   * 单独懒加载，和 SimC 那份一样只是**触发**、不等它：天赋页有大秘境那半
    * 就能画，团本这半到了再重画一次多一个按钮。加载不到就只有大秘境 ——
    * 那不是错误，界面上那个按钮条本来就是按「有几类数据」画的。
    */

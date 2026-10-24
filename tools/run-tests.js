@@ -78,11 +78,11 @@ function load(f) {
 // 必须显式加载 —— 「因为没数据所以跳过」的测试报成通过，是最难发现的假绿。
 // rio-data.js 也在这里：它是**入库的产物**，不是可选下载物。缺了它就该红，
 // 而不是让「实战分布」视角悄悄不渲染 —— 那正是「跳过报成通过」的假绿。
-// guide-data.js 同理。加视角那一轮它**没**在这个名单里，于是「最佳推荐」
+// simc-data.js 同理。以前加一个视角时它的数据文件**没**在这个名单里，于是那个
 // 视角在测试里从来没被画过，而套件照样全绿（渲染次数 163 一个都没涨）——
 // 又一次「跳过报成通过」。数字没动就是没跑，这条读数救了一次。
 ['app/bis-data.js', 'app/talent-data.js', 'app/talent-tree.js',
- 'app/item-icons.js', 'app/rio-data.js', 'app/guide-data.js',
+ 'app/item-icons.js', 'app/rio-data.js', 'app/simc-data.js',
  // 天赋说明（第 19 轮）。**必须显式加载** —— 它在浏览器里是懒加载的，
  // 不加载的话「悬停提示带说明」那条断言会一次都跑不到，然后报「通过」。
  'app/talent-desc.js',
@@ -176,7 +176,7 @@ var stats = { renders: 0, imgs: 0, ph: 0, badSrc: 0, trk: 0, trkBad: 0, cov: 0, 
               // 下面「每个专精各一次」那条断言必须用 mainRio：用总数的话，
               // 后面任何一组多画一次 rio 都会把它顶红，而那不是缺陷。
               sn: 0, snBad: 0, rioRenders: 0, mainRio: 0, rioSlots: 0,
-              mr: 0, mrBad: 0,
+              sim: 0, simBad: 0, simHave: 0, simNone: 0,
               // 天赋树
               tgrids: 0, tnodes: 0, tnodeOn: 0, tedges: 0, tedgeOn: 0,
               tnoName: 0, tnoCJK: 0, tRank: 0, tRankBad: 0, tspecs: 0, tEmpty: 0,
@@ -194,27 +194,23 @@ var stats = { renders: 0, imgs: 0, ph: 0, badSrc: 0, trk: 0, trkBad: 0, cov: 0, 
               loSpec: 0, loExact: 0,
               // 第 20 轮：团本 / 大秘境两类
               loKindBtn: 0, loKindOn: 0, loRaid: 0, loKindSw: 0, loSorted: 0, loKindSaved: 0, loHead: 0, loResetIdx: 0,
-              loWarnOk: 0, loNoMr: 0,
-              // guide 天赋方案（第 15 轮：天赋页也按 guide 来）。和上面那组
-              // 分开数：那组盯 raider.io 的官方串（能导入的那批），这组盯 guide
-              // 的方案 —— guide 的串不给用户（版本号 130，游戏会拒），
-              // 所以这组的核心是「画出来的树 == 高亮那一套」，不是串。
-              mrtSpecs: 0, mrtRenders: 0, mrtBox: 0, mrtTree: 0, mrtBtns: 0,
-              mrtName: 0, mrtNameShort: 0, mrtNameUniq: 0, mrtNameTag: 0, mrtSpec: 0, mrtDecl: 0, mrtCopy: 0, mrtGameOk: 0,
-              mrtCopyClick: 0,
-              mrtPts: 0, mrtPtsSplit: 0, mrtHeadSum: 0, mrtMany: 0, mrtManySeen: 0,
-              mrtSubBar: 0, mrtBundle: 0, mrtKindSw: 0, mrtBuildSw: 0, mrtSubSw: 0,
-              // 第 16 轮：场景标签 / 出手顺序 / 各首领·副本说明
-              mrtScen: 0, mrtScenSeen: 0, mrtScenBad: 0, mrtPrio: 0, mrtBoss: 0,
+              loWarnOk: 0, loNoSim: 0,
+              // SimC 天赋配置。和上面那组分开数：那组盯 raider.io / WCL 的官方串，
+              // 这组盯 SimC 的配置 —— 核心是「画出来的树 == 高亮那一份」和
+              // 「给出去的串 == 产物那一条，而且能导入」。
+              simtSpecs: 0, simtRenders: 0, simtBox: 0, simtTree: 0, simtBtns: 0,
+              simtName: 0, simtSpec: 0, simtDecl: 0, simtGameOk: 0, simtCopyClick: 0,
+              simtPts: 0, simtPtsSplit: 0, simtHeadSum: 0, simtShort: 0, simtShortSeen: 0,
+              simtSubBar: 0, simtBundle: 0, simtBuildSw: 0, simtSubSw: 0,
               // 点一下之后位置有没有丢（滚动 / 折叠块展开状态）
               // 第 18 轮：块顺序（rio 在上）/ 树列顺序（英雄在前）
               ordChecked: 0, ordRio: 0, ordCols: 0, ordHero: 0,
-              posChecked: 0, posScroll: 0, posSec: 0, posSecShut: 0, mrtKindSaved: 0,
+              posChecked: 0, posScroll: 0, posSec: 0, posSecShut: 0,
               switchChecked: 0, switchReset: 0,
               // 视角迁移（第 16 轮撤掉 GearInsight 那两个视角）
               vmChecked: 0, vmMigrated: 0, vmWrote: 0, staleKey: 0,
-              // 装等差距（第 16 轮：guide 不给装等，从本机两份实测数据借）
-              ivGi: 0, ivRio: 0, ivNone: 0, ivZero: 0,
+              // 装等（SimC 配置给的为主，定不出的几格从本机两份实测数据借）+ 装等差距
+              ivGi: 0, ivRio: 0, ivSim: 0, ivNone: 0, ivZero: 0, ivBorrow: 0,
               gapBadge: 0, gapBad: 0, gapMath: 0, gapTop: 0, gapTopBad: 0,
               gapSum: 0, gapChars: 0, gapSlots: 0,
               // 跨职业对照（选了死骑、切到法师专精）
@@ -229,7 +225,7 @@ var stats = { renders: 0, imgs: 0, ph: 0, badSrc: 0, trk: 0, trkBad: 0, cov: 0, 
               a11yCanvas: 0, a11yCanvasBad: 0 };
 var missingFiles = {};
 var loSeen = {};
-var mrSeen = {};
+var simSeen = {};
 var body = doc.getElementById('bis-body');
 
 /**
@@ -384,24 +380,24 @@ function checkRender(label) {
     // 部位头上的徽章有**三种**，按 class 分开验，不能共用一条正则：
     //   · cov（BisData 视角）「记录 95.9%」—— 列表被截断，只能说覆盖率；
     //   · cov sn（rio 视角）「N=97」—— 有真实样本量；
-    //   · cov mr（guide 视角）「首选 1 ・替代 1」—— **既没有样本量也没有覆盖率**，
-    //     它是编辑推荐，那两个量在这份数据里不存在。
+    //   · cov sim（模拟配装视角）「SimC」—— **既没有样本量也没有覆盖率**，
+    //     它是模拟器的默认配置，那两个量在这份数据里不存在。
     // 共用一条正则的话三边都验不住：要么 N= 被判不合格，要么正则松到什么都能过。
     if (n.classList && n.classList.contains('slot-head')) {
       stats.slots++;
       if (isRio) stats.rioSlots++;
     }
-    // ---- 装等那一格（.sub2）。**这一条是这一轮那个 bug 的回归。**
+    // ---- 装等那一格（.sub2）。**这一条是一个真 bug 的回归。**
     //
-    // 上一版 guide 视角每一行的装等都写着「0」：mrSlots 从 rio 的物品池里取
-    // ri.ilvl，而那个池子只有 {n, i, q, sock}，没有 ilvl 这个字段 —— 取到
+    // 以前有一版视角每一行的装等都写着「0」：从 rio 的物品池里取 ri.ilvl，
+    // 而那个池子只有 {n, i, q, sock}，没有 ilvl 这个字段 —— 取到
     // undefined，`(undefined) || 0` 得 0，然后 String(0) 印成「0」。
     // 判据是「装等那一格不许出现 0 或空」：装等是正整数，或者干脆不画那一格
     // （查不到时画的是「装等 ?」，走 iv-none 那一支）。
     if (n.classList && n.classList.contains('sub2')
       && n.parentNode && n.parentNode.classList
       && n.parentNode.classList.contains('im')) {
-      var t = n.textContent.replace(/(榜单均值|实测最高)$/, '');
+      var t = n.textContent.replace(/(榜单均值|实测最高|配置装等)$/, '');
       if (n.classList.contains('iv-none')) {
         stats.ivNone++;
         if (t !== '装等 ?') {
@@ -410,6 +406,7 @@ function checkRender(label) {
       } else {
         if (n.classList.contains('iv-rio')) stats.ivRio++;
         else if (n.classList.contains('iv-gi')) stats.ivGi++;
+        else if (n.classList.contains('iv-sim')) stats.ivSim++;
         // 形如「703」或「690→703」。0 一律不合格 —— 那正是上一版的样子。
         //
         // **允许一位数**，第 20 轮换赛季时被真实数据教育了一次：原来写的是
@@ -494,11 +491,11 @@ function checkRender(label) {
     }
     if (n.classList && n.classList.contains('gap-sum')) stats.gapSum++;
     if (n.classList && n.classList.contains('cov')) {
-      if (n.classList.contains('mr')) {
-        stats.mr++;
-        if (!/^首选 \d+( ・替代 \d+)?$/.test(n.textContent)) {
-          stats.mrBad++;
-          if (stats.mrBad < 4) problems.push(label + ' guide 徽章文字不对：' + n.textContent);
+      if (n.classList.contains('sim')) {
+        stats.sim++;
+        if (n.textContent !== 'SimC') {
+          stats.simBad++;
+          if (stats.simBad < 4) problems.push(label + ' 模拟配装徽章文字不对：' + n.textContent);
         }
       } else if (n.classList.contains('sn')) {
         stats.sn++;
@@ -620,12 +617,19 @@ function checkSlotGapTarget(label) {
 // 所以每换一个组合都要重新 eval bis.js，否则 80 次渲染画的是同一个专精。
 //
 // **只走界面上真有的两个视角。** 第 16 轮撤掉了 GearInsight 的「团本视角 /
-// 大秘境视角」两个按钮，而上一版这个循环还在跑 'raid' / 'mplus' ——
-// openBis() 现在把这两个旧值迁到 guide，于是那两轮画的都是 guide，
+// 大秘境视角」两个按钮，而有一版这个循环还在跑 'raid' / 'mplus' ——
+// openBis() 把这两个旧值迁到默认视角，于是那两轮画的都是默认视角，
 // 渲染次数一字不差、套件全绿，**但等于同一个视角画了三遍**。
 // 旧视角迁移单独验（见下面 checkViewMigration），不混在这里。
+//
+// SimC 没有配置的专精（治疗等 11 个），选「模拟配装」画出来的是实战分布 ——
+// 标签按**真正画的视角**写（…/simc-none/rio），不然下面按标签认 rio 渲染的那几条会数错。
+function hasSim(key) {
+  var s = B.specs[key];
+  return !!(s && g.AE_SIMC && g.AE_SIMC.specs[String(s.specId)]);
+}
 specKeys.forEach(function (key) {
-  ['guide', 'rio'].forEach(function (view) {
+  ['simc', 'rio'].forEach(function (view) {
     settings.bisTab = 'gear';
     settings.bisSpec = key;
     settings.bisView = view;
@@ -633,10 +637,39 @@ specKeys.forEach(function (key) {
     body.children.length = 0;
     load('app/bis.js');
     g.AE.openBis();
-    checkRender(key + '/' + view);
+    checkRender(key + '/' + (view === 'simc' && !hasSim(key) ? 'simc-none/rio' : view));
     if (view === 'rio') stats.mainRio++;
+    if (view === 'simc') checkSimFallback(key);
   });
 });
+
+/**
+ * 选了「模拟配装」、但这个专精 SimC 没有配置：必须退到实战分布、高亮实战分布、并且**说出来**。
+ * 不说的话「模拟配装」按钮凭空不见了，看着像功能坏了；高亮按 state.view 判的话一个按钮都不亮。
+ */
+function checkSimFallback(key) {
+  var on = [], note = 0, simBtn = 0;
+  walk(body, function (n) {
+    if (n.tagName === 'BUTTON' && n.parentNode && n.parentNode.classList
+      && n.parentNode.classList.contains('seg') && !n.parentNode.classList.contains('sim-pick')
+      && n.parentNode.parentNode && n.parentNode.parentNode.classList
+      && n.parentNode.parentNode.classList.contains('bis-bar')) {
+      if (n.textContent === '模拟配装') simBtn++;
+      if (n.classList.contains('on')) on.push(n.textContent);
+    }
+    if (n.classList && n.classList.contains('sim-none')) note++;
+  });
+  if (hasSim(key)) {
+    stats.simHave++;
+    if (!simBtn || on.join() !== '模拟配装') problems.push(key + ' 有 SimC 配置，但「模拟配装」没画出来或没高亮（高亮的是 ' + on.join('/') + '）');
+    if (note) problems.push(key + ' 有 SimC 配置，却画了「SimC 没有默认配置」那句');
+  } else {
+    stats.simNone++;
+    if (simBtn) problems.push(key + ' 没有 SimC 配置，却画了「模拟配装」按钮（点了没东西）');
+    if (on.join() !== '实战分布') problems.push(key + ' 没有 SimC 配置，退到实战分布时高亮的是「' + on.join('/') + '」');
+    if (note !== 1) problems.push(key + ' 没有 SimC 配置，「SimC 没有默认配置」那句画了 ' + note + ' 次（该是 1 次）');
+  }
+}
 
 // ---- 撤掉的两个视角：按钮没了，老设置要迁走
 //
@@ -644,11 +677,13 @@ specKeys.forEach(function (key) {
 // 那个按钮了。不迁的话面板会停在一个渲染一切正常、却切不回去的视角里 ——
 // 界面自洽，谁也看不出为什么。所以判据有两条，都得成立：
 //   · 视角按钮**正好两个**，且没有「团本视角 / 大秘境视角」；
-//   · 存着旧值进来，画出来的必须是 guide（认 guide 的徽章「首选 N」）。
+//   · 存着旧值进来，画出来的必须是模拟配装（认 SimC 的徽章「SimC」）。
+// 'retired-view' 代表任何一个已经撤掉的视角名（v1.21.0 换过默认视角的数据源）：
+// 迁移按「不是现存的两个就迁」判，不按名字一个个列。
 (function checkViewMigration() {
-  var VIEW_LABELS = ['最佳推荐', '实战分布'];
+  var VIEW_LABELS = ['模拟配装', '实战分布'];
   var GONE = ['团本视角', '大秘境视角'];
-  ['raid', 'mplus', 'guide', 'rio'].forEach(function (saved) {
+  ['raid', 'mplus', 'retired-view', 'simc', 'rio'].forEach(function (saved) {
     settings.bisTab = 'gear';
     settings.bisSpec = specKeys[0];
     settings.bisView = saved;
@@ -657,17 +692,18 @@ specKeys.forEach(function (key) {
     load('app/bis.js');
     g.AE.openBis();
 
-    var labels = [], mrBadge = 0, snBadge = 0, on = [];
+    var labels = [], simBadge = 0, snBadge = 0, on = [];
     walk(body, function (n) {
+      // 视角按钮那一组（.seg），**不含**同一行里「按英雄天赋各一份」的配置开关（.sim-pick）。
       if (n.tagName === 'BUTTON' && n.parentNode && n.parentNode.classList
-        && n.parentNode.classList.contains('seg')
+        && n.parentNode.classList.contains('seg') && !n.parentNode.classList.contains('sim-pick')
         && n.parentNode.parentNode && n.parentNode.parentNode.classList
         && n.parentNode.parentNode.classList.contains('bis-bar')) {
         labels.push(n.textContent);
         if (n.classList.contains('on')) on.push(n.textContent);
       }
       if (n.classList && n.classList.contains('cov')) {
-        if (n.classList.contains('mr')) mrBadge++;
+        if (n.classList.contains('sim')) simBadge++;
         else if (n.classList.contains('sn')) snBadge++;
       }
     });
@@ -682,25 +718,25 @@ specKeys.forEach(function (key) {
       problems.push('视角按钮 ' + labels.length + ' 个（' + labels.join('/')
         + '），应该正好 ' + VIEW_LABELS.length + ' 个：' + VIEW_LABELS.join('/'));
     }
-    // 迁移：旧值和 guide 都该落在 guide 上（高亮 + guide 的徽章）。
-    var wantMr = (saved !== 'rio');
-    if (wantMr) {
-      if (on.indexOf('最佳推荐') < 0) {
+    // 迁移：旧值和 simc 都该落在模拟配装上（高亮 + SimC 的徽章）。
+    var wantSim = (saved !== 'rio');
+    if (wantSim) {
+      if (on.indexOf('模拟配装') < 0) {
         problems.push('设置里存着 bisView=' + saved + '，高亮却在「' + on.join('/')
-          + '」—— 撤掉的视角没迁到「最佳推荐」，用户会卡在一个没有按钮的视角里');
+          + '」—— 撤掉的视角没迁到「模拟配装」，用户会卡在一个没有按钮的视角里');
       }
-      if (!mrBadge) {
-        problems.push('设置里存着 bisView=' + saved + '，但一个 guide 徽章都没画出来');
+      if (!simBadge) {
+        problems.push('设置里存着 bisView=' + saved + '，但一个 SimC 徽章都没画出来');
       }
       stats.vmMigrated++;
     } else if (!snBadge) {
       problems.push('设置里存着 bisView=rio，却没画出样本量徽章');
     }
     // 迁移必须**写回设置**。只改 state.view 的话那段代码是死的：state.view 的
-    // 初值本来就是 'guide'，删掉整段行为一模一样 —— 没有这一条，
+    // 初值本来就是 'simc'，删掉整段行为一模一样 —— 没有这一条，
     // 「迁移」这个功能是不是真的存在，测试分不出来。
-    if (saved === 'raid' || saved === 'mplus') {
-      if (settings.bisView !== 'guide') {
+    if (saved !== 'simc' && saved !== 'rio') {
+      if (settings.bisView !== 'simc') {
         problems.push('设置里存着 bisView=' + saved + '（已撤掉的视角），'
           + '读完设置后它还是「' + settings.bisView + '」—— 迁移没写回存档，'
           + '下次打开又是这个不存在的视角');
@@ -726,7 +762,7 @@ specKeys.forEach(function (key) {
     tried++;
     settings.bisTab = 'gear';
     settings.bisSpec = parts[0] + '/' + parts[1] + '/Not A Hero Talent';
-    settings.bisView = 'guide';
+    settings.bisView = 'simc';
     settings.bisChar = '';
     body.children.length = 0;
     load('app/bis.js');
@@ -781,7 +817,7 @@ specKeys.forEach(function (key) {
       if (specKeys[i].split('/')[0] === c.classFile) { key = specKeys[i]; break; }
     }
     if (!key) return;
-    ['guide', 'rio'].forEach(function (view) {
+    ['simc', 'rio'].forEach(function (view) {
       settings.bisTab = 'gear';
       settings.bisSpec = key;
       settings.bisView = view;
@@ -789,8 +825,10 @@ specKeys.forEach(function (key) {
       body.children.length = 0;
       load('app/bis.js');
       g.AE.openBis();
-      checkRender('对照/' + c.name + '/' + view);
-      checkPairedSlots('对照/' + c.name + '/' + view);
+      // 标签按真正画的视角写（见上面专精循环那段）：这个职业的第一个专精可能没有 SimC 配置。
+      var shown = view === 'simc' && !hasSim(key) ? 'simc-none/rio' : view;
+      checkRender('对照/' + c.name + '/' + shown);
+      checkPairedSlots('对照/' + c.name + '/' + shown);
       stats.gapSlots++;
     });
     stats.gapChars++;
@@ -803,7 +841,7 @@ specKeys.forEach(function (key) {
  * 游戏里两个戒指格、两个饰品格是等价的，一件戒指戴在哪个孔是玩家插进去的顺序；
  * 而推荐数据是按孔位存的。按孔位逐格比会画出自相矛盾的界面：同一枚戒指在
  * 「戒指1」的替代表里没有已拥有底色（像你没这件），同时在「戒指2」头上被写成
- * 「你身上这件不在推荐列表里」。实测 160 组配对槽位里 156 组在两件调换后就断掉。
+ * 「你身上这件不在推荐列表里」。
  *
  * 这条断言**只看画出来的东西**，不重算推荐列表（重算等于把面板的逻辑抄一遍，
  * 那是恒等式）。不变量是：
@@ -877,7 +915,7 @@ function checkPairedSlots(label) {
  *
  * 这是「戒指/饰品按一对判」最硬的判据，而且**不用重算推荐列表**：游戏里两个戒指格
  * 等价，所以把 A、B 两枚戒指换个孔戴，结论必须完全一样。按孔位逐格比的话这个数会跳
- * （实测 guide 的 160 组配对槽位里 156 组两边列表不同），所以这条断言正对着那个 bug。
+ * （两个孔的推荐列表几乎从来不一样），所以这条断言正对着那个 bug。
  *
  * 造样本的办法是**克隆一个真角色再把两只戒指的物品链接对调**，不是凭空编一个角色 ——
  * 编的角色装备形状容易和真数据不一样，测出来的东西就不算数。
@@ -904,7 +942,7 @@ function checkPairedSlots(label) {
     var out = null;
     walk(body, function (n) {
       if (out || !n.classList || !n.classList.contains('bis-sum')) return;
-      // 两个视角用词不同（实战分布说「榜上见过 / 没见过」，最佳推荐说「对上 / 差」）——
+      // 两个视角用词不同（实战分布说「榜上见过 / 没见过」，模拟配装说「对上 / 差」）——
       // 两种都要认，不然 rio 那一半抓不到这一行，断言会静默变成「没数据」。
       var m = /(?:对上|榜上见过) (\d+) 件，(?:差|没见过) (\d+) 件/.exec(String(n.textContent || ''));
       if (m) out = m[1] + '/' + m[2];
@@ -959,7 +997,7 @@ function checkPairedSlots(label) {
       }
     }
 
-    ['guide', 'rio'].forEach(function (view) {
+    ['simc', 'rio'].forEach(function (view) {
       function renderFor(charKey) {
         settings.bisTab = 'gear';
         settings.bisSpec = key;
@@ -1034,7 +1072,7 @@ function checkPairedSlots(label) {
     if (!key) return;
     settings.bisTab = 'gear';
     settings.bisSpec = key;
-    settings.bisView = 'guide';
+    settings.bisView = 'simc';
     settings.bisChar = c.key;
     body.children.length = 0;
     load('app/bis.js');
@@ -1067,36 +1105,118 @@ function checkPairedSlots(label) {
   });
 })();
 
-// ---- 首屏兜底：默认视角是 guide，而 app/guide-data.js 是**懒加载**的。
+// ---- 首屏兜底：默认视角是模拟配装，而 app/simc-data.js 是**懒加载**的。
 //
-// 上面那 203 次渲染全是「数据已经在」的情况，所以它们**验不到**这条路。
-// 真实首屏是另一回事：state.view 已经是 'guide'，但 AE_guide 还没到，
-// mrPick() 恒为 null。没有 effectiveView() 兜底的话面板会空一下，
+// 上面那些渲染全是「数据已经在」的情况，所以它们**验不到**这条路。
+// 真实首屏是另一回事：state.view 已经是 'simc'，但 AE_SIMC 还没到，
+// simPick() 恒为 null。没有 effectiveView() 兜底的话面板会空一下，
 // 而「空一下」和「这个专精真没数据」在界面上分不出来。
 //
-// 这里把 AE_guide 临时藏起来，重新走一次完整渲染，要求**照样画出装备**。
+// 这里把 AE_SIMC 临时藏起来，重新走一次完整渲染，要求**照样画出装备**，
+// 而且**不许**说「SimC 没有这个专精的配置」—— 那是「加载完了确实没有」的说法，不是「还没到」。
 (function checkFirstPaintFallback() {
-  var saved = g.AE_guide;
-  delete g.AE_guide;
+  var saved = g.AE_SIMC;
+  delete g.AE_SIMC;
   var before = problems.length;
   var sample = specKeys.slice(0, 3);
   sample.forEach(function (key) {
     settings.bisTab = 'gear';
     settings.bisSpec = key;
-    settings.bisView = 'guide';   // 用户选的是 guide
+    settings.bisView = 'simc';      // 用户选的是模拟配装
     settings.bisChar = '';
     body.children.length = 0;
     load('app/bis.js');
     g.AE.openBis();
     // checkRender 里那条「一件装备都没画出来」就是这次要验的东西
     checkRender('首屏兜底/' + key);
+    walk(body, function (n) {
+      if (n.classList && n.classList.contains('sim-none')) {
+        problems.push('首屏兜底/' + key + '：SimC 数据还没到，却说「这个专精 SimC 没有默认配置」');
+      }
+    });
   });
-  g.AE_guide = saved;
+  g.AE_SIMC = saved;
   if (problems.length > before) {
-    problems.push('guide 数据没加载时首屏画不出装备 —— effectiveView() 的兜底失效了');
+    problems.push('SimC 数据没加载时首屏画不出装备 —— effectiveView() 的兜底失效了');
   }
   stats.fallbackChecked = sample.length;
 })();
+
+/*
+ * ---- 借来的装等：三条分支都必须真的画到。
+ *
+ * SimC 配置定不出装等的格子（多是制造装备）借本机实测：GearInsight 有就用它的「最高」，
+ * 没有再退到 raider.io 的「榜上均值」，两边都没有画「装等 ?」。MID2 的默认配置里，
+ * 借的格子**恰好全部**在 GearInsight 里查得到 —— 于是后两条分支在真数据上一次都走不到，
+ * 而「文字必须合格」那些断言在空集合上恒真。所以这里造三格：把一份配置里的一格换成
+ * 「没写装等」的三种物品，真值**独立算**（不调 bis.js 的 measuredGear）。
+ */
+(function checkBorrowedIlvl() {
+  var S0 = g.AE_SIMC, R = g.AE_RIO;
+  var key = specKeys.filter(hasSim)[0];
+  if (!S0 || !R || !key) { problems.push('借来的装等：缺 SimC / rio 数据，这一组在验空气'); return; }
+  var GI = {}, RA = {};
+  Object.keys(B.specs).forEach(function (k) {
+    ['raid', 'mplus'].forEach(function (v) {
+      var slots = B.specs[k][v] || {};
+      Object.keys(slots).forEach(function (sn) {
+        (slots[sn] || []).forEach(function (r) { if (r[1] && !(GI[r[0]] >= r[1])) GI[r[0]] = r[1]; });
+      });
+    });
+  });
+  Object.keys(R.specs).forEach(function (sid) {
+    var sl = R.specs[sid].slots || {};
+    Object.keys(sl).forEach(function (sn) {
+      (sl[sn].d || []).forEach(function (r) {
+        if (!r[2]) return;
+        var a = RA[r[0]] || (RA[r[0]] = { w: 0, n: 0 });
+        a.w += r[2] * r[1]; a.n += r[1];
+      });
+    });
+  });
+  var both = Object.keys(GI).filter(function (id) { return RA[id]; })[0];
+  var rioOnly = Object.keys(RA).filter(function (id) { return !GI[id]; })[0];
+  var CASES = [
+    ['两边都有，取 GearInsight 的「最高」', both, 'iv-gi', both && GI[both]],
+    ['只有 raider.io，取「榜上均值」', rioOnly, 'iv-rio', rioOnly && Math.round(RA[rioOnly].w / RA[rioOnly].n)],
+    ['两边都没有，画「装等 ?」', '1', 'iv-none', null]
+  ];
+  var prof = S0.specs[String(B.specs[key].specId)].profiles[0];
+  var saved = prof.slots['1'];
+  CASES.forEach(function (c) {
+    if (!c[1]) { problems.push('借来的装等：' + c[0] + ' —— 数据里找不到这样的物品'); return; }
+    prof.slots['1'] = { i: Number(c[1]) };
+    settings.bisTab = 'gear'; settings.bisSpec = key; settings.bisView = 'simc'; settings.bisChar = '';
+    body.children.length = 0;
+    load('app/bis.js');
+    g.AE.openBis();
+    // 这三次渲染也过一遍通用的渲染检查。真数据里每一行都定得出装等，「查不到就画
+    // 『装等 ?』、别印成 0」那几条断言只有这里造的样本喂得到。
+    // 塞进来的三件都不在 SimC 的物品池里（假物品 1、只在 raider.io 出现的旧装备），
+    // 图标查不到画成占位块是对的，不算进「查不到图标」那个计数 —— 那个计数管的是真数据。
+    var ph0 = stats.ph;
+    checkRender('借来的装等/' + key + '/' + c[2]);
+    stats.ph = ph0;
+    var sub = null;
+    walk(body, function (n) {
+      if (sub || !n.classList || !n.classList.contains('item')) return;
+      if (!/(^|\n)itemID (\d+)(\n|$)/.test(n.attrs['data-tip'] || '') || RegExp.$2 !== String(c[1])) return;
+      walk(n, function (m) { if (!sub && m.classList && m.classList.contains('sub2')) sub = m; });
+    });
+    var cls = !sub ? '（没画装等那一格）' : ['iv-gi', 'iv-rio', 'iv-none', 'iv-sim'].filter(function (k) {
+      return sub.classList.contains(k);
+    })[0] || '（没有来源 class）';
+    var num = sub && /^(\d+)/.exec(sub.textContent || '');
+    if (cls !== c[2] || (c[3] != null && (!num || Number(num[1]) !== c[3]))) {
+      problems.push('借来的装等：' + c[0] + '，画出来的是 ' + cls + ' ' + (num ? num[1] : '')
+        + '，该是 ' + c[2] + (c[3] != null ? ' ' + c[3] : ''));
+    } else stats.ivBorrow++;
+  });
+  prof.slots['1'] = saved;
+})();
+if (stats.ivBorrow !== 3) {
+  problems.push('借来的装等三条分支只验成 ' + stats.ivBorrow + '/3（GearInsight 最高 / raider.io 均值 / 装等 ?）');
+}
 
 // .tnode 的方块尺寸从 style.css 里读，不写死在这里。
 // 写死的话改了 CSS 而忘了改这里，几何检查就会拿着旧尺寸算，算出来的「不重叠」
@@ -1277,21 +1397,20 @@ function checkLoadouts(label, specId, boxes, texts, copies, picks, kindBtns, hea
   } else {
     stats.loSorted++;
   }
-  // 「和下面 guide 的方案不是同一套」这句和 **guide 那一块本身**必须同时在、
-  // 同时不在。实测 3 个专精（平衡德 / 织雾僧 / 武器战）的 guide 串解不开、
-  // 不收进产物，那 3 个专精页面上没有 guide 方案列表 —— 那句话就指向空白。
+  // 「和下面 SimC 的配置不是同一套」这句和 **SimC 那一块本身**必须同时在、同时不在。
+  // 治疗等 11 个专精 SimC 没有配置，那些专精页面上没有配置列表 —— 那句话就指向空白。
   // 用户第 19 轮报过同一类 bug（版面调过之后「上面」变成了「下面」），
   // 所以这里钉死：**方位词和它指的东西必须一起判断**。
   if (boxes.length) {
-    var sameWarn = (headTxt || '').indexOf('和下面 guide 的方案不是同一套') >= 0;
-    var hasMr = !!mrTalentTruth(specId);
-    if (sameWarn !== hasMr) {
+    var sameWarn = (headTxt || '').indexOf('和下面 SimC 的配置不是同一套') >= 0;
+    var hasSimT = !!simTalentTruth(specId);
+    if (sameWarn !== hasSimT) {
       loNote('方位词指空', label + ' 导入串标题里'
-        + (sameWarn ? '写着「和下面 guide 的方案不是同一套」，但这个专精没有 guide 方案'
-                    : '没写「和下面 guide 的方案不是同一套」，但下面确实有 guide 方案'));
+        + (sameWarn ? '写着「和下面 SimC 的配置不是同一套」，但这个专精没有 SimC 配置'
+                    : '没写「和下面 SimC 的配置不是同一套」，但下面确实有 SimC 配置'));
     } else {
       stats.loWarnOk++;
-      if (!hasMr) stats.loNoMr++;
+      if (!hasSimT) stats.loNoSim++;
     }
   }
   // 标题里那两个数：「N 名玩家共 M 种」。**必须对着产物的 n / loUniq 验** ——
@@ -1332,59 +1451,36 @@ function checkLoadouts(label, specId, boxes, texts, copies, picks, kindBtns, hea
   }
 }
 
-// guide 那批天赋方案的真值：产物里 specs[specId].views[kind].talents。
-// 面板的类型顺序是**大秘境在前**（app/bis.js 的 mrTalentKinds），这里照抄 ——
-// 顺序不一致的话下面「第几套」的下标就对不上，而错位的下标看起来像数据错。
-var MR = g.AE_guide;
-var MR_ORDER = DEC.loadOrder();
-function mrTalentTruth(specId) {
-  var sp = MR && MR.specs ? MR.specs[String(specId)] : null;
-  if (!sp || !sp.views) return null;
-  var out = [];
-  ['mplus', 'raid'].forEach(function (k) {
-    var v = sp.views[k];
-    // prio 也带上：它挂在**视角**上，不在单套方案里，而面板要按当前类型画
-    // 对应那一份。不带的话「换类型之后出手顺序也跟着换」就没法验。
-    // boss 原样透传（**不套 `|| []`**）：第 19 轮撤掉那一块之后，产物里就不该
-    // 再有这个字段，下面 checkMrTalents 靠 `kind.boss` 是不是 undefined 判。
-    // 套了 `|| []` 会把「字段没了」变成「有个空数组」，那条断言就永远报红。
-    if (v && v.talents && v.talents.length) {
-      out.push({ kind: k, list: v.talents, prio: v.prio || [], boss: v.boss });
-    }
-  });
-  return out.length ? out : null;
+// SimC 那批天赋配置的真值：产物里 specs[specId].profiles。顺序就是面板的顺序
+// （profiles[0] 是默认那份），下标对不上的话「第几份」就错位，而错位看起来像数据错。
+var SC = g.AE_SIMC;
+var ORDER = DEC.loadOrder();
+function simTalentTruth(specId) {
+  var sp = SC && SC.specs ? SC.specs[String(specId)] : null;
+  return sp && sp.profiles && sp.profiles.length ? sp.profiles : null;
 }
 
 /**
- * 独立解一遍这条串，返回验证用的一切：{err} 或
- * {pts, subs, base, per, sel}。
+ * 独立解一遍这条串，返回验证用的一切：{err} 或 {pts, subs, base, per, sel, off}。
  *
  * 用 tools/decode-talent-string.js 而不是 app/talent-decode.js：那份是面板正在用的，
- * 拿它来验自己等于什么都没验。两份实现互相对账在 tools/verify-talent-decode.js
- * 里已经做过，这里要的是「产物里那两个**声明**字段和串本身一致」，以及
- * 「画出来的那棵树点亮的就是这条串点的节点」——
- * 面板的方案列表直接显示 p 和 h，它们错了界面上完全看不出来。
+ * 拿它来验自己等于什么都没验。这里要的是「产物里那两个**声明**字段和串本身一致」，
+ * 以及「画出来的那棵树点亮的就是这条串点的节点」—— 面板的配置列表直接显示 p 和 h，
+ * 它们错了界面上完全看不出来。
  *
  * 只算**本专精自己的**节点（rec.inSpec）：nodeOrder 是按整个职业排的，
  * 位流里混着同职业别的专精的节点，算进去点数会多 6~23 点（实测）。
  *
- * sel 收的是「位流里选了的」节点（买的 + 系统白给的），因为面板画高亮
- * 用的就是这个集合（app/talent-decode.js 的 out.nr 也包含白给的）；
- * base / per 只算买的，那是点数的判据。
+ * sel 收的是「位流里选了的」节点（买的 + 系统白给的），因为面板画高亮用的就是这个集合；
+ * base / per 只算买的，那是点数的判据。off 是买了但不画在三棵树里的点数
+ * （选「哪一条英雄天赋」那一下），三棵树表头相加天生比「共 N 点」少这么多。
  */
-function mrDecode(specId, t) {
+function simDecode(specId, s) {
   var out;
-  try { out = DEC.decode(t.s, MR_ORDER); } catch (e) { return { err: '解码抛错：' + e.message }; }
+  try { out = DEC.decode(s, ORDER); } catch (e) { return { err: '解码抛错：' + e.message }; }
   if (!out || out.err) return { err: '解不开：' + ((out && out.err) || '?') };
-  if (out.spec !== Number(specId)) {
-    return { err: '串头 specID ' + out.spec + ' != ' + specId };
-  }
-  var pts = 0, subs = {}, base = 0, per = {}, sel = {}, off = 0;
-  // 哪些节点会被画进三棵树里。**画不进去的那些要单独记**：选「哪一条英雄天赋」
-  // 那一下本身也花 1 点，而那个节点不在 classNodes / specNodes / heroNodes 任何一份里
-  // （109 个样本里 105 个是这样）。所以「三棵树表头相加」天生比「共 N 点」少这 1 点，
-  // 界面上那句话现在把它说出来了，这里则用它把两个数对上账。
-  var inTree = {};
+  if (out.spec !== Number(specId)) return { err: '串头 specID ' + out.spec + ' != ' + specId };
+  var pts = 0, subs = {}, base = 0, per = {}, sel = {}, off = 0, inTree = {};
   var spDef = TREE && TREE.specs ? TREE.specs[String(specId)] : null;
   if (spDef) {
     [].concat(spDef.classNodes || [], spDef.specNodes || [], spDef.heroNodes || [])
@@ -1402,530 +1498,25 @@ function mrDecode(specId, t) {
     if (sub) { subs[sub] = 1; per[sub] = (per[sub] || 0) + r; }
     else base += r;
   });
-  return {
-    pts: pts, base: base, per: per, sel: sel, off: off,
-    subs: Object.keys(subs).map(Number).sort(function (a, b) { return a - b; })
-  };
+  return { pts: pts, base: base, per: per, sel: sel, off: off, ver: out.ver, hash: out.hash,
+    subs: Object.keys(subs).map(Number).sort(function (a, b) { return a - b; }) };
 }
-
 /**
- * short 的每个词是不是按原序出现在 full 里（只删词，不改词、不换序）。
- *
- * 判据故意是**子序列**而不是「子串」：面板删的是组内共有的词，删完两段会用
- * 一个空格接起来，所以「Nek'zali」从 `Marksmanship Hunter Nek'zali Raid Talents`
- * 里剩下来时，原文里它两边的字都没了 —— 子串判据会把这个正确结果判成错。
- * 按词比对既容得下删词，又拦得住「拿别一套的名字来填」（那必然出现一个
- * full 里没有的词）。
- */
-function wordsSubseq(short, full) {
-  function words(s) { return String(s).split(/[^A-Za-z0-9']+/).filter(Boolean); }
-  var a = words(short), b = words(full), i = 0;
-  for (var k = 0; k < b.length && i < a.length; k++) {
-    if (a[i].toLowerCase() === b[k].toLowerCase()) i++;
-  }
-  return i === a.length;
-}
-
-/**
- * 去掉面板为「重名行」补的那个括号后缀，留下名字本体。
- *
- * 为什么要它：上游自己有重名（实测 13 套没名字、4 组不同串共用一个名字），
- * 面板给重名的行补一个能分辨的后缀（场景 / 英雄天赋 / 点数 / 第 N 套，
- * 见 bis.js 的 mrUniqNames）。上面那条「只许删词」的判据要认这件事，
- * 否则每个补过后缀的行都会被判成「名字取错了」。
- *
- * 只剥**最后一个**全角括号，且必须收在行尾 —— guide 自己的名字里也有括号
- * （例如 `... (Single Target)`），那是半角的，不会被误剥。
- *
- * 括号前面必须还剩东西，否则不算后缀。少了这一条，没名字的那 13 套
- * （显示成「（这套没写名字）」，整行就是一个括号组）会被当成「补过后缀」——
- * 于是把 mrUniqNames 整个摘掉，计数器照样报 9，那条下界成了摆设。
- */
-function mrBaseName(s) {
-  var m = /^(.+)（[^（）]*）$/.exec(String(s));
-  return m ? m[1] : String(s);
-}
-
-/** 产物里声明的 p / h 和独立解码一致吗？不一致返回一句话。 */
-function mrDeclaredOk(t, d) {
-  if (d.err) return d.err;
-  if (d.pts !== t.p) return '声明 ' + t.p + ' 点，现解出 ' + d.pts + ' 点';
-  var got = d.subs.join(',');
-  var want = (t.h || []).slice().sort(function (a, b) { return a - b; }).join(',');
-  if (got !== want) return '声明英雄子树 [' + want + ']，现解出 [' + got + ']';
-  return null;
-}
-
-/**
- * guide 天赋这一块。
- *
- * 判据换过一次，值得写清楚。第一版这里有个串框（显示 + 复制），核心断言是
- * 「框里的串和产物里那条字节相等」。后来量出 guide 的串版本号是 130、
- * 游戏只认 2，串块整块删了 —— 那条断言跟着没了着落，而它守的东西还在：
- * **高亮的那一行和画出来的那棵树必须是同一套**。方案列表是竖着一排名字，
- * 高亮错一行，用户就在照着别的方案点天赋，而树、点数、名字各自都自洽。
- *
- * 所以现在对着**树上点亮的节点**验：拿独立解码器解高亮那一套的串，
- * 职业树 + 专精树点亮的节点必须和它**完全相同**（多一个少一个都算错），
- * 英雄树点亮的必须恰好是「这一套点的某一条子树」的全部节点。
- * 这比字节比串更贴近用户看到的东西 —— 他看的是树，不是串。
- *
- * 顺带守住「不给串」这个决定本身：页面上任何一个输入框里都不许出现这条串。
- */
-function checkMrTalents(label, specId, boxes, notes, btns, subBtns, lit, taVals,
-  scenEls, prioBox, bossBox) {
-  // bossBox 还在参数表里，但下面**只用它来断言「这一块必须没有」** ——
-  // 「各首领 / 副本说明」第 19 轮撤掉了（用户：这个数据没用，没人看），
-  // 生成器也不再产出 boss 字段。留这个参数是为了钉住「撤掉了就不许再画出来」。
-  var truth = mrTalentTruth(specId);
-  if (!truth) {
-    // 没方案（实测 3 个专精：战士武器、德鲁伊平衡、武僧织雾，它们的串全解不开）
-    // 就该整块不画，退回插件那份统计。画个空框比不画更糟。
-    if (boxes.length) loNote('mr 空框', label + ' guide 没有天赋方案，却画出了 guide 方案列表');
-    return;
-  }
-  stats.mrtRenders++;
-  mrSeen[String(specId)] = 1;
-  stats.mrtSpecs = Object.keys(mrSeen).length;
-  // 每次渲染：1 个方案列表 + 1 个导入串块（或 1 条「没有导入串」说明）。
-  // 上一轮这里数的是「不给导入串」那条说明 —— 那个决定第 16 轮末尾被推翻了：
-  // guide 每张卡片下面的 Export 按钮给的串是可导入的（版本 2），
-  // 所以现在要求的是「给了导入串块 + 复制按钮」。
-  var mrLoads = [], mrCopy = [], nostr = [];
-  walk(body, function (n) {
-    if (!n.classList) return;
-    if (n.classList.contains('mr-loadout')) mrLoads.push(n);
-    if (n.classList.contains('mr-copy')) mrCopy.push(n);
-    if (n.classList.contains('mr-nostr')) nostr.push(n);
-  });
-  if (boxes.length !== 1 || (mrLoads.length + nostr.length !== 1)) {
-    loNote('mr 块数', label + ' guide 方案列表 ' + boxes.length + ' 个 / 导入串块 '
-      + mrLoads.length + ' 个 / 「没有导入串」说明 ' + nostr.length + ' 个，各应正好 1 个');
-    return;
-  }
-  if (mrLoads.length && mrCopy.length !== 1) {
-    loNote('mr 块数', label + ' 导入串块 ' + mrLoads.length + ' 个 / 复制按钮 '
-      + mrCopy.length + ' 个，各应正好 1 个');
-    return;
-  }
-  stats.mrtBox++;
-
-  // 现在画的是哪个类型？**从副标题读**，不从串反推。
-  //
-  // 第一版是「拿显示的串去两个类型的列表里找，找到就算」—— 那是错的判据：
-  // 同一条串在 mplus 和 raid 里都可能有（guide 两篇指南给同一套方案）。
-  // 于是「按钮 10 个 / 列表 9 套」「高亮第 1 个 / 串是第 0 套」这类假错各报了 2 条，
-  // 全是定位错，不是面板错。副标题里写着「大秘境指南 / 团本指南」，那是唯一的
-  // 权威读数。
-  var subText = (doc.getElementById('bis-sub') || {}).textContent || '';
-  var wantKind = subText.indexOf('大秘境指南') >= 0 ? 'mplus'
-    : (subText.indexOf('团本指南') >= 0 ? 'raid' : null);
-  if (!wantKind) {
-    loNote('mr 副标题', label + ' 副标题里看不出画的是团本还是大秘境：' + subText);
-    return;
-  }
-  var kind = null;
-  truth.forEach(function (kb) { if (kb.kind === wantKind) kind = kb; });
-  if (!kind) {
-    loNote('mr 类型不符', label + ' 副标题说画的是 ' + wantKind + '，但产物里这个专精没有这个类型');
-    return;
-  }
-
-  // 方案按钮：这个类型有几套就画几个，高亮的必须正好一个。
-  if (btns.length !== kind.list.length) {
-    loNote('mr 按钮数', label + ' 方案按钮 ' + btns.length + ' 个，'
-      + kind.kind + ' 有 ' + kind.list.length + ' 套');
-    return;
-  }
-  stats.mrtBtns += btns.length;
-  var on = [];
-  btns.forEach(function (b, i) { if (b.classList.contains('on')) on.push(i); });
-  if (on.length !== 1) {
-    loNote('mr 高亮', label + ' 高亮的方案有 ' + on.length + ' 个（' + on.join('/')
-      + '），应该正好 1 个');
-    return;
-  }
-  var idx = on[0];
-  var t = kind.list[idx];
-  var d = mrDecode(specId, t);
-
-  // 串头里的 specID。串虽然不给用户，但它决定了解出来的是谁的树。
-  var hs = headerSpec(t.s);
-  if (hs !== Number(specId)) {
-    loNote('mr 专精不符', label + ' guide 串头里的 specID 是 ' + hs + '，不是本专精 ' + specId);
-  } else {
-    stats.mrtSpec++;
-  }
-
-  // 产物声明的点数 / 英雄子树 vs 独立解码
-  var bad = mrDeclaredOk(t, d);
-  if (bad) loNote('mr 声明不符', label + ' 第 ' + idx + ' 套：' + bad);
-  else stats.mrtDecl++;
-
-  // 核心断言：画出来的树点亮的就是**高亮那一套**点的节点。
-  var why = d.err ? d.err : mrTreeLitOk(specId, t, d, lit);
-  if (why) {
-    loNote('mr 树不符', label + ' 高亮的是第 ' + idx + ' 套「' + (t.n || '(无名)') + '」，'
-      + '但画出来的树和它不一致：' + why);
-  } else {
-    stats.mrtTree++;
-  }
-
-  // 高亮那一行的名字也必须是这一套的。名字是用户唯一用来选的信息。
-  var nm = null, ems = [];
-  btns[idx].children.forEach(function (c) {
-    if (!c.classList) return;
-    if (c.classList.contains('nm')) nm = c;
-    if (c.classList.contains('mt')) {
-      c.children.forEach(function (e) { if (e.tagName === 'EM') ems.push(e); });
-    }
-  });
-  // 名字：面板显示的是**短名**（删掉了组内共有的词，见 bis.js 的 mrShortNames），
-  // 所以判据不能是「显示的字 === 产物里的 n」—— 那条在第 18 轮变成了假红。
-  //
-  // 改成两条，合起来仍然把「高亮那行 ↔ 那一套」钉死，而且比原来严：
-  //   ① 缩过名字的行，全名必须原样挂在 data-tip 上（**逐字节**和产物相等）——
-  //      信息不许丢，只许换地方；
-  //   ② 显示的短名必须是**产物那个名字的子序列**（按词），也就是只删词、
-  //      不许改词、不许换序、更不许拿别一套的名字来填。
-  // 光验 ① 会漏掉「短名取错行」（那是这一组存在的理由）；光验 ② 会漏掉
-  // 「全名悄悄丢了」。
-  var wantNm = t.n || '（这套没写名字）';
-  var shown = nm ? nm.textContent : null;
-  // 提示的第一行就是全名（后面几行是点数 / 英雄天赋 / 共用小节数）。
-  var tipRaw = btns[idx].attrs && btns[idx].attrs['data-tip'];
-  var tipNm = tipRaw ? String(tipRaw).split('\n')[0] : null;
-  if (shown === null) {
-    loNote('mr 名字', label + ' 高亮方案没画名字（产物里是「' + wantNm + '」）');
-  } else if (shown !== wantNm && tipNm !== wantNm) {
-    loNote('mr 名字', label + ' 高亮方案的名字缩成了「' + shown
-      + '」，而全名没挂在提示里（提示是「' + (tipNm || '(没有)')
-      + '」，产物里是「' + wantNm + '」）');
-  } else if (!wordsSubseq(mrBaseName(shown), wantNm)) {
-    loNote('mr 名字', label + ' 高亮方案的名字是「' + shown
-      + '」，产物里是「' + wantNm + '」');
-  } else {
-    stats.mrtName++;
-    if (shown !== wantNm) stats.mrtNameShort++;
-    if (mrBaseName(shown) !== shown) stats.mrtNameTag++;
-  }
-
-  // 列表里**任意两行的短名不许相同**。
-  //
-  // 为什么单列一条，而不是靠 bis.js 里那道撞车守卫：那道守卫（撞了就整组退回全名）
-  // 在当前数据上一次都没触发，把它删掉套件照样全绿 —— 也就是说它的正确性
-  // 现在完全没人看着。而它保护的性质是用户能不能选：两行印着同一个「Cleave」，
-  // 点哪一行都不知道自己点的是什么。
-  //
-  // 所以判据放在**结果**上（列表里的名字互不相同），而不是放在实现上。
-  // 上游名字变了、阈值调了、守卫被删了，这一条都能报。
-  var seenNm = {}, dupNm = null;
-  btns.forEach(function (b) {
-    b.children.forEach(function (c) {
-      if (!c.classList || !c.classList.contains('nm')) return;
-      var k = String(c.textContent).toLowerCase();
-      if (seenNm[k] && !dupNm) dupNm = c.textContent;
-      seenNm[k] = 1;
-    });
-  });
-  if (dupNm) {
-    loNote('mr 名字撞车', label + ' 方案列表里有两行印着同一个名字「' + dupNm
-      + '」，点哪一行都分不出是哪一套');
-  } else {
-    stats.mrtNameUniq++;
-  }
-
-  // 印出来的点数必须是**游戏里配得出来的**那个数。
-  //
-  // 这一条是这一轮的第二个真 bug 变成的断言：打包两条英雄天赋的方案，
-  // 产物里 p 是两条加起来的 95，而游戏里一个角色只能选一条 —— 列表上印 95
-  // 等于给了一个用户永远点不出来的点数。所以印的必须是「职业+专精 + 某一条
-  // 英雄树」的合计，而 95 这个数**恰好不在**允许的集合里。
-  var legal = {};
-  if (!d.err) {
-    (t.h && t.h.length ? t.h : [0]).forEach(function (sid) {
-      legal[d.base + (d.per[sid] || 0)] = 1;
-    });
-  }
-  var ptsEm = null;
-  ems.forEach(function (e) {
-    if (ptsEm || (e.classList && (e.classList.contains('hero') || e.classList.contains('many')))) return;
-    if (/^\d+( \/ \d+)* 点$/.test(e.textContent)) ptsEm = e;
-  });
-  if (!Object.keys(legal).length) {
-    // 解不开的串没有「合法点数」可言，跳过（上面 mr 声明不符 已经报过）
-  } else if (!ptsEm) {
-    loNote('mr 点数没画', label + ' 高亮那一行没印点数');
-  } else {
-    var shownPts = ptsEm.textContent.replace(' 点', '').split(' / ');
-    var bad2 = shownPts.filter(function (x) { return !legal[Number(x)]; });
-    if (bad2.length) {
-      loNote('mr 点数不合法', label + ' 印的是 ' + ptsEm.textContent
-        + '，但游戏里配得出来的只有 ' + Object.keys(legal).join(' / ')
-        + ' 点（产物声明 ' + t.p + ' 点）');
-    } else {
-      stats.mrtPts++;
-      if ((t.h || []).length > 1) stats.mrtPtsSplit++;
-    }
-  }
-
-  /*
-   * **三棵树的表头相加，必须等于上面那句「共 N 点」。**
-   *
-   * 这两个数上下相邻，用户加一下就能对 —— 而它们原来永远不等（实测 167 套方案
-   * 167 套都差 1~3 点）：「共 N 点」只算花点买的（解码器 out.pts 在 purchased 时
-   * 才累加），而树表头把 nr 里所有 rank 都加了，白给的节点也算进去了。
-   * 判据用上面那套 legal（游戏里配得出来的点数），所以打包两条英雄树的情况天然覆盖。
-   */
-  if (Object.keys(legal).length) {
-    var headSum = 0, heads = 0;
-    walk(body, function (n) {
-      if (!n.classList || !n.classList.contains('tree-grid-head')) return;
-      (n.children || []).forEach(function (c) {
-        var mm = /^(\d+) 点$/.exec(String(c.textContent || ''));
-        if (mm) { headSum += Number(mm[1]); heads++; }
-      });
-    });
-    if (heads < 2) {
-      loNote('树表头点数没画', label + ' 只找到 ' + heads + ' 个树表头点数');
-    } else if (!legal[headSum + (d.off || 0)]) {
-      loNote('树表头点数加不起来', label + ' 三棵树的表头相加是 ' + headSum
-        + ' 点，加上不画在树里的 ' + (d.off || 0) + ' 点还是配不出 '
-        + Object.keys(legal).join(' / ') + ' 点 —— 表头要么算了白给的节点，'
-        + '要么漏了花点买的');
-    } else {
-      stats.mrtHeadSum++;
-    }
-  }
-
-  // 「通用 N 处」：同一条串在 guide 页面上挂在 N 个小节下面，生成器并成一套。
-  // 名字里只留了第一个小节，不说出来会以为这套只适用于那一个副本。
-  var many = null;
-  ems.forEach(function (e) { if (e.classList && e.classList.contains('many')) many = e; });
-  if (t.c > 1) {
-    stats.mrtManySeen++;
-    if (!many) loNote('mr 通用没画', label + ' 这套有 ' + t.c + ' 个小节共用，界面上没说');
-    else if (many.textContent !== '通用 ' + t.c + ' 处') {
-      loNote('mr 通用不符', label + ' 界面上写「' + many.textContent + '」，产物里 c = ' + t.c);
-    } else {
-      stats.mrtMany++;
-    }
-  } else if (many) {
-    loNote('mr 通用多画', label + ' 这套只有 1 个小节，却写了「' + many.textContent + '」');
-  }
-
-  // 打包了两条英雄天赋的方案必须给出选择条（游戏里只能选一条）。
-  // 只有一条的**不该**画那一条 —— 一个只有一个选项的选择器是在骗人。
-  if ((t.h || []).length > 1) {
-    stats.mrtBundle++;
-    if (subBtns !== t.h.length) {
-      loNote('mr 英雄条', label + ' 这套打包了 ' + t.h.length
-        + ' 条英雄天赋，英雄天赋选择条画了 ' + subBtns + ' 个按钮');
-    } else {
-      stats.mrtSubBar++;
-    }
-  } else if (subBtns) {
-    loNote('mr 英雄条', label + ' 这套只有 1 条英雄天赋，却画了 ' + subBtns + ' 个选择按钮');
-  }
-
-  // **可导入的串（t.g）必须给，版本 130 的原始串（t.s）不许给。**
-  //
-  // 这一条上一轮是反的（「页面上不许出现 guide 的串」）。推翻它的依据：
-  // guide 每张天赋卡片下面有个 Export 按钮，那个串的版本字节是 2，能导入；
-  // 它和页面里那个 blob 的节点位逐位相同，只差串头两个字段。生成器现在照着改，
-  // 产出 t.g。t.s 仍然不许出现 —— 那个是版本 130 的，粘进去会被拒。
-  if (mrLoads.length) {
-    if (taVals.indexOf(t.g) < 0) {
-      loNote('mr 没给串', label + ' 画了导入串块，但输入框里没有产物那条可导入串（t.g）');
-    } else {
-      stats.mrtCopy++;
-    }
-    if (t.s && taVals.indexOf(t.s) >= 0) {
-      loNote('mr 又给 s 了', label + ' 页面上出现了 guide 的原始串（版本 130，游戏会拒）');
-    }
-    // **真点一次复制。** 上面验的都是 DOM 里的文字，而复制走的是另一个参数 ——
-    // 显示 t.g、复制 t.s 的话界面完全正常，只有粘进游戏那一刻才被拒。
-    // rio 那一路早就这么验了（见 checkLoadout），这一路第一版漏了：复制按钮
-    // 只数个数、从来没点过，于是那个变异体报「漏」。
-    var mrShown = null;
-    walk(mrLoads[0], function (n) {
-      if (n.tagName === 'TEXTAREA' || n.tagName === 'INPUT') mrShown = n.value;
-    });
-    copied.length = 0;
-    mrCopy[0].click();
-    if (copied.length !== 1) {
-      loNote('mr 没调用', label + ' 点了 guide 的复制按钮，copyWithToast 被调用 '
-        + copied.length + ' 次');
-    } else if (copied[0].text !== mrShown) {
-      loNote('mr 复制不符', label + ' 复制出去的串和框里显示的不是同一串');
-    } else {
-      stats.mrtCopyClick++;
-    }
-    // **这一条是整块的意义所在**：给出去的串必须真的能导入。
-    // 判据不是「有个串」，而是拿**另一份解码器**（tools/decode-talent-string.js，
-    // 面板用的是 app/talent-decode.js）解一遍，逐项对：
-    //   · 版本字节必须是 2 —— 130 会被游戏直接拒，那正是上一轮的状态；
-    //   · treeHash 必须全 0 —— raider.io 3960 条真实串、本机游戏导出 32 条都是 0；
-    //   · specID 必须是当前专精 —— 串头挂错专精，游戏拒；
-    //   · 点亮的节点必须和**产物里那条原始串**逐个相同 —— 串头改写不许动到节点位。
-    var gd = DEC.decode(t.g, MR_ORDER);
-    if (gd.err) {
-      loNote('mr 串解不开', label + ' 给出去的导入串解不开：' + gd.err);
-    } else {
-      if (gd.ver !== 2) {
-        loNote('mr 串版本', label + ' 给出去的串版本字节是 ' + gd.ver
-          + '，游戏只认 2 —— 粘进去会被拒');
-      }
-      if (!/^0+$/.test(gd.hash || '')) {
-        loNote('mr 串 hash', label + ' 给出去的串 treeHash 不是全 0：' + gd.hash);
-      }
-      if (gd.spec !== specId) {
-        loNote('mr 串专精', label + ' 给出去的串串头写着专精 ' + gd.spec
-          + '，当前是 ' + specId);
-      }
-      // 节点位有没有被动过：和原始串 t.s 解出来的节点表逐个比
-      var sd = DEC.decode(t.s, MR_ORDER);
-      if (!sd.err) {
-        function sig(o) {
-          return (o.nodes || []).filter(function (x) { return x.inSpec; })
-            .map(function (x) { return x.id + ':' + x.rank + ':' + x.entryIndex; })
-            .sort().join('|');
-        }
-        if (sig(gd) !== sig(sd)) {
-          loNote('mr 串节点变了', label + ' 串头改写之后节点表变了 —— 只该改前 152 位');
-        } else {
-          stats.mrtGameOk++;
-        }
-      }
-    }
-  }
-
-  // ---- 第 16 轮：场景标签 / 出手顺序 / 各首领·副本说明 ----
-  //
-  // 三块的判据都是「面板画出来的 == 产物里声明的」。产物是真值，面板是被测的。
-
-  // 场景标签（单体 / AOE / 顺劈 / 多目标）。**可选字段** —— 实测 167 套里只有
-  // 51 套有，因为 guide 只有一部分专精按场景分天赋。所以判据不是「必须有」，
-  // 而是**个数必须正好等于产物里声明的**：多画一个是编的，少画一个是丢了。
-  var wantScen = 0;
-  kind.list.forEach(function (x) { wantScen += (x.sc || []).length; });
-  // 出手顺序里也会画场景标签（实测 183 条里 14 条带场景），那些也在 scenEls 里。
-  var wantPrioScen = (kind.prio || []).filter(function (r) { return r.s; }).length;
-  var wantScenTotal = wantScen + wantPrioScen;
-  if (scenEls.length !== wantScenTotal) {
-    loNote('mr 场景标签', label + ' 场景标签画了 ' + scenEls.length + ' 个，'
-      + '产物里声明的是 ' + wantScenTotal + ' 个（方案 ' + wantScen
-      + ' + 出手顺序 ' + wantPrioScen + '）');
-  } else {
-    stats.mrtScen += scenEls.length;
-    if (scenEls.length) stats.mrtScenSeen++;
-  }
-  // 标签的字必须是那四个词之一，且和 class 对得上。写错了界面上就是把 AOE
-  // 那套标成单体 —— 用户照着它选，进副本发现打不动。
-  var SCEN_ZH = { st: '单体', aoe: 'AOE', cleave: '顺劈', multi: '多目标' };
-  scenEls.forEach(function (e) {
-    var code = ['st', 'aoe', 'cleave', 'multi'].filter(function (c) {
-      return e.classList.contains(c);
-    })[0];
-    if (!code) {
-      stats.mrtScenBad++;
-      loNote('mr 场景码', label + ' 场景标签「' + e.textContent + '」没有场景 class');
-    } else if (e.textContent !== SCEN_ZH[code]) {
-      stats.mrtScenBad++;
-      loNote('mr 场景字', label + ' 场景标签 class 是 ' + code + '，字却是「'
-        + e.textContent + '」，该是「' + SCEN_ZH[code] + '」');
-    }
-  });
-
-  // 出手顺序 / 各首领·副本说明：**产物里有就必须画，没有就不许画**。
-  // 「没有就不许画」这一半同样重要 —— 画一个空的 <details> 会让人以为
-  // guide 没写，而其实是面板取错了字段。
-  checkNoteBlock(label, '出手顺序', prioBox, kind.prio || [], 'mrtPrio');
-  // 撤掉的那一块：画出来就是错的。产物里也不该再有 boss 字段。
-  if (bossBox) loNote('mr 首领说明没撤干净', label + ' 还画着「各首领 / 副本说明」，'
-    + '那一块第 19 轮撤掉了');
-  if (kind.boss) loNote('mr 产物还带 boss', label + ' 产物里还有 boss 字段（'
-    + (kind.boss.length || 0) + ' 条）—— 生成器该停掉了');
-}
-
-/**
- * 一块说明（出手顺序 / 首领说明）画得对不对。
- *
- * 判据三条：
- *   · 产物里有几条，界面上就该有几行（`.note-row`）；
- *   · 标题里的条数必须和行数一致 —— 标题写「9 条」而下面 3 行，是最容易漏的错；
- *   · 每行的正文**必须原样等于产物里的字符串**。这一条盯的是「面板别自作聪明」：
- *     截断、去标点、再翻一遍，任何加工都会让它和产物不一致。
- *
- * 翻译发生在**生成时**，不在这里：技能 / 天赋名按 guide 标的 data-wow-id
- * 换成了官方中文（见 tools/fetch-guide.js 的 substSpells），句子留英文原文。
- * 所以面板这一侧的规矩没变 —— 产物给什么就照搬什么。
- * 「产物里的技能名到底换没换中文」是产物层面的事，由
- * tools/verify-guide-data.js 的 checkZhNames() 用总量下界钉住。
- */
-function checkNoteBlock(label, what, box, want, statKey) {
-  if (!want.length) {
-    if (box) loNote('mr 空说明', label + ' 产物里没有' + what + '，界面却画了这一块');
-    return;
-  }
-  if (!box) {
-    loNote('mr 缺说明', label + ' 产物里有 ' + want.length + ' 条' + what
-      + '，界面上一块都没画');
-    return;
-  }
-  var rows = [];
-  walk(box, function (n) {
-    if (n.classList && n.classList.contains('note-row')) rows.push(n);
-  });
-  if (rows.length !== want.length) {
-    loNote('mr 说明行数', label + ' ' + what + '画了 ' + rows.length + ' 行，'
-      + '产物里是 ' + want.length + ' 条');
-    return;
-  }
-  // 标题里的条数
-  var sum = '';
-  box.children.forEach(function (c) { if (c.tagName === 'SUMMARY') sum = c.textContent; });
-  if (sum.indexOf(String(want.length) + ' 条') < 0) {
-    loNote('mr 说明标题', label + ' ' + what + '的标题里没写「' + want.length
-      + ' 条」：' + sum.slice(0, 60));
-  }
-  // 逐行对正文
-  var bad = 0;
-  rows.forEach(function (row, i) {
-    var txt = '';
-    walk(row, function (n) {
-      if (n.classList && n.classList.contains('en')) txt = n.textContent;
-    });
-    if (txt !== want[i].t) {
-      bad++;
-      if (bad < 2) {
-        loNote('mr 说明正文', label + ' ' + what + '第 ' + (i + 1)
-          + ' 行的正文和产物不一致（产物 ' + want[i].t.length + ' 字，界面 '
-          + txt.length + ' 字）—— 面板不许加工这一段，产物给什么就照搬什么');
-      }
-    }
-  });
-  if (!bad) stats[statKey] += rows.length;
-}
-
-/**
- * 「画出来的树 == 高亮那一套」的判据。lit = 树上点亮节点的 id 集合。
+ * 「画出来的树 == 高亮那一份」的判据。lit = 树上点亮节点的 id 集合。
  *
  * 分三段，各有各的判法：
  *   · 职业树 + 专精树：两条英雄树共用，所以必须**完全等于**串里选中的那些；
  *   · 英雄树：面板只画选中的那一条，所以点亮的必须恰好是「某一条子树 ∩ 串」；
  *   · 多余的：既不在这三棵树的节点集合里，又亮着 —— 那是取错了节点集合。
- * 「选中」包含系统白给的节点（app/talent-decode.js 的 out.nr 也包含），
- * 点数才只算买的 —— 两个集合不是一回事，混用会得到 8 个左右的差（实测）。
+ * 「选中」包含系统白给的节点，点数才只算买的 —— 两个集合不是一回事。
  */
-function mrTreeLitOk(specId, t, d, lit) {
+function simTreeLitOk(specId, p, d, lit) {
   var sp = TREE && TREE.specs ? TREE.specs[String(specId)] : null;
   if (!sp) return '天赋树数据里没有这个专精';
   var cs = {}, hero = {};
   (sp.classNodes || []).forEach(function (id) { cs[String(id)] = 1; });
   (sp.specNodes || []).forEach(function (id) { cs[String(id)] = 1; });
   (sp.heroNodes || []).forEach(function (id) { hero[String(id)] = 1; });
-
   var litCs = [], litHero = [], litElse = [];
   Object.keys(lit).forEach(function (id) {
     if (cs[id]) litCs.push(id);
@@ -1933,10 +1524,8 @@ function mrTreeLitOk(specId, t, d, lit) {
     else litElse.push(id);
   });
   if (litElse.length) {
-    return '有 ' + litElse.length + ' 个点亮的节点不属于这个专精的三棵树（'
-      + litElse.slice(0, 3).join(',') + '）';
+    return '有 ' + litElse.length + ' 个点亮的节点不属于这个专精的三棵树（' + litElse.slice(0, 3).join(',') + '）';
   }
-
   var wantCs = Object.keys(cs).filter(function (id) { return d.sel[id]; });
   var missCs = wantCs.filter(function (id) { return !lit[id]; });
   var extraCs = litCs.filter(function (id) { return !d.sel[id]; });
@@ -1944,10 +1533,8 @@ function mrTreeLitOk(specId, t, d, lit) {
     return '职业树 + 专精树点亮 ' + litCs.length + ' 个，串里是 ' + wantCs.length
       + ' 个（少 ' + missCs.length + '，多 ' + extraCs.length + '）';
   }
-
-  // 英雄树：点亮的必须恰好是 t.h 里某一条子树在串里选中的全部节点。
   var ok = false, want = [];
-  (t.h || []).forEach(function (sid) {
+  (p.h || []).forEach(function (sid) {
     var ids = Object.keys(hero).filter(function (id) {
       var row = TREE.nodes[id];
       return row && row[6] === sid && d.sel[id];
@@ -1958,12 +1545,159 @@ function mrTreeLitOk(specId, t, d, lit) {
     ids.forEach(function (id) { if (!lit[id]) all = false; });
     if (all) ok = true;
   });
-  if (!ok) {
-    return '英雄树点亮 ' + litHero.length + ' 个，和这一套的任一条子树都不吻合（'
-      + want.join('、') + '）';
-  }
+  if (!ok) return '英雄树点亮 ' + litHero.length + ' 个，和这一份的任一条子树都不吻合（' + want.join('、') + '）';
   return null;
 }
+/**
+ * SimC 天赋这一块。核心判据：**高亮的那一行和画出来的那棵树必须是同一份**。
+ * 配置列表是竖着一排按钮，高亮错一行，用户就在照着别的配置点天赋，
+ * 而树、点数、名字各自都自洽。所以对着**树上点亮的节点**验（见 simTreeLitOk），
+ * 再验给出去的串：框里显示的、复制出去的、产物里的，三者逐字节相同，而且能导进游戏。
+ */
+function checkSimTalents(label, specId, boxes, btns, subBtns, lit, taVals) {
+  var truth = simTalentTruth(specId);
+  if (!truth) {
+    // 没配置（治疗等 11 个专精）就该整块不画，退回插件那份统计。画个空框比不画更糟。
+    if (boxes.length) loNote('sim 空框', label + ' SimC 没有这个专精的配置，却画出了配置列表');
+    return;
+  }
+  stats.simtRenders++;
+  simSeen[String(specId)] = 1;
+  stats.simtSpecs = Object.keys(simSeen).length;
+  var loads = [], copy = [];
+  walk(body, function (n) {
+    if (!n.classList) return;
+    if (n.classList.contains('sim-loadout')) loads.push(n);
+    if (n.classList.contains('sim-copy')) copy.push(n);
+  });
+  if (boxes.length !== 1 || loads.length !== 1 || copy.length !== 1) {
+    loNote('sim 块数', label + ' 配置列表 ' + boxes.length + ' 个 / 导入串块 ' + loads.length
+      + ' 个 / 复制按钮 ' + copy.length + ' 个，各应正好 1 个');
+    return;
+  }
+  stats.simtBox++;
+  if (btns.length !== truth.length) {
+    loNote('sim 按钮数', label + ' 配置按钮 ' + btns.length + ' 个，产物里有 ' + truth.length + ' 份');
+    return;
+  }
+  stats.simtBtns += btns.length;
+  var on = [];
+  btns.forEach(function (b, i) { if (b.classList.contains('on')) on.push(i); });
+  if (on.length !== 1) {
+    loNote('sim 高亮', label + ' 高亮的配置有 ' + on.length + ' 个，应该正好 1 个');
+    return;
+  }
+  var idx = on[0], p = truth[idx], d = simDecode(specId, p.s);
+  // 提示的第一行必须是**这一份的文件名** —— 那是照着能在 SimC 仓库里翻到原文件的东西。
+  var tip0 = String((btns[idx].attrs && btns[idx].attrs['data-tip']) || '').split('\n')[0];
+  if (tip0 !== p.f) loNote('sim 文件名', label + ' 高亮配置的提示第一行是「' + tip0 + '」，产物里是 ' + p.f);
+  else stats.simtName++;
+  if (headerSpec(p.s) !== Number(specId)) {
+    loNote('sim 专精不符', label + ' 串头里的 specID 是 ' + headerSpec(p.s) + '，不是本专精 ' + specId);
+  } else stats.simtSpec++;
+  // 产物声明的点数 / 英雄子树 vs 独立解码
+  if (d.err) loNote('sim 声明不符', label + ' 第 ' + idx + ' 份：' + d.err);
+  else if (d.pts !== p.p || d.subs.join(',') !== (p.h || []).join(',')) {
+    loNote('sim 声明不符', label + ' 第 ' + idx + ' 份：声明 ' + p.p + ' 点 / 子树 [' + (p.h || []).join(',')
+      + ']，现解出 ' + d.pts + ' 点 / [' + d.subs.join(',') + ']');
+  } else stats.simtDecl++;
+  // 核心断言：画出来的树点亮的就是**高亮那一份**点的节点。树来源切到「榜上」时画的是那一串
+  // （由 tree-src 那一组断言管），所以按 .tree-current 的 data-source 认现在画的是谁。
+  var curSrc = null;
+  walk(body, function (n) {
+    if (!curSrc && n.classList && n.classList.contains('tree-current')) curSrc = n.attrs['data-source'];
+  });
+  if (curSrc === 'sim') {
+    var why = d.err ? d.err : simTreeLitOk(specId, p, d, lit);
+    if (why) loNote('sim 树不符', label + ' 高亮的是第 ' + idx + ' 份 ' + p.f + '，但画出来的树和它不一致：' + why);
+    else stats.simtTree++;
+  }
+  // 印出来的点数必须是**游戏里配得出来的**那个数：两条英雄树都点了的串，产物里 p 是两条
+  // 加起来的（野德 95），而游戏里一个角色只能选一条 —— 印 95 等于给了一个永远点不出来的点数。
+  var ems = [];
+  btns[idx].children.forEach(function (c) {
+    if (c.classList && c.classList.contains('mt')) c.children.forEach(function (e) { if (e.tagName === 'EM') ems.push(e); });
+  });
+  var legal = {};
+  if (!d.err) (p.h && p.h.length ? p.h : [0]).forEach(function (sid) { legal[d.base + (d.per[sid] || 0)] = 1; });
+  var ptsEm = null, shortEm = null;
+  ems.forEach(function (e) {
+    if (e.classList && e.classList.contains('short')) { shortEm = e; return; }
+    if (!ptsEm && !(e.classList && e.classList.contains('hero')) && /^\d+( \/ \d+)* 点$/.test(e.textContent)) ptsEm = e;
+  });
+  if (Object.keys(legal).length) {
+    if (!ptsEm) loNote('sim 点数没画', label + ' 高亮那一行没印点数');
+    else {
+      var bad2 = ptsEm.textContent.replace(' 点', '').split(' / ').filter(function (x) { return !legal[Number(x)]; });
+      if (bad2.length) {
+        loNote('sim 点数不合法', label + ' 印的是 ' + ptsEm.textContent + '，游戏里配得出来的只有 '
+          + Object.keys(legal).join(' / ') + ' 点（产物声明 ' + p.p + ' 点）');
+      } else {
+        stats.simtPts++;
+        if ((p.h || []).length > 1) stats.simtPtsSplit++;
+      }
+    }
+  }
+  // 三棵树的表头相加 + 不画在树里的那一下，必须等于这一份配得出来的点数（同样用 legal 判）。
+  // 只在树画的是这一份时判 —— 切到「榜上」时表头是那一串的。
+  if (Object.keys(legal).length && curSrc === 'sim') {
+    var headSum = 0, heads = 0;
+    walk(body, function (n) {
+      if (!n.classList || !n.classList.contains('tree-grid-head')) return;
+      (n.children || []).forEach(function (c) {
+        var mm = /^(\d+) 点$/.exec(String(c.textContent || ''));
+        if (mm) { headSum += Number(mm[1]); heads++; }
+      });
+    });
+    if (heads < 2) loNote('树表头点数没画', label + ' 只找到 ' + heads + ' 个树表头点数');
+    else if (!legal[headSum + (d.off || 0)]) {
+      loNote('树表头点数加不起来', label + ' 三棵树的表头相加是 ' + headSum + ' 点，加上不画在树里的 '
+        + (d.off || 0) + ' 点还是配不出 ' + Object.keys(legal).join(' / ') + ' 点');
+    } else stats.simtHeadSum++;
+  }
+  // 没点满的必须说出来（MID2 实测冰霜死骑两份），点满的不许乱说。
+  var wantShort = p.p < SC.fullPts;
+  if (wantShort) {
+    stats.simtShortSeen++;
+    if (!shortEm || shortEm.textContent !== '少 ' + (SC.fullPts - p.p) + ' 点') {
+      loNote('sim 没点满没说', label + ' 这份只点了 ' + p.p + '/' + SC.fullPts + ' 点，界面上'
+        + (shortEm ? '写的是「' + shortEm.textContent + '」' : '没说'));
+    } else stats.simtShort++;
+  } else if (shortEm) {
+    loNote('sim 没点满乱说', label + ' 这份点满了 ' + p.p + ' 点，却写了「' + shortEm.textContent + '」');
+  }
+  // 两条英雄树都点了的必须给出选择条（游戏里只能选一条）；只有一条的**不该**画 ——
+  // 一个只有一个选项的选择器是在骗人。树来源切到「榜上」时英雄条是那一串的，不算在这里。
+  if (curSrc === 'sim') {
+    if ((p.h || []).length > 1) {
+      stats.simtBundle++;
+      if (subBtns !== p.h.length) {
+        loNote('sim 英雄条', label + ' 这份点了 ' + p.h.length + ' 条英雄天赋，英雄天赋选择条画了 ' + subBtns + ' 个按钮');
+      } else stats.simtSubBar++;
+    } else if (subBtns) {
+      loNote('sim 英雄条', label + ' 这份只有 1 条英雄天赋，却画了 ' + subBtns + ' 个选择按钮');
+    }
+  }
+  // **给出去的串必须就是产物那一条，而且是游戏认的格式。**
+  // 框里显示的、真点「复制」交出去的、产物里的，三者逐字节相同；再拿独立解码器验串头：
+  // 版本字节 2（别的版本游戏直接拒）、specID 是当前专精（上面 headerSpec 那条）。
+  // treeHash **不验**：SimC 的串原样转发，MID2 实测野德那条 treeHash 不是 0 —— 面板没改它，
+  // 也就不替它担保。
+  if (taVals.indexOf(p.s) < 0) loNote('sim 没给串', label + ' 导入串块的输入框里没有产物那条串');
+  var shownS = null;
+  walk(loads[0], function (n) { if (n.tagName === 'TEXTAREA' || n.tagName === 'INPUT') shownS = n.value; });
+  copied.length = 0;
+  copy[0].click();
+  if (copied.length !== 1) loNote('sim 没调用', label + ' 点了 SimC 的复制按钮，copyWithToast 被调用 ' + copied.length + ' 次');
+  else if (copied[0].text !== shownS || shownS !== p.s) {
+    loNote('sim 复制不符', label + ' 复制出去的串、框里显示的串、产物里的串不是同一条');
+  } else stats.simtCopyClick++;
+  if (!d.err) {
+    if (d.ver !== 2) loNote('sim 串版本', label + ' 串的版本字节是 ' + d.ver + '，游戏只认 2');
+    else stats.simtGameOk++;
+  }
+}
+
 
 // 天赋树的渲染检查。以前这里只 renders++、什么都不断言 —— 那是假绿：
 // 树画不出来照样通过。现在每个专精都画一遍，并数出节点 / 连线 / 中文名。
@@ -1978,14 +1712,12 @@ function checkTalents(label, specId) {
   var nodes = 0, grids = 0, seen = {}, dup = 0, canvases = [];
   var loBoxes = [], loTexts = [], loCopies = [], loPicks = 0, loKindBtns = [];
   var loHead = '';
-  // guide 那一块的元素。类名故意和 lo-* 分开（.mr-builds / .mrb / .mr-nostr），
+  // SimC 那一块的元素。类名故意和 lo-* 分开（.sim-builds / .simb / .sim-loadout），
   // 共用的话「导入串块正好 1 个」那条断言会被两块互相喂饱。
-  // mrLit 是树上点亮的节点，checkMrTalents 拿它验「画的树就是高亮那一套」；
-  // taVals 是页面上所有输入框里的字，用来钉住「不给 guide 的串」这个决定。
-  var mrBoxes = [], mrNotes = [], mrBtns = [], mrSubBtns = 0, mrLit = {}, taVals = [];
-  // 第 16 轮：场景标签（可选）、出手顺序、各首领/副本说明
-  var mrScen = [], mrPrio = null, mrBoss = null;
-  // 第 18 轮定的顺序：raider.io 那一块在最上面，guide 在下面；guide 里面
+  // simLit 是树上点亮的节点，checkSimTalents 拿它验「画的树就是高亮那一份」；
+  // taVals 是页面上所有输入框里的字，用来验「给出去的串就是产物那一条」。
+  var simBoxes = [], simBtns = [], simSubBtns = 0, simLit = {}, taVals = [];
+  // 第 18 轮定的顺序：raider.io 那一块在最上面，SimC 在下面；三棵树里
   // 英雄天赋那一列在最前。**顺序是用户明确要求的东西，所以要有断言钉住** ——
   // 光有「这些块都画出来了」的断言，把 appendChild 挪个位置照样全绿。
   // walk() 是深度优先前序，所以 push 的次序就是文档次序。
@@ -1996,14 +1728,14 @@ function checkTalents(label, specId) {
     if (!n.classList) return;
     if (n.classList.contains('tree-canvas')) canvases.push(n);
     if (n.classList.contains('bis-loadout')) { loBoxes.push(n); order.push('rio'); }
-    if (n.classList.contains('mr-builds')) order.push('guide');
+    if (n.classList.contains('sim-builds')) order.push('sim');
     // 树列的表头。第一个子元素是 <b>，里面是「英雄天赋：…」/「职业天赋」/「专精天赋」。
     if (n.classList.contains('tree-grid-head')) {
       var hb = n.children[0];
       if (hb && hb.textContent) colOrder.push(hb.textContent.split('：')[0]);
     }
-    // .lo-head 两块都在用（guide 那块带 mr-lo-head），这里只要 rio 那块的。
-    if (n.classList.contains('lo-head') && !n.classList.contains('mr-lo-head')) {
+    // .lo-head 两块都在用（SimC 那块带 sim-lo-head），这里只要 rio 那块的。
+    if (n.classList.contains('lo-head') && !n.classList.contains('sim-lo-head')) {
       loHead = n.textContent;
     }
     if (n.classList.contains('lo-text')) loTexts.push(n);
@@ -2014,16 +1746,11 @@ function checkTalents(label, specId) {
     if (n.classList.contains('lo-kind')) {
       n.children.forEach(function (c) { loKindBtns.push(c); });
     }
-    if (n.classList.contains('mr-builds')) mrBoxes.push(n);
-    if (n.classList.contains('mr-nostr')) mrNotes.push(n);
-    // 注意：order 里 'guide' 是在上面那个 bis-loadout 分支旁边 push 的，
+    if (n.classList.contains('sim-builds')) simBoxes.push(n);
+    // 注意：order 里 'sim' 是在上面那个 bis-loadout 分支旁边 push 的，
     // 和这里分开写 —— 两个 if 都命中同一个节点是不可能的（类名互斥），
     // 但放在一起会让「谁先 push」依赖于 if 的书写顺序，而不是文档顺序。
-    if (n.classList.contains('mrb')) mrBtns.push(n);
-    if (n.classList.contains('scen')) mrScen.push(n);
-    // 两块说明：按 class 认，各只该有一个（<details>）。
-    if (n.classList.contains('mr-prio')) mrPrio = n;
-    if (n.classList.contains('mr-boss')) mrBoss = n;
+    if (n.classList.contains('simb')) simBtns.push(n);
     // 英雄天赋选择条。.tree-pick 这个类名两条路都在用（插件那条是「套路」），
     // 所以按 .lb 的字认，不按类名 —— 认错的话「只有一条也画了选择条」那条
     // 断言会被插件那条路的按钮喂饱，永远不报。
@@ -2032,7 +1759,7 @@ function checkTalents(label, specId) {
       n.children.forEach(function (c) {
         if (c.classList && c.classList.contains('lb')) lb = c;
       });
-      if (lb && lb.textContent === '英雄天赋') mrSubBtns += n.children.length - 1;
+      if (lb && lb.textContent === '英雄天赋') simSubBtns += n.children.length - 1;
     }
     if (n.classList.contains('tree-grid')) { grids++; stats.tgrids++; }
     if (n.classList.contains('tree-edge')) {
@@ -2044,7 +1771,7 @@ function checkTalents(label, specId) {
       stats.tnodes++;
       if (n.classList.contains('on')) stats.tnodeOn++;
       if (n.classList.contains('on') && n.attrs['data-node']) {
-        mrLit[String(n.attrs['data-node'])] = 1;
+        simLit[String(n.attrs['data-node'])] = 1;
       }
       // 三棵树的节点必须互不相同。这一条比数总数强：把专精树错画成职业树时
       // 总数依然合理（职业树画了两遍），但节点 ID 会重复。
@@ -2182,18 +1909,17 @@ function checkTalents(label, specId) {
     }
   });
   checkLoadouts(label, specId, loBoxes, loTexts, loCopies, loPicks, loKindBtns, loHead);
-  checkMrTalents(label, specId, mrBoxes, mrNotes, mrBtns, mrSubBtns, mrLit, taVals,
-    mrScen, mrPrio, mrBoss);
+  checkSimTalents(label, specId, simBoxes, simBtns, simSubBtns, simLit, taVals);
 
   // ---- 第 18 轮的顺序。两条断言，各自有独立的失败方式。
   //
-  // ① raider.io 在 guide 上面。只在**两块都画了**的时候判 ——
-  //    插件那条路上 guide 那块压根不存在，拿「rio 必须是第 0 个」去判会
+  // ① raider.io 在 SimC 上面。只在**两块都画了**的时候判 ——
+  //    插件那条路上 SimC 那块压根不存在，拿「rio 必须是第 0 个」去判会
   //    把它误报（那条路上 rio 前面还有一段解释文字，但那不是这两块之一）。
-  if (order.indexOf('rio') >= 0 && order.indexOf('guide') >= 0) {
+  if (order.indexOf('rio') >= 0 && order.indexOf('sim') >= 0) {
     stats.ordChecked++;
-    if (order.indexOf('rio') > order.indexOf('guide')) {
-      loNote('顺序 rio', label + ' raider.io 那一块画在 guide 下面了（第 18 轮定的是放最上面）');
+    if (order.indexOf('rio') > order.indexOf('sim')) {
+      loNote('顺序 rio', label + ' raider.io 那一块画在 SimC 下面了（第 18 轮定的是放最上面）');
     } else stats.ordRio++;
   }
   // ② 英雄天赋那一列在最前。三棵树的表头次序必须是 英雄 → 职业 → 专精。
@@ -2313,10 +2039,10 @@ specKeys.forEach(function (key) {
   checkTalents('天赋 ' + specKeys[0] + '/' + cat, B.specs[specKeys[0]].specId);
 });
 
-// ---- guide 天赋页的三个开关：换类型 / 换方案 / 换英雄树 --------------------
+// ---- SimC 天赋页的两个开关：换配置 / 换英雄树 -----------------------------
 //
-// 上面那 43 次渲染**一次都没按过它们**：state.mrKind / mrBuild / mrSub 都不持久化，
-// 每次 load 都从「大秘境 第 0 套 第 0 条英雄树」开始。于是「换方案」这条路
+// 上面那 43 次渲染**一次都没按过它们**：state.simIdx / simSub 都不持久化，
+// 每次 load 都从「第 0 份 第 0 条英雄树」开始。于是「换配置」这条路
 // 在测试里从来没被走过，而套件照样全绿 —— 又一次「没跑报成通过」。
 // 所以这里真去点：点完重新走一遍 checkTalents，让上面每条断言在**换过之后**
 // 的界面上再验一次（尤其是「高亮那一行和显示的串是同一套」）。
@@ -2353,23 +2079,19 @@ function findKindBtn(text) {
 }
 specKeys.forEach(function (key) {
   var specId = B.specs[key].specId;
-  if (!mrTalentTruth(specId)) return;
   settings.bisTab = 'talents';
   settings.bisSpec = key;
   settings.bisTalentCat = 'raid';
-  // **每个专精都从「跟着数据走」开始。** mrKind 现在是持久化的（一个人在准备打
-  // 团本时，不该每次打开天赋页都跳回大秘境让他手动点回去）。而这一组要的是
-  // 「从默认状态点一下团本」—— 不清的话第一个专精点完团本，后面 39 个进来就
-  // 已经是团本了，而 findKindBtn 只认「还没高亮的那个」，于是「点团本」这条路
-  // 只被走过 1 次。持久化本身另有一条断言专门验（下面的 mrtKindSaved）。
-  settings.bisMrKind = '';
-  // 同理清掉导入串那一块的类型 —— 不清的话第一个专精点完团本，
-  // 后面 39 个进来就已经是团本了，「点一下团本」这条路只被走过 1 次。
+  // **每个专精都从默认状态开始**：清掉导入串那一块的类型（它是持久化的）——
+  // 不清的话第一个专精点完团本，后面 39 个进来就已经是团本了，
+  // 「点一下团本」这条路只被走过 1 次。
   settings.bisLoKind = '';
   body.children.length = 0;
   load('app/bis.js');
   g.AE.openBis();
-  if (!findBtns('mr-builds').length) return;   // 这个专精没走 guide 那条路
+  // 没有 SimC 配置的专精（插件兜底那条路）跳过 SimC 的两个开关，
+  // 但下面「榜上热门天赋串」的团本开关照样要点 —— 那一块两条路上都有。
+  var simPath = !!simTalentTruth(specId) && findBtns('sim-builds').length > 0;
 
   // ---- 点一下会不会把用户的位置弄丢（第 16 轮的两条友好度修复）----
   //
@@ -2382,8 +2104,8 @@ specKeys.forEach(function (key) {
   //
   // 这两条都**只在真去点一下之后**才看得出来，所以断言必须放在这里。
   (function checkPositionKept() {
-    var bs0 = findBtns('mrb');
-    if (bs0.length < 2) return;             // 只有一套，点不出重建
+    var bs0 = findBtns('simb');
+    if (bs0.length < 2) return;             // 只有一份，点不出重建
 
     // 先把一个折叠块展开，并把滚动位置挪到中间
     var sec = null;
@@ -2397,7 +2119,7 @@ specKeys.forEach(function (key) {
     }
     body.scrollTop = 500;
 
-    findBtns('mrb')[1].click();
+    findBtns('simb')[1].click();
 
     stats.posChecked++;
     if (body.scrollTop !== 500) {
@@ -2427,7 +2149,7 @@ specKeys.forEach(function (key) {
        */
       still.removeAttribute('open');
       if (still.dispatch) still.dispatch('toggle');
-      findBtns('mrb')[0].click();
+      findBtns('simb')[0].click();
       var again = null;
       walk(body, function (n) {
         if (!again && n.tagName === 'DETAILS') again = n;
@@ -2445,62 +2167,41 @@ specKeys.forEach(function (key) {
     body.scrollTop = 0;
   })();
 
-  // 换方案：点第 2 套。只有 1 套的跳过（没有第 2 套可点，不是缺陷）。
+  // 换配置：点第 2 份。只有 1 份的跳过（没有第 2 份可点，不是缺陷）。
   //
   // 点完必须**确认高亮真的挪过去了**。只点不看的话「按钮的 onClick 写死成
-  // state.mrBuild = 0」这种接线错完全测不出来：界面自洽（高亮第 0 套、串是第 0 套），
+  // state.simIdx = 0」这种接线错完全测不出来：界面自洽（高亮第 0 份、串是第 0 份），
   // 只是按钮不管用 —— 而按钮不管用正是用户第一眼就会撞上的东西。
-  var bs = findBtns('mrb');
+  var bs = findBtns('simb');
   if (bs.length > 1) {
     bs[1].click();
     var on2 = -1;
-    findBtns('mrb').forEach(function (b, i) { if (b.classList.contains('on')) on2 = i; });
+    findBtns('simb').forEach(function (b, i) { if (b.classList.contains('on')) on2 = i; });
     if (on2 !== 1) {
-      loNote('mr 换方案没生效', '天赋 ' + key + ' 点了第 2 套，高亮却在第 ' + on2 + ' 套');
+      loNote('sim 换配置没生效', '天赋 ' + key + ' 点了第 2 份，高亮却在第 ' + on2 + ' 份');
     } else {
-      stats.mrtBuildSw++;
+      stats.simtBuildSw++;
     }
-    checkTalents('天赋 ' + key + '/第2套', specId);
+    checkTalents('天赋 ' + key + '/第2份', specId);
+    findBtns('simb')[0].click();          // 回到默认那份，下面的英雄树开关在它上面点
   }
-  // 换英雄树：打包了两条的才有这一条。
-  var subs = findSubPickBtns();
+  // 换英雄树：串里两条英雄树都点了的才有这一条。
+  var subs = simPath ? findSubPickBtns() : [];
   if (subs.length > 1) {
     subs[1].click();
     var sub2 = findSubPickBtns();
     if (!sub2[1] || !sub2[1].classList.contains('on')) {
-      loNote('mr 换英雄树没生效', '天赋 ' + key + ' 点了第 2 条英雄天赋，它没有变成高亮');
+      loNote('sim 换英雄树没生效', '天赋 ' + key + ' 点了第 2 条英雄天赋，它没有变成高亮');
     } else {
-      stats.mrtSubSw++;
+      stats.simtSubSw++;
     }
     checkTalents('天赋 ' + key + '/换英雄树', specId);
-  }
-  // 换类型：默认是大秘境，点「团本」。两种都有的专精才点得到。
-  var kb = findKindBtn('团本');
-  if (kb) {
-    kb.click();
-    var st = (doc.getElementById('bis-sub') || {}).textContent || '';
-    if (st.indexOf('团本指南') < 0) {
-      loNote('mr 换类型没生效', '天赋 ' + key + ' 点了「团本」，副标题还是：' + st);
-    } else {
-      stats.mrtKindSw++;
-    }
-    checkTalents('天赋 ' + key + '/团本', specId);
-    // 「团本 / 大秘境」这个选择要**存进设置**：一个人在准备打团本，每次打开
-    // 天赋页都该落在团本那一份，而不是跳回大秘境让他手动点回去。
-    // 这一条盯的是「真的写回去了」—— 只改内存的话换个专精就没了。
-    if (settings.bisMrKind !== 'raid') {
-      loNote('mr 类型没存', '天赋 ' + key + ' 点了「团本」，设置里 bisMrKind 还是「'
-        + settings.bisMrKind + '」—— 换个专精或重开面板又会跳回大秘境');
-    } else {
-      stats.mrtKindSaved++;
-    }
   }
 
   // ---- 第 20 轮：「榜上热门天赋串」的团本 / 大秘境开关 ----
   //
-  // 和上面 guide 那个开关是**两个不同的开关**：这个换的是导入串那一块的
-  // 数据来源（大秘境 = raider.io，团本 = Warcraft Logs），guide 那个换的是
-  // guide 指南的类型。两个都叫「团本」，所以按容器类名分开找 ——
+  // 换的是导入串那一块的数据来源（大秘境 = raider.io，团本 = Warcraft Logs）。
+  // 按容器类名（.lo-kind）找 —— 页面上别处也有叫「团本」的按钮（插件统计那一排），
   // 混在一起找的话点到的是哪一个全看 walk 的顺序。
   var lk = null;
   walk(body, function (n) {
@@ -2552,7 +2253,7 @@ specKeys.forEach(function (key) {
         stats.loResetIdx++;
       }
     }
-    // 持久化：和 mrKind 同一个道理。
+    // 持久化：它是两个固定的字，一个人在准备打团本，每次打开都该落在团本那一份。
     if (settings.bisLoKind !== 'raid') {
       loNote('lo 类型没存', '天赋 ' + key + ' 点了导入串的「团本」，'
         + '设置里 bisLoKind 还是「' + settings.bisLoKind + '」');
@@ -2593,33 +2294,46 @@ if (haveFile.length !== gearIds.length) {
   problems.push('装备图标文件覆盖 ' + haveFile.length + '/' + gearIds.length + '，不是全覆盖');
 }
 // 轨道徽章：数据里有 3601 行能解出轨道，但「数据对」不等于「画出来了」。
-// 80 次渲染只画每个专精的前几件，所以这里不按 3601 算，只要求量级对。
-if (stats.trk < 500) problems.push('轨道徽章只画了 ' + stats.trk + ' 个，太少');
+// 轨道只出自 GearInsight 那份实测：模拟配装视角里是借实测装等的那几格（轨道跟着那次测量走，
+// SimC 配置自己的装等不配轨道 —— 不同测量的数字不拼在一起），再加首屏兜底那 3 次。
+// 所以只要求量级对（实测 134）。
+if (stats.trk < 50) problems.push('轨道徽章只画了 ' + stats.trk + ' 个，太少');
 if (stats.trkBad > 0) {
   problems.push(stats.trkBad + ' 个轨道徽章文字不合格式，例如 ' + stats.trkSample);
 }
 // 徽章：每个部位组头上**恰好一个**，两种加起来必须等于部位组数。
 // 写成相等而不是「> 0」—— 「至少有一个」那种断言在只有一个部位画出来的时候也能过。
 // 两种分开数再求和，才能同时抓住「rio 视角忘了给徽章」和「BisData 视角多给一个」。
-if (stats.cov + stats.sn + stats.mr !== stats.slots) {
+if (stats.cov + stats.sn + stats.sim !== stats.slots) {
   problems.push('覆盖率徽章 ' + stats.cov + ' + 样本量徽章 ' + stats.sn
-    + ' + guide 徽章 ' + stats.mr + ' = ' + (stats.cov + stats.sn + stats.mr)
+    + ' + SimC 徽章 ' + stats.sim + ' = ' + (stats.cov + stats.sn + stats.sim)
     + '，部位组 ' + stats.slots + ' 个，不一一对应');
 }
 if (stats.covBad > 0) problems.push(stats.covBad + ' 个覆盖率徽章文字不合格式');
 if (stats.snBad > 0) problems.push(stats.snBad + ' 个样本量徽章文字不合格式');
-if (stats.mrBad > 0) problems.push(stats.mrBad + ' 个 guide 徽章文字不合格式');
+if (stats.simBad > 0) problems.push(stats.simBad + ' 个 SimC 徽章文字不合格式');
 // 空转守卫：三种徽章都必须真的出现过。少了一种说明那条路没被画到，
 // 而上面那条求和等式在「某条路整个缺席」时照样成立 —— 加视角那一轮
 // 就是这么假绿的（渲染次数一个都没涨，套件却全绿）。
-if (stats.mr < 1) problems.push('一个 guide 徽章都没画出来，「最佳推荐」视角没被渲染');
+if (stats.sim < 1) problems.push('一个 SimC 徽章都没画出来，「模拟配装」视角没被渲染');
 if (stats.sn < 1) problems.push('一个样本量徽章都没画出来，「实战分布」视角没被渲染');
 // 覆盖率徽章现在**只**出自 GearInsight 兜底那条路（第 16 轮撤掉了那两个视角按钮，
-// 但 guide 懒加载没到时还得靠它画）。所以这一条不再是「BisData 视角没渲染」，
-// 而是「首屏兜底没被走到」—— 实测 46 个，全部来自下面那 3 次兜底渲染。
+// 但 SimC 懒加载没到时还得靠它画）。所以这一条不再是「BisData 视角没渲染」，
+// 而是「首屏兜底没被走到」—— 全部来自 checkFirstPaintFallback 那 3 次兜底渲染。
 if (stats.cov < 1) {
   problems.push('一个覆盖率徽章都没画出来 —— GearInsight 兜底那条路没被渲染'
-    + '（它只在 guide 数据还没加载时出现，见 checkFirstPaintFallback）');
+    + '（它只在 SimC 数据还没加载时出现，见 checkFirstPaintFallback）');
+}
+// 「模拟配装」那一组：有配置的专精和没配置的专精都必须真的走到过 —— 只走一边的话，
+// 「没配置时退到实战分布并说明」那半条在空集合上恒真。
+var SIM_SPECS = specKeys.filter(hasSim).length;
+if (stats.simHave !== SIM_SPECS || stats.simNone !== specKeys.length - SIM_SPECS) {
+  problems.push('模拟配装：有配置的专精验了 ' + stats.simHave + '/' + SIM_SPECS + '，没配置的验了 '
+    + stats.simNone + '/' + (specKeys.length - SIM_SPECS));
+}
+if (SIM_SPECS < 20 || stats.simNone < 5) {
+  problems.push('模拟配装：有 SimC 配置的专精 ' + SIM_SPECS + ' 个、没有的 ' + stats.simNone
+    + ' 个（MID2 实测 29 / 11）—— 产物或取数路径不对');
 }
 if (stats.slots < 1000) problems.push('只画了 ' + stats.slots + ' 个部位组，太少');
 
@@ -2654,7 +2368,7 @@ if (stats.slots < 1000) problems.push('只画了 ' + stats.slots + ' 个部位�
 
   settings.bisTab = 'gear';
   settings.bisSpec = key;
-  settings.bisView = 'guide';
+  settings.bisView = 'simc';
   settings.bisChar = '';
 
   // 第一趟：**树不在**（模拟首屏）。这时显示英文是对的。
@@ -2686,47 +2400,42 @@ if (!stats.heroLate) {
   problems.push('「树后到也能补上英雄天赋中文名」这条一次都没验成 —— 空转');
 }
 
-// ---- 视角迁移（第 16 轮撤掉 GearInsight 那两个视角按钮）
-if (stats.vmChecked !== 4) {
-  problems.push('视角迁移只验了 ' + stats.vmChecked + ' 个存档值，应该是 4 个'
-    + '（raid / mplus / guide / rio）');
+// ---- 视角迁移（第 16 轮撤掉 GearInsight 那两个视角按钮，v1.21.0 换掉默认视角的数据源）
+if (stats.vmChecked !== 5) {
+  problems.push('视角迁移只验了 ' + stats.vmChecked + ' 个存档值，应该是 5 个'
+    + '（raid / mplus / retired-view / simc / rio）');
 }
-if (stats.vmMigrated < 3) {
-  problems.push('只有 ' + stats.vmMigrated + ' 个存档值落在「最佳推荐」上，'
-    + '应该是 3 个（raid / mplus 迁过来，加上 guide 自己）');
+if (stats.vmMigrated !== 4) {
+  problems.push('只有 ' + stats.vmMigrated + ' 个存档值落在「模拟配装」上，'
+    + '应该是 4 个（raid / mplus / retired-view 迁过来，加上 simc 自己）');
 }
 if (stats.staleKey !== 3) {
   problems.push('「英雄天赋换过名的存档专精」只验了 ' + stats.staleKey + ' 次，应该是 3 次');
 }
-if (stats.vmWrote !== 2) {
-  problems.push('只有 ' + stats.vmWrote + ' 个撤掉的视角名被写回成 guide，'
-    + '应该是 2 个（raid / mplus）—— 迁移只改了内存没落盘');
+if (stats.vmWrote !== 3) {
+  problems.push('只有 ' + stats.vmWrote + ' 个撤掉的视角名被写回成 simc，'
+    + '应该是 3 个（raid / mplus / retired-view）—— 迁移只改了内存没落盘');
 }
 
-// ---- 装等那一格：这一轮那个 bug 的回归
+// ---- 装等那一格：一个真 bug 的回归
 //
-// guide 不给装等，装等是从本机两份实测数据借的（见 app/bis.js 的 measuredGear）。
-// 三条路都必须真的画出来过，否则「文字必须合格」那条在空集合上恒真。
-// 实测：GearInsight 给出 1393 行、raider.io 补 15 行、两边都没有 3 行。
+// 模拟配装视角的装等多数是 SimC 配置给的（配置写明 / bonus_id 查表），定不出的几格
+// 从本机两份实测数据借（见 app/bis.js 的 simSlots / measuredGear）。
+// 每条路都必须真的画出来过，否则「文字必须合格」那条在空集合上恒真。
 if (stats.ivZero > 0) {
   problems.push(stats.ivZero + ' 行装等印成了 0 或别的非正整数 —— '
-    + '上一版就是这样（从 rio 物品池取 ilvl，而那个字段不存在）');
+    + '以前就是这样（从 rio 物品池取 ilvl，而那个字段不存在）');
 }
-if (stats.ivGi < 1000) {
-  problems.push('只有 ' + stats.ivGi + ' 行装等标着 GearInsight 来源，太少'
-    + '（实测 1393 行）—— 装等那一格没画出来，或者来源标记丢了');
+if (stats.ivSim < 400) {
+  problems.push('只有 ' + stats.ivSim + ' 行装等标着 SimC 配置来源，太少'
+    + '（实测 502：29 个专精的默认配置，加上对照那几组）—— 装等那一格没画出来，或者来源标记丢了');
 }
-// 下面两条是**小样本下界**。它们盯的是「另外两条分支真的会被画到」：
-// raider.io 补的那 15 行画的是虚下划线，两边都没有的 3 行画的是「装等 ?」。
-// 换赛季重抓后如果 GearInsight 恰好覆盖了全部引用，这两条会误红 ——
-// 那时把数字改成 0 并在这里记一句「本赛季没有这种物品」，别把断言删掉。
-if (stats.ivRio < 1) {
-  problems.push('没有一行装等来自 raider.io —— 那条兜底分支没被画到'
-    + '（实测有 15 行：GearInsight 里查不到、榜上有人穿过的物品）');
-}
-if (stats.ivNone < 1) {
-  problems.push('没有一行画出「装等 ?」—— 两份实测数据都查不到的物品那条分支没被画到'
-    + '（实测有 3 行）');
+// 下面两条是**小样本下界**：借来的那几格（多是制造装备）真的会被画到，而且标着是借的。
+// 换赛季重抓后如果 SimC 恰好每一格都写了装等，这两条会误红 ——
+// 那时把数字改成 0 并在这里记一句「本版本配置没有定不出装等的格子」，别把断言删掉。
+if (stats.ivGi + stats.ivRio < 1) {
+  problems.push('没有一行装等是借本机实测数据的 —— SimC 定不出装等那条分支没被画到'
+    + '（MID2 实测 52 格，多是制造装备）');
 }
 
 // ---- 装等差距
@@ -2911,9 +2620,11 @@ console.log(pad('渲染检查') + (problems.length ? problems.length + ' 个问�
 var gapPass = !stats.gapBad && !stats.gapTopBad && !stats.pairBad && !stats.swapBad
   && stats.gapMath === stats.gapBadge && stats.gapSum === stats.gapSlots;
 console.log(pad('装等 / 差距') + (gapPass ? '通过' : '有问题') + '（视角按钮 2 个，旧视角 '
-  + stats.vmMigrated + ' 个存档值迁到「最佳推荐」；装等来源 GearInsight '
+  + stats.vmMigrated + ' 个存档值迁到「模拟配装」；没有 SimC 配置的 ' + stats.simNone
+  + ' 个专精退到实战分布并说明；装等来源 SimC 配置 ' + stats.ivSim + ' 行、借 GearInsight '
   + stats.ivGi + ' 行、raider.io ' + stats.ivRio + ' 行、查不到 ' + stats.ivNone
-  + ' 行、印成 0 的 ' + stats.ivZero + ' 行；对照 ' + stats.gapChars
+  + ' 行、印成 0 的 ' + stats.ivZero + ' 行（借装等的三条分支造样本验过 ' + stats.ivBorrow
+  + '/3）；对照 ' + stats.gapChars
   + ' 个角色 × 2 个视角，差距徽章 ' + stats.gapBadge + ' 个（文字与颜色不符 '
   + stats.gapBad + '，差值拿提示里的两个数独立复核 ' + stats.gapMath
   + '，比的是首选那一件 ' + stats.gapTop + '（不符 ' + stats.gapTopBad
@@ -3012,14 +2723,14 @@ if (stats.loResetIdx < 20) {
     + ' —— 测试得先挑一个非 #1 的串，否则那条代码是死的也测不出来');
 }
 if (stats.loWarnOk !== stats.loRenders) {
-  problems.push('「不是同一套」那句和 guide 块的在场一致性只核对过 '
+  problems.push('「不是同一套」那句和 SimC 块的在场一致性只核对过 '
     + stats.loWarnOk + ' 次，渲染 ' + stats.loRenders + ' 次');
 }
-// 下界：**必须真的碰到过没有 guide 方案的专精**，否则那条断言只验了一半
-// （永远是「两个都在」，「两个都不在」那一支一次都没走）。实测有 3 个。
-if (stats.loNoMr < 3) {
-  problems.push('只碰到 ' + stats.loNoMr + ' 次「这个专精没有 guide 方案」，'
-    + '实测有 3 个（平衡德 / 织雾僧 / 武器战）—— 那条断言的另一半没被验过');
+// 下界：**必须真的碰到过没有 SimC 配置的专精**，否则那条断言只验了一半
+// （永远是「两个都在」，「两个都不在」那一支一次都没走）。MID2 实测有 11 个。
+if (stats.loNoSim < 5) {
+  problems.push('只碰到 ' + stats.loNoSim + ' 次「这个专精没有 SimC 配置」，'
+    + '实测有 11 个（治疗专精等）—— 那条断言的另一半没被验过');
 }
 if (stats.loHead !== stats.loRenders) {
   problems.push('导入串标题里的人数 / 种类数只核对过 ' + stats.loHead + ' 次，渲染 '
@@ -3045,145 +2756,51 @@ console.log(pad('　团本/大秘境') + (stats.loRaid >= 30 && stats.loKindSw >
   + '，标题人数对过 ' + stats.loHead + ' 次'
   + '　大秘境来自 raider.io，团本来自 Warcraft Logs）');
 
-// ---- guide 天赋方案（第 15 轮：天赋页改成以 guide 为主）
+// ---- SimC 天赋配置
 // 门槛全部写成「和渲染次数相等」，不是「> 0」：这一组的每条断言都在
 // truth 为空时提前 return，只要一个下界写松，「整块没画出来」就会安静地全绿。
-// 专精数写成实测的 37（40 个里战士武器 / 德鲁伊平衡 / 武僧织雾一条串都解不开，
-// 生成器一条都没收）—— 换赛季重抓之后这个数会变，那时该连带改这里，
-// 正是希望发生的事。
-var MRT_SPECS = 0;
+var SIMT_SPECS = 0, simtTotal = 0;
 specKeys.forEach(function (k) {
-  if (mrTalentTruth(B.specs[k].specId)) MRT_SPECS++;
+  var t = simTalentTruth(B.specs[k].specId);
+  if (t) { SIMT_SPECS++; simtTotal += t.length; }
 });
-// 产物层面的去重：同一个类型的列表里不许有两条一样的串。
-//
-// 这一条是这一轮那个 bug 的直接封条：guide 每个副本 / 每个首领的小节各带一个
-// 天赋图，第一版生成器按「串 + 名字」去重，于是同一套方案照着 9~13 个小节名
-// 各留了一行 —— 界面上就是一排名字几乎一样的按钮，点开画的是同一棵树。
-// 现在按**串本身**去重，共用的小节数记进 c。这里对着产物再验一遍。
-var mrDup = 0, mrMax = 0, mrTotal = 0;
-specKeys.forEach(function (k) {
-  var truth = mrTalentTruth(B.specs[k].specId);
-  if (!truth) return;
-  truth.forEach(function (kb) {
-    var seen = {};
-    if (kb.list.length > mrMax) mrMax = kb.list.length;
-    mrTotal += kb.list.length;
-    kb.list.forEach(function (t) {
-      if (seen[t.s]) {
-        mrDup++;
-        if (mrDup < 4) {
-          problems.push('guide 产物里 ' + k + '/' + kb.kind + ' 有两套方案的串一样（「'
-            + t.n + '」）—— 去重没生效，界面上会出现一排点开是同一棵树的按钮');
-        }
-      }
-      seen[t.s] = 1;
-      if (!(t.c >= 1)) {
-        problems.push('guide 产物里 ' + k + '/' + kb.kind + '「' + t.n + '」没有 c（共用小节数）');
-      }
-    });
-  });
+// 绝对下界。上面每条断言都是「和渲染次数相等」——**真值恒为空的时候它们全是 0 = 0**，
+// 整组会安静地全绿。所以先钉死「产物里确实有这么多专精有配置」。MID2 实测 29 个专精 / 47 份。
+if (SIMT_SPECS < 20 || simtTotal < 30) {
+  problems.push('产物里只有 ' + SIMT_SPECS + ' 个专精 / ' + simtTotal + ' 份 SimC 天赋配置（实测 29 / 47），取数路径不对');
+}
+if (stats.simtSpecs !== SIMT_SPECS) {
+  problems.push('SimC 天赋只检查了 ' + stats.simtSpecs + ' 个专精，产物里有 ' + SIMT_SPECS
+    + ' 个（有配置的专精必须都走到 SimC 那条路）');
+}
+['simtBox', 'simtName', 'simtSpec', 'simtDecl', 'simtPts', 'simtCopyClick', 'simtGameOk'].forEach(function (k) {
+  if (stats[k] !== stats.simtRenders) {
+    problems.push('SimC 天赋 ' + k + ' 只验过 ' + stats[k] + ' 次，渲染 ' + stats.simtRenders + ' 次，不一一对应');
+  }
 });
-if (mrTotal < 100) problems.push('guide 产物里只有 ' + mrTotal + ' 套方案，取数路径不对');
-// 绝对下界。上面每条断言都是「和渲染次数相等」——**真值恒为空的时候它们全是
-// 0 = 0**，整组会安静地全绿，正是这个项目反复踩的那种假绿。所以先钉死
-// 「产物里确实有这么多专精有方案」和「确实画了这么多次」。
-if (MRT_SPECS < 30) {
-  problems.push('产物里只有 ' + MRT_SPECS + ' 个专精有 guide 天赋方案（实测 37），取数路径不对');
+// 树和表头只在「树画的是这一份」时判（切到「榜上」的那几次不算），所以是下界不是全等。
+if (stats.simtTree < SIMT_SPECS || stats.simtHeadSum < SIMT_SPECS) {
+  problems.push('「画出来的树就是高亮那一份」验了 ' + stats.simtTree + ' 次、表头相加对上 '
+    + stats.simtHeadSum + ' 次，少于有配置的专精数 ' + SIMT_SPECS);
 }
-if (stats.mrtRenders < MRT_SPECS) {
-  problems.push('guide 天赋只渲染了 ' + stats.mrtRenders + ' 次，少于有方案的专精数 '
-    + MRT_SPECS);
+// 两条英雄树都点了的配置（MID2：野德、射击猎）和没点满的配置（冰霜死骑）：
+// 那才是「印 95 点」「导进去剩点数」的现场，一次都没走到等于这两条断言不存在。
+if (stats.simtPtsSplit < 2 || stats.simtBundle < 2) {
+  problems.push('两条英雄树都点了的配置，点数只复核过 ' + stats.simtPtsSplit + ' 次、英雄条遇到 '
+    + stats.simtBundle + ' 次，太少（MID2 有 2 份）');
 }
-if (stats.mrtSpecs !== MRT_SPECS) {
-  problems.push('guide 天赋只检查了 ' + stats.mrtSpecs + ' 个专精，产物里有 '
-    + MRT_SPECS + ' 个（有方案的专精必须都走到 guide 那条路）');
+if (stats.simtSubBar !== stats.simtBundle) {
+  problems.push('两条英雄树都点了的配置遇到 ' + stats.simtBundle + ' 次，选择条只对上 ' + stats.simtSubBar + ' 次');
 }
-if (stats.mrtBox !== stats.mrtRenders) {
-  problems.push('guide 方案列表 + 说明只对上 ' + stats.mrtBox + ' 次，渲染 '
-    + stats.mrtRenders + ' 次，不一一对应');
+if (stats.simtShortSeen < 1 || stats.simtShort !== stats.simtShortSeen) {
+  problems.push('没点满的配置遇到 ' + stats.simtShortSeen + ' 次，界面上说对了 ' + stats.simtShort
+    + ' 次（MID2 有冰霜死骑两份）');
 }
-// 缩名的下界。**上面那条「名字」断言两条腿都容得下「压根没缩」**（短名 === 全名
-// 时它直接过），所以缩名功能整个没了它一声不响 —— 那正是第 18 轮要修的毛病
-// （一个专精 10 行名字几乎一样，中位 45 字符）。实测 112 次渲染里 60 次的高亮行
-// 是缩过的，取 40 留出数据变动的余地。
-if (stats.mrtNameShort < 40) {
-  problems.push('方案名缩短过的只有 ' + stats.mrtNameShort + ' 次（实测 60），'
-    + '缩名那一步没在跑 —— 一个专精会列出 10 行几乎一样的长名字');
-}
-// 重名行补后缀那一步（见 bis.js 的 mrUniqNames）。**上游自己就有重名**：
-// 13 套没名字、4 组不同的串共用一个名字，缩名之前就在，退回全名也躲不掉。
-// 不补后缀的话那些行印着同一个名字，点哪一行都不知道点的是什么。
-// 实测 112 次渲染里 12 次的高亮行是补过后缀的，取 6 留余地。
-if (stats.mrtNameTag < 6) {
-  problems.push('补过「分辨后缀」的只有 ' + stats.mrtNameTag + ' 次（实测 12），'
-    + '重名行没被区分开 —— 上游有 13 套没名字、4 组同名不同串');
-}
-if (stats.mrtTree !== stats.mrtRenders) {
-  problems.push('「画出来的树就是高亮那一套」只验过 ' + stats.mrtTree + ' 次，渲染 '
-    + stats.mrtRenders + ' 次');
-}
-if (stats.mrtSpec !== stats.mrtRenders) {
-  problems.push('guide 串头 specID 只验过 ' + stats.mrtSpec + ' 次，渲染 '
-    + stats.mrtRenders + ' 次');
-}
-if (stats.mrtName !== stats.mrtRenders) {
-  problems.push('「高亮方案的名字和产物一致」只验过 ' + stats.mrtName + ' 次，渲染 '
-    + stats.mrtRenders + ' 次');
-}
-if (stats.mrtDecl !== stats.mrtRenders) {
-  problems.push('产物声明的点数 / 英雄子树只独立解码复核过 ' + stats.mrtDecl + ' 次，渲染 '
-    + stats.mrtRenders + ' 次');
-}
-if (stats.mrtHeadSum !== stats.mrtRenders) {
-  problems.push('三棵树表头相加对上「共 N 点」的只有 ' + stats.mrtHeadSum + ' 次，渲染 '
-    + stats.mrtRenders + ' 次 —— 不一一对应');
-}
-if (stats.mrtPts !== stats.mrtRenders) {
-  problems.push('「印出来的点数是游戏里配得出来的」只验过 ' + stats.mrtPts + ' 次，渲染 '
-    + stats.mrtRenders + ' 次');
-}
-// 打包两条英雄天赋的方案：那才是「印 95 点」这个 bug 的现场，一次都没走到
-// 等于这条断言不存在。
-if (stats.mrtPtsSplit < 10) {
-  problems.push('打包两条英雄天赋的方案里，点数只复核过 ' + stats.mrtPtsSplit + ' 次，太少');
-}
-if (stats.mrtCopy !== stats.mrtRenders) {
-  problems.push('guide 导入串（.mr-copy + textarea 里是 t.g）只验过 ' + stats.mrtCopy
-    + ' 次，渲染 ' + stats.mrtRenders + ' 次，说明有渲染没给出可导入的串');
-}
-// 「给出去的串真的能导入」——版本 2 + treeHash 全 0 + specID 对 + 节点位没被动过。
-// 这一条是整块的意义所在：有个串不等于那个串能用。
-if (stats.mrtCopyClick !== stats.mrtRenders) {
-  problems.push('guide 的复制按钮只真点过 ' + stats.mrtCopyClick
-    + ' 次，渲染 ' + stats.mrtRenders + ' 次 —— 没点过就等于没验「复制的和显示的是同一串」');
-}
-if (stats.mrtGameOk !== stats.mrtRenders) {
-  problems.push('导入串「版本 2 + hash 全 0 + specID 对 + 节点位未变」只验过 '
-    + stats.mrtGameOk + ' 次，渲染 ' + stats.mrtRenders + ' 次');
-}
-// 「通用 N 处」：去重之后大部分方案都挂在多个小节下面（实测 167 套里绝大多数），
-// 一次都没遇到说明取的不是去重后的产物。
-if (stats.mrtMany !== stats.mrtManySeen) {
-  problems.push('有 ' + stats.mrtManySeen + ' 套方案是多个小节共用的，界面上只说对了 '
-    + stats.mrtMany + ' 次');
-}
-if (stats.mrtManySeen < 10) {
-  problems.push('只遇到 ' + stats.mrtManySeen + ' 套「多个小节共用」的方案，太少');
-}
-// 打包两条英雄天赋的方案：实测去重后 167 套里 82 套是这样，所以「一次都没遇到」
-// 说明这条路没走到，而它恰恰是 guide 独有、最容易画错的那一条。
-if (stats.mrtSubBar !== stats.mrtBundle) {
-  problems.push('打包多条英雄天赋的方案遇到 ' + stats.mrtBundle + ' 次，选择条只对上 '
-    + stats.mrtSubBar + ' 次');
-}
-if (stats.mrtBundle < 10) {
-  problems.push('只遇到 ' + stats.mrtBundle + ' 套「打包两条英雄天赋」的方案，太少');
-}
+
 // 第 18 轮的顺序：两条都是**下界 + 全等**。下界不写的话，把两块都不画
 // 会让「顺序对」恒真（一个都没比过等于全对）；全等则钉住「比过的每一次都对」。
-if (stats.ordChecked < 30) {
-  problems.push('「raider.io 在 guide 上面」只验过 ' + stats.ordChecked + ' 次，太少');
+if (stats.ordChecked < 25) {
+  problems.push('「raider.io 在 SimC 上面」只验过 ' + stats.ordChecked + ' 次，太少');
 }
 if (stats.ordRio !== stats.ordChecked) {
   problems.push('验了 ' + stats.ordChecked + ' 次两块的先后，只有 ' + stats.ordRio
@@ -3196,55 +2813,31 @@ if (stats.ordHero !== stats.ordCols) {
   problems.push('验了 ' + stats.ordCols + ' 次三棵树的次序，只有 ' + stats.ordHero
     + ' 次英雄天赋在最前');
 }
-// 三个开关必须真被按过。不按的话它们在测试里等于不存在（state 不持久化，
-// 每次渲染都是「大秘境 第 0 套 第 0 条」）。
-// ---- 第 16 轮：场景标签 / 出手顺序 / 各首领·副本说明 ----
-//
-// 三条都是**下界**，因为逐条的「等于产物」那些断言在数据为空时全是恒真的
-// （空集合上的全称命题）。产物里的真值：51 套方案带场景、183 条出手顺序、
-// 252 条首领说明 —— 渲染只走每个专精的一个类型，所以界面上遇到的是其中一部分。
-if (stats.mrtScenBad > 0) {
-  problems.push(stats.mrtScenBad + ' 个场景标签的字和 class 对不上'
-    + '（把 AOE 那套标成单体，用户照着它选会进副本发现打不动）');
-}
-if (stats.mrtScenSeen < 10) {
-  problems.push('只有 ' + stats.mrtScenSeen + ' 次渲染画出了场景标签，太少'
-    + ' —— 产物里 51 套方案带场景（单体 / AOE / 顺劈 / 多目标），'
-    + '一次都不画说明 sc 那个字段没接上');
-}
-if (stats.mrtPrio < 50) {
-  problems.push('出手顺序只逐条对过 ' + stats.mrtPrio + ' 行，太少'
-    + '（产物里 185 条）—— 那一块没画，或者正文被加工过');
-}
-// 「各首领 / 副本说明」第 19 轮撤了，所以这里不再有下界 —— 反过来钉住
-// 「撤掉了就不许再冒出来」：见 checkMrTalents 里那两条 loNote。
 
-// ---- 换专精之后会不会落在「别人的第 6 套」上（第 16 轮友好度修复）
+// ---- 换专精之后会不会落在「别人的第 2 份」上（第 16 轮友好度修复）
 //
-// mrBuild / mrSub / loadout / build 都是**数组下标**，每个专精的数组各自不同。
-// 不归零的话：在 A 专精选了第 6 套，切到 B 专精就落在 B 的第 6 套上 ——
-// 那是用户没选过的一套天赋，而界面上完全看不出异常（高亮、点数、树全自洽）。
-// 实测毁灭术士和射击猎人的团本方案都有 10 套，切过去正好命中一套按首领分的。
+// simIdx / simSub / loadout / build 都是**数组下标**，每个专精的数组各自不同。
+// 不归零的话：在 A 专精选了第 2 份，切到 B 专精就落在 B 的第 2 份上 ——
+// 那是用户没选过的一份配置，而界面上完全看不出异常（高亮、点数、树全自洽）。
 //
-// 判据：先在 A 专精点到第 2 套，再点 B 专精的按钮，B 的高亮必须回到第 1 套。
+// 判据：先在 A 专精点到第 2 份，再点 B 专精的按钮，B 的高亮必须回到第 1 份。
 (function checkSpecSwitchResets() {
-  // 找两个都有 >=2 套 guide 方案的专精
+  // 找一个有 >=2 份 SimC 配置的专精，而且它同职业的另一个专精也有 >=2 份
   var cands = specKeys.filter(function (k) {
-    var t = mrTalentTruth(B.specs[k].specId);
-    return t && t[0] && t[0].list.length >= 2;
+    var t = simTalentTruth(B.specs[k].specId);
+    return t && t.length >= 2;
   });
   if (cands.length < 2) return;
 
   settings.bisTab = 'talents';
   settings.bisSpec = cands[0];
-  settings.bisMrKind = '';
   body.children.length = 0;
   load('app/bis.js');
   g.AE.openBis();
 
-  var bs = findBtns('mrb');
+  var bs = findBtns('simb');
   if (bs.length < 2) return;
-  bs[1].click();                       // 在 A 专精选第 2 套
+  bs[1].click();                       // 在 A 专精选第 2 份
 
   // 找 B 专精的按钮并点它（专精按钮的 class 是 spec）
   var target = null;
@@ -3256,14 +2849,14 @@ if (stats.mrtPrio < 50) {
   if (!target) return;
   target.click();
 
+  var after = findBtns('simb');
+  if (!after.length) return;           // 换到的专精没走 SimC 那条路
   stats.switchChecked++;
-  var after = findBtns('mrb');
-  if (!after.length) return;           // 换到的专精没走 guide 那条路
   var on = -1;
   after.forEach(function (b, i) { if (b.classList.contains('on')) on = i; });
   if (on !== 0) {
-    problems.push('在一个专精选了第 2 套，切到另一个专精后高亮落在第 ' + (on + 1)
-      + ' 套 —— 换专精没把「第几套」归零，用户会看到一套他没选过的天赋');
+    problems.push('在一个专精选了第 2 份，切到另一个专精后高亮落在第 ' + (on + 1)
+      + ' 份 —— 换专精没把「第几份」归零，用户会看到一份他没选过的配置');
   } else {
     stats.switchReset++;
   }
@@ -3289,44 +2882,27 @@ if (stats.posSecShut < 10) {
     + ' —— 这个方向是另一个 bug（默认写死 open 的块会自己弹回来）');
 }
 
-if (stats.mrtBuildSw < 20) problems.push('「换方案」只点过 ' + stats.mrtBuildSw + ' 次，太少');
-if (stats.mrtSubSw < 5) problems.push('「换英雄树」只点过 ' + stats.mrtSubSw + ' 次，太少');
-if (stats.mrtKindSw < 5) problems.push('「换团本 / 大秘境」只点过 ' + stats.mrtKindSw + ' 次，太少');
-if (stats.mrtKindSaved !== stats.mrtKindSw) {
-  problems.push('点过「团本」' + stats.mrtKindSw + ' 次，写回设置只成功 '
-    + stats.mrtKindSaved + ' 次 —— 这个选择要能跨专精 / 跨重开活下来');
-}
-console.log(pad('guide 天赋') + (stats.mrtSpecs === MRT_SPECS
-    && stats.mrtBox === stats.mrtRenders && stats.mrtTree === stats.mrtRenders
-    && stats.mrtPts === stats.mrtRenders && stats.mrtDecl === stats.mrtRenders
-    && stats.mrtCopy === stats.mrtRenders
-    && stats.mrtCopyClick === stats.mrtRenders ? '通过' : '有问题')
-  + '（' + stats.mrtSpecs + '/' + specKeys.length + ' 个专精 / ' + stats.mrtRenders
-  + ' 次渲染，方案按钮 ' + stats.mrtBtns + '，画出来的树和高亮那一套同一套 '
-  + stats.mrtTree
-  + '，点数与英雄子树独立解码复核 ' + stats.mrtDecl
-  + '，三棵树表头相加 == 「共 N 点」 ' + stats.mrtHeadSum
-  + '，印的点数游戏里配得出来 ' + stats.mrtPts + '（其中打包两条的 '
-  + stats.mrtPtsSplit + '）'
-  + '，多个小节共用说清楚 ' + stats.mrtMany
-  + '，方案名缩短 ' + stats.mrtNameShort + ' 次且全名原样留在提示里'
-  + '，重名行补分辨后缀 ' + stats.mrtNameTag + ' 次（列表内两行同名 0 组）'
-  + '，产物里 ' + mrTotal + ' 套方案无重复串（一个专精最多 ' + mrMax + ' 套）'
-  + '，打包多条英雄树 ' + stats.mrtBundle + ' 套都给了选择条'
-  + '，复制按钮真点过 ' + stats.mrtCopyClick + ' 次且复制内容与框里显示逐字节相同'
-  + '，导入串可用（版本 2 / hash 全 0 / specID 对 / 节点位未变）' + stats.mrtGameOk
-  + '，真点过：换方案 ' + stats.mrtBuildSw + '、换英雄树 ' + stats.mrtSubSw
-  + '、换类型 ' + stats.mrtKindSw + '）');
+if (stats.simtBuildSw < 10) problems.push('「换配置」只点过 ' + stats.simtBuildSw + ' 次，太少');
+if (stats.simtSubSw < 2) problems.push('「换英雄树」只点过 ' + stats.simtSubSw + ' 次，太少');
+console.log(pad('SimC 天赋') + (stats.simtSpecs === SIMT_SPECS
+    && stats.simtBox === stats.simtRenders && stats.simtDecl === stats.simtRenders
+    && stats.simtPts === stats.simtRenders && stats.simtCopyClick === stats.simtRenders
+    && stats.simtGameOk === stats.simtRenders ? '通过' : '有问题')
+  + '（' + stats.simtSpecs + '/' + specKeys.length + ' 个专精 / ' + stats.simtRenders
+  + ' 次渲染，配置按钮 ' + stats.simtBtns + '，画出来的树和高亮那一份同一份 ' + stats.simtTree
+  + '，点数与英雄子树独立解码复核 ' + stats.simtDecl
+  + '，三棵树表头相加 == 「共 N 点」 ' + stats.simtHeadSum
+  + '，印的点数游戏里配得出来 ' + stats.simtPts + '（其中两条英雄树都点了的 ' + stats.simtPtsSplit + '）'
+  + '，没点满的说清楚 ' + stats.simtShort + '/' + stats.simtShortSeen
+  + '，两条英雄树都点了的 ' + stats.simtBundle + ' 次都给了选择条'
+  + '，复制按钮真点过 ' + stats.simtCopyClick + ' 次且与框里、产物里逐字节相同'
+  + '，导入串是游戏格式（版本 2 / specID 对）' + stats.simtGameOk
+  + '，真点过：换配置 ' + stats.simtBuildSw + '、换英雄树 ' + stats.simtSubSw + '）');
 // 单独一行：第 18 轮定的顺序。打印出来才看得见「验过几次」——
 // 不打印的话下界失效时没人会注意到数字变成了 0。
-console.log(pad('　页面顺序') + 'raider.io 在 guide 上面 ' + stats.ordRio + '/' + stats.ordChecked
+console.log(pad('　页面顺序') + 'raider.io 在 SimC 上面 ' + stats.ordRio + '/' + stats.ordChecked
   + '，英雄天赋列在最前 ' + stats.ordHero + '/' + stats.ordCols);
-// 单独一行：第 16 轮加的三块。**必须打印** —— 「加了计数器、写了断言、
-// 既不打印也没下界」在这个仓库出过一次，那次整块功能从没被画过而套件全绿。
-console.log(pad('　场景 / 说明') + (stats.mrtScenBad ? '有问题' : '通过')
-  + '（场景标签 ' + stats.mrtScen + ' 个（字与 class 不符 ' + stats.mrtScenBad
-  + '），出手顺序逐条对过 ' + stats.mrtPrio + ' 行'
-  + '　正文与产物逐字节相同，面板不加工；首领说明已撤，画出来就报错）');
+
 console.log(pad('　点了不丢位置') + (stats.posScroll === stats.posChecked ? '通过' : '有问题')
   + '（' + stats.posChecked + ' 个专精上真点了一下：滚动位置保住 ' + stats.posScroll
   + '，折叠块展开状态保住 ' + stats.posSec
@@ -3335,18 +2911,17 @@ console.log(pad('　点了不丢位置') + (stats.posScroll === stats.posChecked
 /*
  * **默认写死 `open` 的折叠块收起来之后，不许自己弹回去。**
  *
- * 上面那条「收起状态保住」跑在 guide 那条路上，而那边的块默认都是合着的 ——
+ * 上面那条「收起状态保住」跑在 SimC 那条路上，而那边的块默认都是合着的 ——
  * 去掉反向还原的逻辑它照样全绿（实测过：变异体没被抓到）。真正会弹回来的是
  * 插件兜底那条路上的「热门英雄天赋」，它在源码里被硬置成 open，只出现在
- * guide 缺天赋方案的那 3 个专精（武器战 71 / 平衡德 102 / 织雾僧 270）。
- * 所以这一组专门去那 3 个专精上点。
+ * SimC 没有配置的那些专精（治疗专精等）。所以这一组专门去那些专精上点。
  */
 (function checkFallbackSecShut() {
   var done = 0, bad = 0, done2 = 0;
   specKeys.forEach(function (key) {
     if (done >= 2) return;
     var sid = (B.specs[key] || {}).specId;
-    if (!sid || mrTalentTruth(sid)) return;        // 有 guide 方案的不走兜底那条路
+    if (!sid || simTalentTruth(sid)) return;       // 有 SimC 配置的不走兜底那条路
     settings.bisTab = 'talents';
     settings.bisSpec = key;
     body.children.length = 0;
@@ -3562,7 +3137,8 @@ var VERIFIERS = [
   { label: '天赋串解码', script: 'verify-talent-decode.js', data: 'talent-tree.js',
     need: 'tools/talent-truth.json', own: true },
   { label: 'rio 装备分布', script: 'verify-rio-data.js', data: 'rio-data.js' },
-  { label: 'guide 推荐', script: 'verify-guide-data.js', data: 'guide-data.js' },
+  // SimC 默认配置：每条串用面板那份解码器独立复核，装等来源可追溯，GPL 许可文件在。
+  { label: 'SimC 配置', script: 'verify-simc-data.js', data: 'simc-data.js' },
   // 团本天赋串（第 20 轮）。串头能解开 + specID 对得上，是这份数据唯一的硬判据。
   { label: 'wcl 团本天赋', script: 'verify-wcl-data.js', data: 'wcl-data.js' },
   // End-to-end scanner fixture: PowerShell unwraps function results with zero or
@@ -3588,9 +3164,8 @@ var VERIFIERS = [
   // 12.1.5 的 DB2 多了个隐藏职业「旅行者」（4 个专精），骗过了旧的「专精数 >= 3」，
   // 更新数据.bat 第 1 步交叉校验失败。用假 DB2 钉住新判定。
   { label: '职业名生成', script: 'check-class-names.js', own: true },
-  // 2026-10-21 重抓：列表页没列 devourer，推导的 -mythic-plus-guide 404，
-  // 噬灭的大秘境视角静默没了。钉住 -mythic-guide 备用名（不联网）。
-  { label: 'guide 候选', script: 'check-guide-targets.js', own: true }
+  // fetch-simc.js 怎么读 SimC 配置：ilevel 压过 bonus_id、两档不挑、附魔模板占位不编数（不联网）。
+  { label: 'SimC 解析', script: 'check-simc-parse.js', own: true }
 ];
 VERIFIERS.forEach(function (v) {
   if (v.data && !fs.existsSync(path.join(ROOT, 'app', v.data))) {
@@ -3673,7 +3248,7 @@ VERIFIERS.forEach(function (v) {
  * **「下面的树画哪一套」那个开关，以及树和人数必须是同一套**（第 21 轮）。
  *
  * 用户报的：「人数和天赋树还是不匹配」。原因是版面骗人 —— 页顶那块写「#1·50人」
- * （榜上 50 个真实角色在用这一串），页底只有一棵树，画的却是 guide 编辑那一套。
+ * （榜上 50 个真实角色在用这一串），页底只有一棵树，画的却是另一套。
  * 现在给了开关：切到「榜上」时树画那一串，标题里把人数写出来。
  *
  * 判据全部独立算：串和人数直接从产物（AE_RIO / AE_WCL）取，点数用
@@ -3687,7 +3262,7 @@ VERIFIERS.forEach(function (v) {
     var sid = (B.specs[key] || {}).specId;
     var RS = g.AE_RIO && g.AE_RIO.specs ? g.AE_RIO.specs[String(sid)] : null;
     if (!sid || !RS || !RS.loadouts || !RS.loadouts.length) return;
-    if (!mrTalentTruth(sid)) return;      // 兜底那 3 个专精没有这个开关（树本来就是套路那一套）
+    if (!simTalentTruth(sid)) return;     // 没有 SimC 配置的专精没有这个开关（树本来就是套路那一套）
 
     settings.bisTab = 'talents';
     settings.bisSpec = key;
@@ -3723,8 +3298,8 @@ VERIFIERS.forEach(function (v) {
     var row = RS.loadouts[0];
     var truthCount = row[1];
     var d2 = null;
-    try { d2 = DEC.decode(row[0], MR_ORDER); } catch (e) { d2 = null; }
-    if (!d2 || d2.err) return;            // 解不开的串面板会退回 guide，那是另一条路
+    try { d2 = DEC.decode(row[0], ORDER); } catch (e) { d2 = null; }
+    if (!d2 || d2.err) return;            // 解不开的串面板会退回 SimC 那套，那是另一条路
     var truthPts = 0;
     (d2.nodes || []).forEach(function (n) {
       if (n.inSpec && n.purchased) truthPts += (typeof n.rank === 'number' ? n.rank : 1);
@@ -3799,13 +3374,14 @@ VERIFIERS.forEach(function (v) {
 (function () {
   var before = problems.length;
   var cells = 0, tops = 0, opened = 0, order = 0, checked = 0, flats = 0, flatIcons = 0;
-  var byView = { guide: { cells: 0, flat: 0 }, rio: { cells: 0, flat: 0 } };
+  var byView = { simc: { cells: 0, flat: 0 }, rio: { cells: 0, flat: 0 } };
   var pairsChecked = 0, pairsDupe = 0;
   var LEFT = [1, 2, 3, 15, 5, 9], RIGHT = [10, 6, 7, 8, 11, 12, 13, 14], BOTTOM = [16, 17];
   var NAMES = (g.AE_BIS || {}).slotNames || {};
 
+  // 前 6 个专精（死骑 3 + 恶魔猎手 3）都有 SimC 配置，所以 simc 那一轮画的就是模拟配装。
   specKeys.slice(0, 6).forEach(function (key) {
-    ['guide', 'rio'].forEach(function (view) {
+    ['simc', 'rio'].forEach(function (view) {
       settings.bisTab = 'gear';
       settings.bisSpec = key;
       settings.bisView = view;
@@ -3909,9 +3485,9 @@ VERIFIERS.forEach(function (v) {
           if (c.classList.contains('slot-list')) listBox = c;
         });
         /*
-         * 两种格子，判据不同（第 21 轮用户定的「最佳推荐请保持图标和替代项」）：
-         *   · flat（行 ≤4，guide 全是这种）：**行直接摆着**，所以不该有摘要行，
-         *     也不该能折 —— 折起来会把「替代项」藏掉；
+         * 两种格子，判据不同（第 21 轮用户定的「请保持图标和替代项」）：
+         *   · flat（行 ≤4，SimC 一格一行全是这种）：**行直接摆着**，所以不该有摘要行，
+         *     也不该能折 —— 折起来只会多点一下；
          *   · 其余（rio 的深格子，5~29 行）：给一行摘要（带图标）+ 点开看全部。
          */
         var isFlat = sl.classList.contains('flat');
@@ -4001,13 +3577,12 @@ VERIFIERS.forEach(function (v) {
     problems.push('角色栈：直接摆行的 ' + flats + ' 格里只有 ' + flatIcons + ' 格有图标');
   }
   /*
-   * guide 那边一格最多 4 行（实测 {1:14, 2:1106, 3:118, 4:6}），所以
-   * **「最佳推荐」视角每一格都该是直接摆行的** —— 那正是用户要的「保持图标和替代项」。
+   * SimC 那边一格只有一行，所以**「模拟配装」视角每一格都该是直接摆行的**。
    * 实战分布那边反过来：绝大多数格子 5~29 行，该给摘要 + 点开。
    */
-  if (byView.guide.flat !== byView.guide.cells) {
-    problems.push('角色栈：最佳推荐视角 ' + byView.guide.cells + ' 格里只有 '
-      + byView.guide.flat + ' 格把行直接摆出来 —— 剩下的把替代项折起来藏掉了');
+  if (!byView.simc.cells || byView.simc.flat !== byView.simc.cells) {
+    problems.push('角色栈：模拟配装视角 ' + byView.simc.cells + ' 格里只有 '
+      + byView.simc.flat + ' 格把行直接摆出来 —— 一格一行的东西被折起来了');
   }
   if (pairsChecked < 12) {
     problems.push('角色栈：只验了 ' + pairsChecked + ' 对「戒指/饰品不许推荐同一件」，太少'
@@ -4020,7 +3595,7 @@ VERIFIERS.forEach(function (v) {
   console.log(pad('角色栈') + (problems.length > before ? '有问题' : '通过')
     + '（' + checked + ' 次渲染 × 16 个部位 = ' + cells + ' 格：位置照游戏角色栏 '
     + order + '/' + checked + '，行少的直接摆出来（带图标）' + flats
-    + ' 格（最佳推荐 ' + byView.guide.flat + '/' + byView.guide.cells
+    + ' 格（模拟配装 ' + byView.simc.flat + '/' + byView.simc.cells
     + ' 全摆着），行多的给带图标的摘要行 + 点开再收回 ' + opened + ' 格'
     + '，成对的两格不推荐同一件 ' + (pairsChecked - pairsDupe) + '/' + pairsChecked + '）');
 })();
@@ -4062,7 +3637,7 @@ VERIFIERS.forEach(function (v) {
   if (!sample) {
     problems.push('天赋归并：app/rio-data.js 里一条天赋串都取不到，这一组在验空气');
   } else {
-    var d = DEC.decode(sample, MR_ORDER);
+    var d = DEC.decode(sample, ORDER);
     var n0 = d && d.nodes && d.nodes[0];
     checks++;
     if (!n0 || n0.id == null) {
@@ -4122,7 +3697,7 @@ VERIFIERS.forEach(function (v) {
   Object.keys(rsp || {}).forEach(function (sid) {
     var lo = rsp[sid].loadouts || [];
     if (lo.length < 2) return;
-    var dec = function (s) { return DEC.decode(s, MR_ORDER); };
+    var dec = function (s) { return DEC.decode(s, ORDER); };
     var k1 = GROUP.buildKey(lo[0][0], dec);
     var k2 = GROUP.buildKey(lo[1][0], dec);
     if (!k1 || !k2) return;
@@ -4350,31 +3925,24 @@ VERIFIERS.forEach(function (v) {
     }
   });
 
-  // ---- ⑤ 品质字段是 0 的物品，必须能从别处拿到真品质。
+  // ---- ⑤ 品质 0 = 「没有这个字段」，不是「粗糙品质」。
   //
-  // 面板把 q===0 当成「没有这个字段」再去查 app/item-icons.js（bis.js 的
-  // `(ri && ri.q) ? ri.q : itemQuality(itemId)`）。这条断言证明**退得到东西**：
-  // guide 池里 36 件从 DB2 回填的物品 q 都是 0，其中被 bis/alt 引用的那件是
-  // 三个法师专精的腰带首选，退不到就还是灰色。
-  var MR = g.AE_guide, ICON = g.AE_ITEM_ICONS, RIO = g.AE_RIO;
-  var zeroQ = 0, zeroQBad = 0;
-  Object.keys((MR && MR.items) || {}).forEach(function (id) {
-    if (MR.items[id].q !== 0) return;
-    zeroQ++;
-    var alt = (RIO && RIO.items && RIO.items[id] && RIO.items[id].q)
-      || (ICON && ICON[id] && ICON[id].q) || 0;
-    if (!alt) return;                      // 别处也没有，面板就不上色，是设计好的
-    if (alt < 2) zeroQBad++;
+  // 面板把 q===0 当成没有、再去查 app/item-icons.js（bis.js 的
+  // `(ri && ri.q) ? ri.q : itemQuality(itemId)`）—— 曾经有一份物品池里 36 件 q 是 0，
+  // 三个法师专精的腰带首选被染成灰色。SimC 那份的约定是**0 不写**（fetch-simc.js），
+  // 所以这里验约定守住了：池里没有 q=0，而且每件都有真品质（DB2 OverallQualityID）。
+  var SCI = (g.AE_SIMC && g.AE_SIMC.items) || {};
+  var zeroQ = 0, noQ = 0, nSimItems = Object.keys(SCI).length;
+  Object.keys(SCI).forEach(function (id) {
+    if (SCI[id].q === 0) zeroQ++;
+    else if (!(SCI[id].q >= 1)) noQ++;
   });
   checks++;
-  if (!zeroQ) {
-    // 生成器哪天把品质补上了，这一条就该删掉而不是留着空转。
-    problems.push('口径与文案：guide 物品池里已经没有 q=0 的物品了 —— '
-      + '⑤没有可验的样本，把这条断言删掉，或者留着的话说清为什么');
-  }
+  if (!nSimItems) problems.push('口径与文案：SimC 物品池是空的，⑤ 没有样本');
   checks++;
-  if (zeroQBad) {
-    problems.push('口径与文案：有 ' + zeroQBad + ' 件 q=0 的物品在别处的品质也 <2');
+  if (zeroQ || noQ) {
+    problems.push('口径与文案：SimC 物品池里有 ' + zeroQ + ' 件 q=0、' + noQ
+      + ' 件没有品质 —— 0 该省略，而 DB2 每件都有品质');
   }
 
   if (checks < 12) {
@@ -4481,7 +4049,7 @@ VERIFIERS.forEach(function (v) {
     + '宝库「还需」逐行对差额 ' + vaultLines + ' 行；'
     + 'persist 的键 ' + pk.length + ' 个全在默认表里；'
     + '文案提到的文件 ' + nf.length + ' 个全在包里；'
-    + 'guide 池里 q=0 的 ' + zeroQ + ' 件都能从别处拿到真品质；'
+    + 'SimC 池里 ' + nSimItems + ' 件都有真品质、没有写成 0 的；'
   + '周趋势的「本周大秘境本数」和主表同口径（合成快照 4 大秘境 + 1 史诗 + 2 英雄 → 4））');
 })();
 
@@ -4709,7 +4277,7 @@ VERIFIERS.forEach(function (v) {
     problems.push('主表易用性：在线拉取把远端地址写进了 settings.remoteDataUrl —— '
       + '下次启动会主动去连它，违背「点击才联网」');
   } else onlineN++;
-  if (g.AE_BIS !== undefined || g.AE_guide !== undefined) {
+  if (g.AE_BIS !== undefined || g.AE_SIMC !== undefined) {
     problems.push('主表易用性：在线拉取没有清掉已加载的数据全局 —— '
       + 'loadDataFile 会认为已加载而根本不拉');
   } else onlineN++;
@@ -4878,9 +4446,9 @@ VERIFIERS.forEach(function (v) {
   }
   var total = Number(m[1]), bad = Number(m[2]);
   // 下界：锚点总数不该突然掉下来（那意味着抽取逻辑认不出结构了，
-  // 而「认不出」会安静地报 0 坏）。实测 114 个。
+  // 而「认不出」会安静地报 0 坏）。实测 100 个。
   if (total < 80) {
-    problems.push('只认出 ' + total + ' 个变异锚点（实测 114），check-anchors 的抽取逻辑没跑全');
+    problems.push('只认出 ' + total + ' 个变异锚点（实测 100），check-anchors 的抽取逻辑没跑全');
   }
   if (bad) {
     out.split('\n').filter(function (l) { return l.indexOf('✗') >= 0; })
@@ -4904,7 +4472,7 @@ if (problems.length) {
 
 var bad = total.fail + problems.length;
 console.log(bad === 0
-  ? '全部通过：' + total.pass + ' 项测试 + 装备渲染 + 天赋树渲染 + guide 天赋方案'
+  ? '全部通过：' + total.pass + ' 项测试 + 装备渲染 + 天赋树渲染 + SimC 天赋配置'
     + ' + 无障碍 + 四项格式校验 + 天赋串解码对真值 + 并发池 + 打包一致性 + 变异锚点'
   : '有问题：' + total.fail + ' 项测试失败，' + problems.length + ' 个渲染/格式问题');
 process.exit(bad === 0 ? 0 : 1);

@@ -24,7 +24,7 @@ const { chromium } = require('playwright');
     await page.addInitScript(() => { window.__AE_FORCE_LANG = 'zh'; });
     await page.goto(pathToFileURL(path.join(dir, 'index.html')).href);
     await page.locator('#btn-bis').click();
-    await page.waitForFunction(() => window.AE_guide && window.AE_RIO && window.AE_TALENT_TREE);
+    await page.waitForFunction(() => window.AE_SIMC && window.AE_RIO && window.AE_TALENT_TREE);
     await page.locator('.bis-tabs').getByRole('button', { name: '天赋', exact: true }).click();
     await page.waitForFunction(() => window.AE_TALENTS && window.AE_TALENT_DESC && window.AE_WCL);
     let categories = 0;
@@ -34,8 +34,9 @@ const { chromium } = require('playwright');
       ['MONK/MISTWEAVER', '武僧', 270, [82], 1],
       ['WARRIOR/PROTECTION', '战士', 73, [81,95,108,112], 4]
     ]) {
-      // Exercise the original plugin fallback even when an editorial guide exists.
-      await page.evaluate(sid => { window.AE_guide.specs[sid].views = {}; }, sid);
+      // Exercise the original plugin fallback even when a SimC profile exists (Protection
+      // Warrior has one; Mistweaver has none because SimC does not simulate healing).
+      await page.evaluate(sid => { if (window.AE_SIMC.specs[sid]) delete window.AE_SIMC.specs[sid]; }, sid);
       await page.locator('.bis-pick .cls').getByText(cls, { exact: true }).click();
       await page.locator('.bis-pick .spec[data-tip^="' + key + '"]').first().click();
       assert.ok((await page.locator('.bis-warn').allTextContents()).some(t => t.includes('已隔离 ' + count + ' 条')));

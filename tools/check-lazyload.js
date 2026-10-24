@@ -83,7 +83,7 @@ g.AE.openBis();
 var gearReqs = reqs.slice();
 reqs.length = 0;
 
-// 装备页**本来就会**把 talent-tree.js 拉下来（guide 那一路要它解串）。
+// 装备页**本来就会**把 talent-tree.js 拉下来（英雄天赋的中文名在它里面）。
 // 这是下面那条断言的前提，所以钉住它：哪天装备页不再拉树，这一关就该重新想判据，
 // 而不是默默变成空转。
 if (gearReqs.indexOf('app/talent-tree.js') < 0) {

@@ -49,7 +49,7 @@ component that owns it is prepared again.
   to install Node.js, apply for WCL credentials or scrape sites themselves.
 - An application update does not mean every upstream dataset is current or
   optimal. Each source keeps its own date, restrictions and methodology, and
-  source limits such as guide's are not bypassed.
+  no source's access restrictions are bypassed.
 
 ## Safety and recovery boundaries
 

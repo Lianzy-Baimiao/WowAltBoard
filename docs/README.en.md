@@ -59,11 +59,11 @@ edit `includeFlavors` in `tools/config.json`.
 * **Every character in one table**: multiple accounts and realms, 60+ columns on demand, click a header to sort, drag headers to reorder columns (whole groups move too); save a tuned view as a named "layout" and switch back to it in one click
 * **Character details**: click any row for per-dungeon best runs, the three vault slots, 16 gear slots and the prey checklist
 * **Weekly trends**: compare score, item level, vault and treasure-map progress by game week
-* **Best gear / talents** ("Best gear" in the top bar): recommended best-in-slot gear for all 40 specs, comparison with your own character, stat targets and popular talent strings from leaderboards — all bundled and available offline
+* **Best gear / talents** ("Best gear" in the top bar): SimulationCraft default gear and talents for 29 specs (the other specs show the leaderboard's live gear distribution), comparison with your own character, stat targets and popular talent strings from leaderboards — all bundled and available offline
 * **Export**: Excel / CSV / print to PDF; the export matches exactly the columns and rows on screen
 * **Runs locally**: copy the whole folder to a USB drive or another PC and it still works; reference data is readable offline; the optional updater only contacts the official release source
 
-![Best gear and talents](images/bis-talents.png)
+![Best gear and talents](images/bis-panel.png)
 
 In the talent panel, click "Copy" to get the official import string, then press
 `N` in game → "Import/Export" at the lower right → "Import" and paste it.
@@ -135,8 +135,8 @@ no upstream credentials are required. Every reference dataset still shows its
 own date; an app update does not mean upstream data is necessarily the newest.
 An advanced temporary option is "Data sources and updates → reload remote copy
 (this session only)": it applies only to the current session and writes nothing
-to disk. `更新数据.bat` and its fetch commands are maintainer tools; automatic
-guide scraping is disabled and source restrictions are not bypassed.
+to disk. `更新数据.bat` and its fetch commands are maintainer tools; no source's
+access restrictions are bypassed.
 
 ## Data and privacy
 
@@ -174,6 +174,7 @@ seasons live in `tools/` (`gen-bis.js`, `gen-talents.js`, `fetch-*.js`, and need
 network access).
 
 Author: 白描 ([GitHub](https://github.com/Lianzy-Baimiao))　License: MIT
+(`app/simc-data.js` is derived from SimulationCraft's default profiles and distributed under GPL-3.0; see [LICENSE-simulationcraft.md](LICENSE-simulationcraft.md))
 
 ## Donate
 

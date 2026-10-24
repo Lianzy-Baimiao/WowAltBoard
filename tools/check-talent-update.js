@@ -72,7 +72,10 @@ for (const failTree of [false, true]) {
       assert.ok(ti >= 0); assert.ok(calls[ti].includes('--refresh'), 'an update must not simply restamp cached data');
       if (failTree) assert.equal(gi, -1, 'do not pair new samples with a failed tree update');
       else assert.ok(gi > ti, 'tree must precede samples');
-      assert.ok(!calls.some(c => c.startsWith('fetch-guide.js|')), 'retain bundled data for sources disallowing automated access');
+      // SimC profiles are decoded against the tree too: same rule as the samples.
+      const si = calls.findIndex(c => c.startsWith('fetch-simc.js|'));
+      if (failTree) assert.equal(si, -1, 'do not pair new SimC profiles with a failed tree update');
+      else assert.ok(si > ti, 'tree must precede SimC profiles');
     } finally {
       assert.equal(path.dirname(path.resolve(dir)), path.resolve(os.tmpdir()));
       assert.ok(path.basename(dir).startsWith('wow-update-order-'));

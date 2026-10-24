@@ -105,7 +105,6 @@ $dropFromPkg = @(
     'tools\.icon-cache.json',    # 57 KB of wowhead query results, dev-only
     'tools\.talent-names.json',  # 271 KB of DB2 zhCN join results, dev-only
     'tools\.talent-icon-fix.json', # bad-icon-name -> real-name table, build-time only
-    'tools\.guide-spell-ids.json', # which spell IDs fetch-guide.js needs looked up; a byproduct
     'tools\.wcl-auth.json',      # the user's Warcraft Logs API credentials -- MUST NOT ship
 
     'tools\check-desktop-scan.js', # native scan worker and process-lock integration tests
@@ -122,9 +121,10 @@ $dropFromPkg = @(
     'tools\check-talent-integrity.js', # independent talent input/consumer regressions
     'tools\check-talent-update.js', # isolated publication/update regressions
     'tools\check-class-names.js', # fake-DB2 regression for the playable-class rule
-    'tools\check-guide-targets.js', # offline regression for the -mythic-guide fallback name
+    'tools\check-simc-parse.js', # offline regression for how fetch-simc.js reads SimC profiles
     'tools\check-talent-browser.cjs', # optional Playwright browser regression
     'tools\check-bis-visual.cjs', # optional fixed-width visual regression
+    'tools\bis-visual-baseline.css', # frozen v1.17.3 stylesheet that check-bis-visual.cjs compares against
     'tools\check-bis-tabs.cjs', # optional shared tab skin/selection browser regression
     'tools\check-bis-usability.cjs', # optional tree-copy, compact layout and source-status checks
     'tools\check-update-panel.js', # saved update result and latest-release link regression
@@ -144,7 +144,7 @@ $dropFromPkg = @(
     'tools\mutate-icons.js',   # mutation suite for the talent-icon assertions
     'tools\mutate-loadout.js', # mutation suite for the talent import-string assertions
     'tools\mutate-rio.js',     # mutation suite for the raider.io data assertions
-    'tools\mutate-mrtalents.js', # mutation suite for the guide talent-build assertions
+    'tools\mutate-simtalents.js', # mutation suite for the SimC profile assertions and generator
     'tools\mutate-ilvlgap.js', # mutation suite for the ilvl / gear-gap / dropped-view assertions
     'tools\mutate-pool.js',    # mutation suite for the fetch-rio concurrency regression
     (Join-Path 'tools' 'mutate-lock.js') # keep last: packaging mutations replace earlier entries
@@ -161,7 +161,7 @@ $dropDirsFromPkg = @(
     'tools\.talent-raw',        # 14 MB upstream cache for fetch-talent-tree.js
     'tools\.db2-names',         # 15 KB DB2 CSV cache for fetch-class-names.js
     'tools\.rio-raw',           # 1.9 MB raider.io cache for fetch-talent-truth.js
-    'tools\.guide-raw',       # 50 MB of guide guide HTML for fetch-guide.js -- 81 pages, measured
+    'tools\.simc-raw',          # SimulationCraft profile snapshots for fetch-simc.js, one folder per commit
     'tools\.wcl-raw'            # Warcraft Logs raw responses + OAuth token for fetch-wcl.js
 )
 # NOTE: keep '(' and ')' out of the comments in these two lists. run-tests.js

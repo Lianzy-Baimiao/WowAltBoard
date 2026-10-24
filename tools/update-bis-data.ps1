@@ -20,9 +20,7 @@
     bis            local addon      GearInsight\core\BisData.lua
     tree           net/cache        raidbots + wago.tools
     talents        local addon      GearInsight_Talents\PopularTalents.lua (checked against tree)
-    guide        disabled         source access policy; keep bundled snapshot
-    spell-names    net, fast        uses guide's HTML cache
-    guide-2      disabled         source access policy; keep bundled snapshot
+    simc           net, fast        SimulationCraft profiles on GitHub (GPL-3.0), checked against tree
     rio            net, ~47 min     raider.io, rate-limited on purpose
     icons          net              needs bis + rio outputs
     talent-icons   net              needs tree output
@@ -105,9 +103,9 @@ if (-not $talLua) { $talLua = Find-AddonFile 'GearInsight_Talents\PopularTalents
 $wclAuth  = Join-Path $ToolsDir '.wcl-auth.json'
 
 # ---- the step table: name, args, pre-flight check ---------------------------
-# A step whose Check returns a string is skipped with that reason. The two
-# Keep the historical guide step names, but do not fetch a source that
-# disallows automated AI access. Bundled guide data remains unchanged.
+# A step whose Check returns a string is skipped with that reason. Steps that
+# decode talent strings (talents, simc) skip when the tree refresh failed, so
+# new data is never paired with an out-of-date tree.
 $steps = @(
     @{ Name = 'class-names';  Args = @('tools\fetch-class-names.js');  Check = {} },
     @{ Name = 'bis';          Args = @('tools\gen-bis.js');           Check = {
@@ -116,9 +114,8 @@ $steps = @(
     @{ Name = 'talents';      Args = @('tools\gen-talents.js');       Check = {
         if ($failed -contains 'tree') { return 'tree refresh failed; keeping previous talent samples' }
         if (-not $talLua) { return 'GearInsight_Talents addon not found (talent-data.js keeps the bundled copy)' } } },
-    @{ Name = 'guide';      Args = @('tools\fetch-guide.js');      Check = { return 'automated guide retrieval disabled by source access policy; bundled data kept' } },
-    @{ Name = 'spell-names';  Args = @('tools\fetch-spell-names.js');  Check = {} },
-    @{ Name = 'guide-2';    Args = @('tools\fetch-guide.js');      Check = { return 'automated guide retrieval disabled by source access policy; bundled data kept' } },
+    @{ Name = 'simc';         Args = @('tools\fetch-simc.js');         Check = {
+        if ($failed -contains 'tree') { return 'tree refresh failed; keeping previous SimC profiles' } } },
     @{ Name = 'rio';          Args = @('tools\fetch-rio.js');          Check = {
         if ($SkipRio) { return 'skipped via -SkipRio' } } },
     @{ Name = 'icons';        Args = @('tools\fetch-icons.js');        Check = {} },

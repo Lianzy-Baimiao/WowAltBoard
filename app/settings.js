@@ -146,28 +146,25 @@
       // 毕业装备 / 天赋面板: last selection, so reopening lands where you left.
       bisTab: 'gear',                // 'gear' | 'talents'
       bisSpec: '',                   // 'DEATHKNIGHT/BLOOD/Deathbringer'
-      // 'guide' | 'rio'。第 16 轮撤掉了 GearInsight 的两个视角（'raid' / 'mplus'）,
-      // 默认值也跟着换 —— 留着 'raid' 的话新用户第一次打开时存的是一个界面上
-      // 已经没有按钮的视角名，靠 openBis() 的迁移兜着，能用但不该这么绕。
-      bisView: 'guide',
+      // 'simc' | 'rio'。默认是 SimC 的模拟配装；撤掉的视角名由 openBis() 迁过来。
+      // 默认值必须是现存的视角 —— 写一个界面上已经没有按钮的视角名的话，新用户第一次
+      // 打开时存的就是它，靠 openBis() 的迁移兜着，能用但不该这么绕。
+      bisView: 'simc',
       bisTalentCat: 'raid',          // 'raid' | 'mplusHigh' | 'mplusFarm'
       bisChar: '',                   // which character's gear to compare against
-      // 天赋页看团本还是大秘境那一份 guide 指南。'' = 跟着数据走（有大秘境
-      // 就用大秘境）。同页的 mrBuild / mrSub 是数组下标，**故意不存**，
+      // 天赋页「榜上热门天赋串」看团本还是大秘境那一份**榜单数据**。
+      // 同页的 SimC 配置下标（simIdx / simSub）是数组下标，**故意不存**，
       // 原因见 app/bis.js 里 state 那段注释。
-      bisMrKind: '',                 // '' | 'mplus' | 'raid'
-      // 天赋页「榜上热门天赋串」看团本还是大秘境那一份**榜单数据**（上面那个
-      // bisMrKind 管的是 guide 指南，两个开关同名不同事）。
       // **这一条必须留在默认表里**：hydrate() 是 Object.keys(defaults()).forEach，
       // 不在表里的键会被整个丢掉 —— 第 20 轮实测就是这样：bis.js 那边照常写进
       // localStorage，下次加载被过滤掉，读取那一行成了死代码，点过的「团本」
       // 活不过一次刷新。
       bisLoKind: '',                 // '' | 'mplus' | 'raid'
-      // 天赋页下面那三棵树画哪一套：'' / 'mr' = guide 方案（默认），
+      // 天赋页下面那三棵树画哪一套：'' / 'sim' = SimC 配置（默认），
       // 'lo' = 上面「榜上热门天赋串」里选中的那一条。第 21 轮加的 ——
-      // 原来页顶写着「#1·50人」而树画的是 guide 那套，一页只有一棵树，
+      // 原来页顶写着「#1·50人」而树画的是另一套，一页只有一棵树，
       // 谁都会以为它画的是刚选中的那条。
-      bisTreeSrc: '',                // '' | 'mr' | 'lo'
+      bisTreeSrc: '',                // '' | 'sim' | 'lo'
 
       // Optional data sources for the 毕业装备 panel. Both are empty by default:
       // everything the panel needs to work ships inside the release, and an

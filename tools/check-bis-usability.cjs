@@ -42,7 +42,7 @@ async function verifyDrawnString(page, str) {
     await page.goto(pathToFileURL(path.join(dir, 'index.html')).href);
     await page.locator('#btn-bis').click();
     await page.waitForSelector('.bis-slots .item');
-    await page.waitForFunction(() => window.AE_RIO && window.AE_guide && window.AE_TALENT_TREE);
+    await page.waitForFunction(() => window.AE_RIO && window.AE_SIMC && window.AE_TALENT_TREE);
     await page.locator('#bis').evaluate(e => Promise.all(e.getAnimations({ subtree: true }).map(a => a.finished.catch(() => {}))));
     const skin = await page.locator('.bis-tabs .bis-choice').first().evaluate(b => {
       const s = getComputedStyle(b);
@@ -57,9 +57,9 @@ async function verifyDrawnString(page, str) {
     await page.waitForSelector('.tnode img');
     await page.waitForFunction(() => window.AE_TALENT_DESC && window.AE_WCL);
     assert.equal(await page.locator('.lo-text').isVisible(), false);
-    assert.equal(await page.locator('.mr-text').isVisible(), false);
+    assert.equal(await page.locator('.sim-text').isVisible(), false);
     assert.equal(await page.locator('.lo-copy').isVisible(), true);
-    assert.equal(await page.locator('.mr-copy').isVisible(), true);
+    assert.equal(await page.locator('.sim-copy').isVisible(), true);
     const treeStartsAt = await page.evaluate(() => {
       const h = document.querySelector('#bis-body');
       return Math.round(document.querySelector('.tree-canvas').getBoundingClientRect().top - h.getBoundingClientRect().top + h.scrollTop);
@@ -67,13 +67,13 @@ async function verifyDrawnString(page, str) {
     assert.ok(treeStartsAt < 720, 'first tree should move up from the previous 828px: ' + treeStartsAt);
     await page.evaluate(() => { window.AE.copyWithToast = s => { window.copied = s; }; });
     // Equal details titles must not share their open-state key across the two sources.
-    await page.locator('.mr-details summary').click();
+    await page.locator('.sim-details summary').click();
     await page.locator('.lo-pick .bis-choice').nth(1).click();
-    assert.equal(await page.locator('.mr-text').isVisible(), true);
+    assert.equal(await page.locator('.sim-text').isVisible(), true);
     assert.equal(await page.locator('.lo-text').isVisible(), false);
-    await page.locator('.mr-details summary').click();
+    await page.locator('.sim-details summary').click();
     await page.locator('.lo-pick .bis-choice').first().click();
-    const guide = await page.locator('.mr-text').inputValue();
+    const guide = await page.locator('.sim-text').inputValue();
     await page.locator('.tree-copy').click();
     assert.equal(await page.evaluate(() => window.copied), guide);
     await verifyDrawnString(page, guide);
@@ -97,16 +97,18 @@ async function verifyDrawnString(page, str) {
       AE.TalentDecode.decode = (str, tree) => str === invalid ? { err: 'fixture failure' } : decode(str, tree);
       AE.rerenderBis();
     });
-    assert.match(await page.locator('.tree-current').textContent(), /guide/);
+    assert.match(await page.locator('.tree-current').textContent(), /SimC/);
     await page.locator('.tree-copy').click();
     assert.equal(await page.evaluate(() => window.copied), guide);
     assert.notEqual(guide, ranked);
     await page.evaluate(() => { AE.TalentDecode.decode = window.originalDecode; });
     await page.locator('.tree-src .bis-choice').first().click();
     // Multi-hero originals must not be presented as an exact single-hero export.
-    await page.locator('.mrb').nth(1).click();
+    // MID2: Feral's only SimC profile spends points in both hero trees.
+    await page.locator('.cls').getByText('德鲁伊', { exact: true }).click();
+    await page.locator('.spec[data-tip^="DRUID/FERAL"]').click();
     assert.match(await page.locator('.tree-copy').textContent(), /含多英雄/);
-    const bundled = await page.locator('.mr-text').inputValue();
+    const bundled = await page.locator('.sim-text').inputValue();
     await page.locator('.tree-pick .bis-choice').nth(1).click();
     await page.locator('.tree-copy').click();
     assert.equal(await page.evaluate(() => window.copied), bundled);
@@ -115,7 +117,7 @@ async function verifyDrawnString(page, str) {
     await page.evaluate(() => { AE.TalentDecode.decode = () => ({ err: 'fixture both sources invalid' }); AE.rerenderBis(); });
     assert.equal(await page.locator('.tree-copy').count(), 0);
     await page.evaluate(() => { AE.TalentDecode.decode = window.originalDecode; });
-    await page.locator('.mrb').first().click();
+    await page.locator('.cls').getByText('死亡骑士', { exact: true }).click();
     await page.locator('.lo-pick .bis-choice').first().click();
     if (await page.locator('.lo-text').isVisible()) await page.locator('.ranked-details summary').click();
     for (const theme of ['dark', 'light']) {
@@ -127,7 +129,7 @@ async function verifyDrawnString(page, str) {
       await page.locator('.bis-tabs').getByRole('button', { name: '天赋', exact: true }).click();
     }
     // Plugin fallback has no corresponding import string; never offer a different source as equivalent.
-    await page.evaluate(() => { AE_guide.specs[270].views = {}; });
+    // Mistweaver has no SimC profile (SimC does not simulate healing), so it takes that path as-is.
     await page.locator('.cls').getByText('武僧', { exact: true }).click();
     await page.locator('.spec[data-tip^="MONK/MISTWEAVER"]').click();
     assert.equal(await page.locator('.tree-copy').count(), 0);
@@ -136,12 +138,12 @@ async function verifyDrawnString(page, str) {
     // Each source has its own metadata, including explicitly unknown dates.
     await page.locator('.bis-upd > summary').click();
     assert.match(await page.locator('li[data-source="AE_TALENTS"]').textContent(), /日期：未提供/);
-    assert.match(await page.locator('li[data-source="AE_guide"]').textContent(), /保留快照/);
+    assert.match(await page.locator('li[data-source="AE_SIMC"]').textContent(), /GPL-3\.0 · 提交 [0-9a-f]{7}/);
     const dates = await page.locator('.bis-source-list li .note').allTextContents();
     assert.equal(dates.length, 8);
     assert.ok(!await page.locator('.bis-upd').evaluate(e => /页面自己拉不了|\*\*/.test(e.textContent)));
     // Simulate a mixed update entirely with bundled fixtures: remote success is not necessarily newer.
-    const allowed = new Set(['bis-data.js', 'rio-data.js', 'guide-data.js', 'wcl-data.js', 'talent-data.js', 'talent-tree.js', 'talent-desc.js', 'item-icons.js']);
+    const allowed = new Set(['bis-data.js', 'rio-data.js', 'simc-data.js', 'wcl-data.js', 'talent-data.js', 'talent-tree.js', 'talent-desc.js', 'item-icons.js']);
     await page.unroute(/^https?:/);
     await page.route(/^https?:/, async route => {
       const name = new URL(route.request().url()).pathname.split('/').pop();

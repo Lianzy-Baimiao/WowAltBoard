@@ -24,7 +24,7 @@
 
 ### 验证
 
-- 139 项离线测试、装备渲染、天赋树渲染、guide 天赋方案、无障碍、四项格式校验、天赋串解码和 116 个变异锚点全部通过。
+- 139 项离线测试、装备渲染、天赋树渲染、无障碍、四项格式校验、天赋串解码和 116 个变异锚点全部通过。
 - 新增 65 项 i18n 检查：语言解析优先级、模板/上下文/单复数、目录重复键与占位符一致性，以及 `index.html` 和 22 个界面模块的中文字面量覆盖；英文目录共 869 条。
 - 英文界面巡检用真实 Edge 走完主页、设置 5 个页签、角色详情、周趋势、备份箱、导出菜单、毕业装备和天赋页签：无漏翻、无残留中文，切回中文正常。
 - 中文界面回归（天赋、毕业装备 Tab、易用性、视觉、应用更新、版本显示）全部通过；66 项独立更新器检查通过。
@@ -54,7 +54,7 @@
 
 ### Verification
 
-- All 139 offline tests, gear rendering, talent-tree rendering, guide talent builds, accessibility, four format suites, talent-string decoding against ground truth and 116 mutation anchors pass.
+- All 139 offline tests, gear rendering, talent-tree rendering, accessibility, four format suites, talent-string decoding against ground truth and 116 mutation anchors pass.
 - 65 new i18n checks cover resolution priority, templates/context/plurals, duplicate keys and placeholder parity, and every Chinese literal in `index.html` and the 22 UI modules; the English catalog has 869 entries.
 - The English browser sweep uses real Edge through the home page, all 5 settings tabs, character details, weekly trends, the vault, the export menu, best gear and the talent tab: no missed keys, no leftover Chinese, and switching back to Chinese works.
 - Chinese regression checks (talents, best-gear tabs, usability, visual, application updates, version display) pass; 66 independent updater assertions pass.

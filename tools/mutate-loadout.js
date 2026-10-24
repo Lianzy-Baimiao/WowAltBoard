@@ -117,16 +117,15 @@ var MUTANTS = [
   // 原因是 loRenders / loSeen 在「块数对不对」之前就记了，所以专精数照样是 40，
   // 真正触发的是块数那条。填错 want 的代价不是漏报而是**误判**：
   // 断言其实好的，变异测试却说它没被证明。
-  // 锚点带上后一行注释：guide 那一块也长出了同样形状的两行
-  // （var lo = renderLoadouts(s); if (lo) …），光凭这一行会命中两处，
-  // 而这一组盯的是**插件兜底那条路**上的这一处（后面紧跟 bis-bar，
-  // 不是 renderBuildStats —— 第 20 轮版面又动过一次，旧锚点匹配 0 次，
-  // 被 textMutant 判成锚点失效才发现）。
+  // 锚点带上后一行注释：SimC 那条路和插件兜底那条路各有一处同样形状的两行
+  // （var lo = renderLoadouts(s); if (lo) …），光凭这一行会命中两处。
+  // 这一组盯的是 **SimC 那条路**上的这一处（后面紧跟配置列表）—— 29 个专精走它，
+  // 渲染次数最多。版面动过两次，旧锚点都匹配 0 次，被 textMutant 判成锚点失效才发现。
   textMutant('导入串块整块不画', BIS,
-    'var lo = renderLoadouts(s);\n    if (lo) host.appendChild(lo);\n\n'
-      + '    // 团本 / 大秘境。只有一种时也画出来',
-    '/* mutant: 导入串块没挂上去 */\n\n'
-      + '    // 团本 / 大秘境。只有一种时也画出来',
+    'var lo = renderLoadouts(s);\n    if (lo) host.appendChild(lo);\n'
+      + '    // 配置列表。只有一份时也画出来',
+    '/* mutant: 导入串块没挂上去 */\n'
+      + '    // 配置列表。只有一份时也画出来',
     '各应正好 1 个'),
 
   // 显示的串被改一个字符。串长、字符集、人数全都正常，只有逐字节比对能抓。
@@ -144,7 +143,7 @@ var MUTANTS = [
     '复制出去的串和框里显示的不是同一串'),
 
   // 串框可写。用户改一个字符再复制，导进游戏只会说「无效」。
-  // 同上：guide 那一块也有一个只读串框（class 是 mr-text），
+  // 同上：SimC 那一块也有一个只读串框（class 是 sim-text），
   // 用它上一行的 lo-text 把两者分开。
   textMutant('串框改成可写', BIS,
     "var ta = el('textarea', 'lo-text');\n    ta.value = str;\n    ta.readOnly = true;",
@@ -211,9 +210,11 @@ var MUTANTS = [
     '复制按钮验过'),
 
   // 空转守卫 2：真值取不到时，全部断言会提前 return。这正是第 2 次假绿的形状。
+  // 两家的真值一起掐掉（掐的是共用的 loadoutTruth）。只掐 rio 那份的话，每个专精
+  // 点「团本」那一遍照样拿 WCL 的真值记上专精数，40 个一个不少，这条下界就证明不了。
   textMutant('真值恒为空（证明「跳过」不会报成通过）', RUNNER,
-    'function rioLoadoutTruth(specId) {',
-    'function rioLoadoutTruth(specId) {\n  if (true) return null;',
+    'function loadoutTruth(D, specId) {',
+    'function loadoutTruth(D, specId) {\n  if (true) return null;',
     '导入串只检查了'),
 
   // 选串按钮数。这条单独列出来，因为它是用户唯一能换串的入口：

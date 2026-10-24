@@ -37,16 +37,11 @@ tools/.db2-names/
 #      公开数据，但产出物已经刻意剥掉了角色名，没理由再把原始 dump 放进仓库。
 tools/.rio-raw/
 
-# guide 指南页的原始 HTML 缓存（每篇 600~750 KB，70 篇装备指南约 45 MB）。
-# tools/fetch-guide.js 下到这里，按 slug 命名，存在就跳过，所以中断能续。
-# 和上面三个缓存同一条道理：**产出物** app/guide-data.js 才是要提交的东西，
-# 上游 HTML 随时能重下，而且它带 guide 的完整页面内容（人家的编辑作品），
-# 更没有理由放进仓库。
-tools/.guide-raw/
+# SimulationCraft 配置文件的快照（tools/fetch-simc.js 下到这里，一个提交号一个目录）。
+# 和上面三个缓存同一条道理：**产出物** app/simc-data.js 才是要提交的东西，
+# 上游文件按提交号随时能重下。
+tools/.simc-raw/
 
-# tools/fetch-guide.js 顺手写出的「出手顺序 / 首领说明正文里引用到哪些技能 ID」
-# 清单，给 tools/fetch-spell-names.js 读。它是那次运行的副产品，重跑就重生成 ——
-# 而**译名表 tools/spell-names-zh.json 是入库的**（--report 要能离线重算产物）。
 # Warcraft Logs 的 API 凭证（client id / secret）。**绝对不能入库。**
 # 用户给的是他自己账号下的应用凭证 —— 泄漏出去等于把他的配额和身份交出去。
 # tools/fetch-wcl-*.js 从这个文件或环境变量 WCL_CLIENT_ID / WCL_CLIENT_SECRET 读。
@@ -55,8 +50,6 @@ tools/.wcl-auth.json
 # Warcraft Logs 的原始响应缓存 + token。上千个小 JSON，重跑能续。
 # 产出物是 app/wcl-data.js，那个才入库。token 更不能入库。
 tools/.wcl-raw/
-
-tools/.guide-spell-ids.json
 
 # Editor / OS noise
 .vscode/

@@ -1,0 +1,1706 @@
+/* Frozen copy of app/style.css as shipped in v1.17.3: the baseline tools/check-bis-visual.cjs measures the
+   current stylesheet against (panel / body / page widths must not change). Not loaded by the app and not shipped. */
+/* WowAltBoard - app/style.css */
+
+/* --font, --table-size, --ui-size, --accent and --bg are set at runtime from the
+   settings (see applyAppearance in render.js), so a skin/font/size change is one
+   style recalculation rather than a re-render. */
+:root {
+  --font: "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", "Segoe UI", system-ui, sans-serif;
+  --table-size: 12px;
+  --ui-size: 13px;
+}
+
+:root {
+  /* The <option> popup is drawn by the OS, not by this stylesheet. Without this
+     it comes up white on a dark page, which is exactly what made the layout
+     picker look pasted in from another program. */
+  color-scheme: dark;
+  --bg: #14161a;
+  --bg2: #1b1e24;
+  --bg3: #22262e;
+  --line: #2f353f;
+  --fg: #dfe4ec;
+  --fg2: #98a2b3;
+  --fg3: #6b7480;
+  --accent: #4aa3ff;
+  --good: #46c46d;
+  --warn: #e5a13a;
+  --bad: #e5544b;
+  --todo: #8a94a6;
+  --alliance: #6aa9ff;
+  --horde: #e06666;
+  --row-hover: #262b34;
+  --reward: #2a3524;
+  /* Mythic+ completed-key tiers: <10 / 10–11 / 12–15 / 16+. */
+  --mplus-low: #58a6ff;
+  --mplus-mid: #4fd1c5;
+  --mplus-high: #b794f4;
+  --mplus-peak: #f2c94c;
+}
+
+/* Skins tint the neutral surfaces; light/dark stays a separate axis, so four
+   skins give eight looks. --bg and --accent come from JS. */
+body[data-skin="jade"]   { --bg2: #141d19; --bg3: #1a2620; --line: #294036; --row-hover: #1f2f28; --reward: #22331f; }
+body[data-skin="amber"]  { --bg2: #1f1a13; --bg3: #2a2318; --line: #423526; --row-hover: #2f2718; --reward: #2f2c17; }
+body[data-skin="violet"] { --bg2: #1c1829; --bg3: #262038; --line: #3b3357; --row-hover: #2a2440; --reward: #262f22; }
+
+body[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f6f7f9;
+  --bg2: #ffffff;
+  --bg3: #eef0f4;
+  --line: #d6dae1;
+  --fg: #1d2430;
+  --fg2: #5a6472;
+  --fg3: #8b94a2;
+  --accent: #1f6fd0;
+  --good: #1f8b45;
+  --warn: #a86a10;
+  --bad: #c0392b;
+  --todo: #7a838f;
+  --alliance: #1f5fbf;
+  --horde: #b03030;
+  --row-hover: #e8ecf2;
+  --reward: #eaf5e2;
+  --mplus-low: #1565c0;
+  --mplus-mid: #087f8c;
+  --mplus-high: #7b3fb4;
+  --mplus-peak: #9a6700;
+}
+body[data-theme="light"][data-skin="jade"]   { --bg2: #ffffff; --bg3: #eaf3ee; --line: #cddbd3; --row-hover: #e2efe8; }
+body[data-theme="light"][data-skin="amber"]  { --bg2: #ffffff; --bg3: #f5efe4; --line: #ded2be; --row-hover: #f1e8d8; }
+body[data-theme="light"][data-skin="violet"] { --bg2: #ffffff; --bg3: #f0ecf8; --line: #d6cdea; --row-hover: #e9e3f6; }
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--fg);
+  font: var(--ui-size)/1.45 var(--font);
+}
+
+/* Fill the viewport so the footer sits at the bottom and the table gets all the
+   remaining space, instead of leaving a dead band under a short table. */
+body { display: flex; flex-direction: column; }
+#app { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+
+/* ------------------------------------------------------------------- chrome */
+
+header {
+  display: flex;
+  align-items: center;
+  /* **必须允许换行。** header 有 11 个可见项，自然宽约 1140px（存过布局方案后
+     约 1320px）。body 是 overflow:hidden，所以不换行就既没有横向滚动条、也没有
+     第二个入口 —— 1366×768 开 175% 缩放（→781 CSS px）时排在最后的「设置」会被
+     推出视口右缘裁掉，而列显隐 / 筛选 / 外观 / 布局 / 数据源全在那个面板里。 */
+  flex-wrap: wrap;
+  row-gap: 6px;
+  gap: 14px;
+  padding: 8px 14px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--line);
+  flex: none;
+  z-index: 40;
+}
+
+header h1 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: .3px;
+}
+
+header .meta {
+  color: var(--fg2);
+  font-size: 12px;
+  display: flex;
+  gap: 12px;
+}
+
+header .spacer { flex: 1; }
+
+button {
+  background: var(--bg3);
+  color: var(--fg);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 5px 11px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+}
+button:hover { border-color: var(--accent); color: var(--accent); }
+button.mini { padding: 2px 8px; font-size: 11px; }
+button.danger:hover { border-color: var(--bad); color: var(--bad); }
+
+#warnings {
+  padding: 6px 14px;
+  background: color-mix(in srgb, var(--warn) 14%, var(--bg2));
+  border-bottom: 1px solid var(--line);
+  color: var(--warn);
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+#warnings #warning-text { flex: 1; }
+#warning-close {
+  background: transparent;
+  border: 0;
+  color: var(--warn);
+  font-size: 17px;
+  line-height: 1;
+  padding: 0 6px;
+  cursor: pointer;
+}
+#warning-close:hover { color: var(--fg); }
+
+#version-info { color: var(--fg3); }
+
+/* Same shape as the 注意 banner, tinted with the accent so an update reads as
+   news rather than a problem. */
+#update-banner {
+  padding: 6px 14px;
+  background: color-mix(in srgb, var(--accent) 13%, var(--bg2));
+  border-bottom: 1px solid var(--line);
+  color: var(--accent);
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+#update-banner #update-text { flex: 1; }
+#update-banner a {
+  color: var(--accent);
+  text-decoration: none;
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  padding: 1px 8px;
+}
+#update-banner a:hover { background: var(--accent); color: #fff; }
+#update-close {
+  background: transparent;
+  border: 0;
+  color: var(--accent);
+  font-size: 17px;
+  line-height: 1;
+  padding: 0 6px;
+  cursor: pointer;
+}
+#update-close:hover { color: var(--fg); }
+
+#fatal {
+  margin: 60px auto;
+  max-width: 620px;
+  padding: 22px 26px;
+  background: var(--bg2);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--bad);
+  border-radius: 6px;
+}
+#fatal h2 { margin: 0 0 10px; font-size: 16px; color: var(--bad); }
+#fatal p { margin: 0; color: var(--fg2); white-space: pre-wrap; }
+
+/* -------------------------------------------------------------------- table */
+
+#grid-wrap {
+  overflow: auto;
+  /* 60 columns plus sticky cells: without paint containment Chromium repaints
+     the whole table on every horizontal scroll tick. */
+  contain: paint;
+  flex: 1;
+  min-height: 0;
+}
+
+table#grid {
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+  font-size: var(--table-size);
+}
+
+#grid th, #grid td {
+  padding: 3px 6px;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#grid thead th {
+  position: sticky;
+  background: var(--bg3);
+  color: var(--fg2);
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+  z-index: 20;
+}
+#grid thead tr.group-band th {
+  top: 0;
+  z-index: 25;
+  text-align: left;
+  color: var(--fg);
+  background: var(--bg2);
+  cursor: default;
+  font-size: 11px;
+  letter-spacing: 1px;
+  overflow: visible;
+}
+/* ---- settings tab strip -------------------------------------------------- */
+#panel-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 8px 14px 0;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg2);
+  flex: none;
+  flex-wrap: wrap;
+}
+#panel-tabs button.tab {
+  border: 1px solid transparent;
+  border-bottom: 0;
+  border-radius: 4px 4px 0 0;
+  background: transparent;
+  color: var(--fg2);
+  padding: 5px 10px;
+  font-size: 12px;
+  position: relative;
+  top: 1px;
+}
+#panel-tabs button.tab:hover { color: var(--fg); background: var(--bg3); }
+/* The active tab joins the content below it: same background as the body, and
+   its bottom border is punched out by the panel's own border line. */
+#panel-tabs button.tab.on {
+  background: var(--bg2);
+  color: var(--accent);
+  border-color: var(--line);
+  box-shadow: 0 1px 0 0 var(--bg2);
+  font-weight: 600;
+}
+
+/* ---- saved layout rows (settings panel) ---------------------------------- */
+.layout-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: 12px;
+}
+.layout-row.on .layout-name { color: var(--accent); font-weight: 600; }
+.layout-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.layout-btns { display: flex; gap: 4px; flex: none; }
+.layout-scope {
+  flex: none;
+  font-size: 10.5px;
+  color: var(--fg3);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 0 5px;
+  white-space: nowrap;
+}
+
+/* The layout picker sits in among the header buttons, so it has to read as one
+   of them. A stock <select> here looked like it came from a different program:
+   OS chrome, OS arrow, OS colours. appearance:none strips all that, and the
+   chevron is drawn with a border triangle on the wrapper -- no image, no data
+   URI, and it inherits currentColor so it follows the hover state and both
+   themes for free. */
+.pick { position: relative; display: inline-flex; align-items: center; }
+.pick > select {
+  appearance: none;
+  -webkit-appearance: none;
+  background: var(--bg3);
+  color: var(--fg);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 5px 24px 5px 11px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  max-width: 170px;
+  text-overflow: ellipsis;
+}
+.pick > select:hover { border-color: var(--accent); color: var(--accent); }
+.pick > select:focus-visible { outline: 1px solid var(--accent); outline-offset: 1px; }
+.pick::after {
+  content: '';
+  position: absolute;
+  right: 9px;
+  width: 0;
+  height: 0;
+  border-left: 3.5px solid transparent;
+  border-right: 3.5px solid transparent;
+  border-top: 4px solid currentColor;
+  color: var(--fg2);
+  pointer-events: none;
+}
+.pick:hover::after { color: var(--accent); }
+
+/* In a panel header the picker replaces the .sub2 spacer, so it has to do that
+   job too -- otherwise 关闭 slides left to sit against it. align-self because
+   .panel-head aligns on the baseline, which a styled <select> does not share. */
+.panel-head .pick { margin-right: auto; align-self: center; }
+
+/* ---- header drag-to-reorder (app/drag.js) --------------------------------
+   grab rather than pointer on the band row: it has nothing to sort, so the only
+   thing a press does there is move the group. The column row keeps pointer,
+   because clicking it still sorts and that is the commoner action. */
+#grid thead tr.group-band th[data-group] { cursor: grab; }
+body.dragging-header, body.dragging-header #grid thead th { cursor: grabbing; }
+body.dragging-header { user-select: none; }
+#grid thead th.drag-src { opacity: .4; }
+#grid thead th.drop-before { box-shadow: inset 3px 0 0 var(--accent); }
+#grid thead th.drop-after { box-shadow: inset -3px 0 0 var(--accent); }
+
+/* Sticky label so a very wide group (36 currency columns) still shows its name
+   when scrolled horizontally. */
+#grid thead tr.group-band th .band-label {
+  position: sticky;
+  left: 140px;
+  display: inline-block;
+  padding: 0 4px;
+  background: var(--bg2);
+}
+#grid thead tr:nth-child(2) th { top: 24px; }
+
+#grid thead th:hover { color: var(--accent); }
+#grid thead th.sorted-asc  span::after { content: " ▲"; color: var(--accent); font-size: 9px; }
+#grid thead th.sorted-desc span::after { content: " ▼"; color: var(--accent); font-size: 9px; }
+
+/* Sticky first column so the character name stays visible across 60 columns. */
+#grid th.sticky-col, #grid td.sticky-col {
+  position: sticky;
+  left: 0;
+  z-index: 22;
+  background: var(--bg2);
+}
+#grid thead th.sticky-col { z-index: 30; background: var(--bg3); }
+
+#grid tbody tr:hover td { background: var(--row-hover); cursor: pointer; }
+#grid tbody tr:hover td.sticky-col { background: var(--row-hover); }
+#grid tbody tr.has-reward td.sticky-col { background: var(--reward); }
+
+.char-name { font-weight: 600; }
+td.empty { color: var(--fg3); }
+td.num, .num { font-variant-numeric: tabular-nums; }
+td.strong { font-weight: 700; color: var(--fg); }
+td.good { color: var(--good); }
+td.todo { color: var(--todo); }
+td.full { color: var(--good); font-weight: 600; }
+td.partial { color: var(--warn); }
+/* Per-dungeon M+ cells keep difficulty color even when the run was overtime;
+   the trailing minus and tooltip still carry the timing result. */
+td.mp-level-low { color: var(--mplus-low); }
+td.mp-level-mid { color: var(--mplus-mid); }
+td.mp-level-high { color: var(--mplus-high); }
+td.mp-level-peak { color: var(--mplus-peak); }
+td.mp-level-low .sub, td.mp-level-mid .sub,
+td.mp-level-high .sub, td.mp-level-peak .sub { color: currentColor; opacity: .78; }
+td.overtime:not(.mp-level-low):not(.mp-level-mid):not(.mp-level-high):not(.mp-level-peak) {
+  color: var(--bad);
+}
+td.stale { color: var(--fg3); }
+td.alliance { color: var(--alliance); }
+td.horde { color: var(--horde); }
+
+.sub { color: var(--fg2); font-size: 10px; margin-left: 3px; }
+.hint { color: var(--fg3); font-size: 10px; margin-left: 3px; }
+
+.badge {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 0 4px;
+  border-radius: 3px;
+  font-size: 10px;
+  line-height: 15px;
+  vertical-align: middle;
+}
+.badge.warn { background: var(--warn); color: #1a1200; }
+.badge.bad  { background: var(--bad);  color: #fff; }
+
+/* vault: a segmented bar rather than dots -- reads as progress, scales with the
+   cell, and each segment can show a partial fill. */
+.vault-count { font-variant-numeric: tabular-nums; }
+.vbar {
+  display: inline-flex;
+  gap: 2px;
+  margin-left: 5px;
+  vertical-align: middle;
+  width: 30px;
+}
+.vseg {
+  flex: 1;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  position: relative;
+  overflow: hidden;
+}
+.vseg.on { background: var(--good); border-color: var(--good); }
+.vseg.part { border-color: var(--warn); }
+.vfill {
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  background: var(--warn);
+  opacity: .55;
+}
+
+td.armor-0 { color: #c9d3e0; }  /* 板甲 */
+td.armor-1 { color: #b58f5a; }  /* 锁甲 */
+td.armor-2 { color: #c68b4e; }  /* 皮甲 */
+td.armor-3 { color: #8fa8d8; }  /* 布甲 */
+
+footer {
+  padding: 6px 14px;
+  border-top: 1px solid var(--line);
+  background: var(--bg2);
+  color: var(--fg2);
+  font-size: 12px;
+  display: flex;
+  gap: 16px;
+  flex: none;
+}
+footer .spacer { flex: 1; }
+
+/* 筛选全空时的空态（render.js 的 updateVisibility 切换）。表头还占着、表体
+   全空的表格看不出是筛选空了还是坏了，footer 那行小字又不醒目 —— 给一张
+   居中的说明卡和一个直达筛选页签的按钮。 */
+#empty-hint {
+  flex: none;
+  margin: 30px auto;
+  max-width: 540px;
+  padding: 18px 22px;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  background: var(--bg2);
+  text-align: center;
+}
+#empty-hint b { display: block; margin-bottom: 6px; font-size: 14px; }
+#empty-hint span { display: block; color: var(--fg2); font-size: 12.5px; margin-bottom: 12px; }
+
+#warnings { flex: none; }
+
+/* ---------------------------------------------------------- settings panel */
+
+#backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  background: rgba(0, 0, 0, .38);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .16s ease-out;
+}
+#backdrop.on { opacity: 1; pointer-events: auto; }
+
+#panel, #drawer, #trend, #vault, #bis {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  width: 380px;
+  background: var(--bg2);
+  border-right: 1px solid var(--line);
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  transition: transform .16s ease-out;
+}
+#panel { left: 0; transform: translateX(-101%); }
+#panel.open { transform: none; }
+#drawer, #trend, #vault, #bis {
+  right: 0;
+  left: auto;
+  width: 560px;
+  border-right: 0;
+  border-left: 1px solid var(--line);
+  transform: translateX(101%);
+}
+#trend { width: min(900px, 92vw); }
+#vault { width: min(760px, 94vw); }
+#drawer.open, #trend.open, #vault.open, #bis.open { transform: none; }
+
+#trend-body { overflow: auto; padding: 10px 14px 40px; flex: 1; }
+table.trend th:first-child, table.trend td:first-child {
+  position: sticky;
+  left: 0;
+  background: var(--bg2);
+}
+.delta { margin-left: 5px; font-size: 10.5px; }
+.delta.up { color: var(--good); }
+.delta.down { color: var(--bad); }
+
+.panel-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg3);
+}
+.panel-head h2 { margin: 0; font-size: 14px; }
+.panel-head .sub2 { color: var(--fg2); font-size: 12px; flex: 1; }
+
+/* Every slide-over body scrolls. #vault-body was missing here, so the 备份箱
+   content just overflowed the panel with no way to reach the bottom of it. */
+#panel-body, #drawer-body, #vault-body {
+  overflow-y: auto;
+  padding: 10px 14px 40px;
+  flex: 1;
+}
+
+details.sec { border-bottom: 1px solid var(--line); padding: 6px 0; }
+details.sec > summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding: 4px 0;
+  color: var(--fg);
+  font-size: 12.5px;
+}
+details.sec[open] > summary { color: var(--accent); }
+
+label.chk {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+  cursor: pointer;
+  font-size: 12px;
+}
+label.chk input { margin: 0; }
+
+label.field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: 12px;
+}
+/* 「列」页签顶上的找列输入框。 */
+.col-filter input { flex: 1; }
+label.field > span { color: var(--fg2); flex: 1; }
+label.field input, label.field select, .field select {
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 3px 6px;
+  font: inherit;
+  font-size: 12px;
+  width: 150px;
+}
+div.field { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: 12px; }
+div.field > span { color: var(--fg2); flex: 1; }
+
+.row-buttons { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px 0; }
+
+p.note {
+  color: var(--fg3);
+  font-size: 11.5px;
+  margin: 4px 0 8px;
+  line-height: 1.5;
+}
+
+.source-row {
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 6px 8px;
+  margin-bottom: 6px;
+  background: var(--bg);
+}
+.source-head { display: flex; align-items: center; gap: 6px; }
+.source-head input.alias { flex: 1; }
+.source-meta {
+  display: flex;
+  gap: 10px;
+  color: var(--fg2);
+  font-size: 11px;
+  margin-top: 3px;
+}
+.source-flags { margin-top: 4px; }
+.source-path {
+  color: var(--fg3);
+  font-size: 10px;
+  margin-top: 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  direction: rtl;
+  text-align: left;
+}
+
+.col-group { margin-bottom: 6px; }
+.col-group-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.col-group-head > label.chk { font-weight: 600; flex: 1; }
+.col-group-btns { display: flex; gap: 4px; }
+.col-list {
+  padding-left: 20px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 8px;
+}
+
+/* -------------------------------------------------------------- drawer body */
+
+dl.kv {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 2px 10px;
+  margin: 0 0 14px;
+  font-size: 12px;
+}
+dl.kv dt { color: var(--fg2); }
+dl.kv dd { margin: 0; }
+
+#drawer-body h3, #trend-body h3 {
+  margin: 16px 0 6px;
+  font-size: 13px;
+  color: var(--accent);
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 3px;
+}
+#drawer-body h4 { margin: 8px 0 3px; font-size: 12px; color: var(--fg); }
+
+table.mini-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11.5px;
+  margin-bottom: 10px;
+}
+table.mini-table th, table.mini-table td {
+  text-align: left;
+  padding: 2px 6px;
+  border-bottom: 1px solid var(--line);
+}
+table.mini-table th { color: var(--fg2); font-weight: 600; }
+table.mini-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+table.mini-table td.empty { color: var(--fg3); }
+table.mini-table td.overtime { color: var(--bad); }
+
+/* 周趋势：周标签（表头）和它下面的数值**同一套对齐**，都居中 —— 原来
+   表头跟 mini-table 走左对齐、数值走右对齐，一列里上下不齐。首列角色名
+   仍左对齐。用 #trend-body 前缀压过 mini-table 的 td.num 规则，只影响
+   周趋势这一张表，角色详情抽屉里的 mini-table 不动。 */
+#trend-body th, #trend-body td { text-align: center; }
+#trend-body th:first-child, #trend-body td:first-child { text-align: left; }
+
+.vault-block, .raid-block { margin-bottom: 8px; }
+.vault-slot {
+  font-size: 11.5px;
+  color: var(--fg2);
+  padding: 1px 0 1px 10px;
+  border-left: 2px solid var(--line);
+}
+.vault-slot.on { color: var(--fg); border-left-color: var(--good); }
+
+.boss-list { display: flex; flex-wrap: wrap; gap: 4px; }
+.boss {
+  font-size: 11px;
+  padding: 1px 6px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  color: var(--fg3);
+}
+.boss.killed { color: var(--good); border-color: var(--good); }
+
+.prey-block { margin-bottom: 8px; }
+.prey-list { display: flex; flex-wrap: wrap; gap: 3px; }
+.prey {
+  font-size: 10.5px;
+  padding: 1px 5px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  color: var(--fg3);
+}
+.prey.done { color: var(--good); border-color: var(--good); }
+
+/* -------------------------------------------------------------------- print */
+
+@media print {
+  header button, #panel, #drawer, #trend, #vault, #bis,
+  #warnings { display: none !important; }
+  #grid-wrap { overflow: visible; max-height: none; contain: none; }
+  #grid thead th { position: static; }
+  #grid th.sticky-col, #grid td.sticky-col { position: static; }
+  /* **height/overflow 也得放开。** 上面把 #grid-wrap 的 overflow/max-height/contain
+     都重置了，说明本意是让表格跨页流；但 html,body 那条 `height:100%; overflow:hidden`
+     在打印里照旧生效，分页媒体里 body 正好一页高，表格溢出后被裁掉 ——
+     40 个小号的看板只印得出第一页装得下的十几行，纸上还没有任何「还有后续」的提示。 */
+  html, body { background: #fff; color: #000; height: auto; overflow: visible; }
+  #app { height: auto; overflow: visible; }
+}
+
+/* -------------------------------------------------------------- 备份箱 vault */
+
+#vault-body h4 { margin: 12px 0 4px; font-size: 12px; color: var(--fg2); }
+
+.vault-add {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 6px 0 10px;
+}
+.vault-add input, .vault-add textarea {
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 5px 7px;
+  font: inherit;
+  font-size: 12px;
+  width: 100%;
+}
+.vault-add textarea { min-height: 64px; resize: vertical; }
+.vault-add button { align-self: flex-start; }
+
+.vault-row {
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 7px 9px;
+  margin-bottom: 8px;
+  background: var(--bg);
+}
+.vault-head { display: flex; align-items: baseline; gap: 8px; }
+.vault-sub { color: var(--fg3); font-size: 11px; }
+.vault-text {
+  width: 100%;
+  min-height: 68px;
+  max-height: 220px;
+  resize: vertical;
+  margin-top: 5px;
+  background: var(--bg2);
+  color: var(--fg2);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 5px 7px;
+  /* Export strings are long unbroken base64; a monospace font makes them
+     scannable and stops the row from reflowing oddly. */
+  font-family: Consolas, "Cascadia Mono", monospace;
+  font-size: 11px;
+  white-space: pre;
+  overflow: auto;
+}
+.vault-status { color: var(--fg3); font-size: 11px; align-self: center; }
+.vault-status.ok { color: var(--good); }
+
+/* external profile links */
+a.ext {
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 11px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 0 5px;
+}
+a.ext:hover { border-color: var(--accent); background: var(--bg3); }
+
+/* ------------------------------------------------------- header switches */
+
+label.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--fg2);
+  cursor: pointer;
+  user-select: none;
+}
+label.switch:hover { color: var(--fg); }
+#autorefresh-wrap input { margin: 0; }
+
+/* Segmented control: two named states in one pill. Same visual language as the
+   buttons next to it, so it does not read as a third kind of widget. */
+.seg {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.seg button {
+  border: 0;
+  border-radius: 0;
+  background: var(--bg2);
+  color: var(--fg2);
+  padding: 5px 10px;
+  font-size: 12px;
+}
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button:hover { color: var(--fg); background: var(--bg3); }
+.seg button.on {
+  background: var(--accent);
+  color: #fff;
+}
+body[data-theme="light"] .seg button.on { color: #fff; }
+
+/* Split button: primary action plus a caret that opens the rarely-used siblings.
+   Built from the same button styles as the rest of the header so it does not
+   read as a different kind of control. */
+.split { position: relative; display: inline-flex; }
+.split > button { border-radius: 0; }
+.split > button:first-child { border-top-left-radius: 4px; border-bottom-left-radius: 4px; }
+.split > button.split-more {
+  border-top-right-radius: 4px;
+  border-bottom-right-radius: 4px;
+  border-left: 0;
+  padding-left: 6px;
+  padding-right: 6px;
+  font-size: 10px;
+}
+.split > button.split-more[aria-expanded="true"] { color: var(--accent); border-color: var(--accent); }
+
+.menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 70;
+  display: flex;
+  flex-direction: column;
+  min-width: 100%;
+  padding: 3px;
+  gap: 2px;
+  background: var(--bg2);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .35);
+}
+.menu[hidden] { display: none; }
+.menu > button {
+  border: 0;
+  background: transparent;
+  text-align: left;
+  white-space: nowrap;
+  padding: 5px 10px;
+}
+.menu > button:hover { background: var(--bg3); color: var(--fg); }
+
+/* ------------------------------------------------------------- scrollbars */
+
+/* Themed to match the rest of the chrome. The default Windows scrollbar is a
+   light grey slab that looks pasted on in dark mode, and the table's horizontal
+   bar is the most visible one on the page. */
+/* The standard properties are for browsers WITHOUT ::-webkit-scrollbar (Firefox).
+   In Chromium, setting scrollbar-width or scrollbar-color switches the element to
+   the standard rendering path and makes every ::-webkit-scrollbar rule below it
+   inert -- measured: webkit alone gives the 18px asked for, webkit plus
+   `scrollbar-width: thin` gives 10px. A global `*` rule was silently capping
+   every scrollbar in the app. */
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--accent) transparent;
+  }
+}
+
+/* Tinted with --accent so the bar belongs to the current skin instead of looking
+   like the OS default grey slab. Custom properties and color-mix both resolve
+   inside these pseudo-elements (verified by sampling rendered pixels), so no JS
+   is needed to keep them in step with the theme. */
+::-webkit-scrollbar { width: 12px; height: 12px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--accent) 34%, var(--line));
+  border-radius: 6px;
+  /* Inset so the thumb reads as a floating bar rather than filling the gutter. */
+  border: 3px solid transparent;
+  background-clip: padding-box;
+  min-height: 28px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--accent) 70%, var(--line));
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:active {
+  background: var(--accent);
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-corner { background: transparent; }
+
+/* The table's horizontal bar is the one control the user actually drags across a
+   60-column table, so it gets a taller track, a visible channel and a stronger
+   thumb. 12px was thin enough to be fiddly to grab. */
+#grid-wrap::-webkit-scrollbar { height: 18px; width: 14px; }
+#grid-wrap::-webkit-scrollbar-track {
+  background: color-mix(in srgb, var(--accent) 6%, var(--bg3));
+  border-top: 1px solid var(--line);
+}
+#grid-wrap::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--accent) 52%, var(--bg3));
+  background-clip: padding-box;
+  border: 4px solid transparent;
+  border-radius: 9px;
+  min-width: 44px;
+}
+#grid-wrap::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--accent) 80%, var(--bg3));
+  background-clip: padding-box;
+  /* Thinner inset on hover = visibly fatter thumb, so the grab target grows
+     under the cursor. */
+  border-width: 3px;
+}
+#grid-wrap::-webkit-scrollbar-thumb:active {
+  background: var(--accent);
+  background-clip: padding-box;
+  border-width: 2px;
+}
+
+/* ------------------------------------------------------------------ toasts */
+
+#toasts {
+  position: fixed;
+  right: 16px;
+  /* Clear of the footer so a toast never sits on top of the row count. */
+  bottom: 44px;
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-end;
+  pointer-events: none;
+}
+.toast {
+  pointer-events: auto;
+  min-width: 260px;
+  max-width: 460px;
+  background: var(--bg2);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: 5px;
+  padding: 9px 12px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, .35);
+  font-size: 12px;
+  color: var(--fg);
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity .16s ease-out, transform .16s ease-out;
+}
+.toast.in { opacity: 1; transform: none; }
+.toast.good { border-left-color: var(--good); }
+.toast.bad { border-left-color: var(--bad); }
+.toast .t-title { font-weight: 600; }
+.toast .t-body { color: var(--fg2); margin-top: 2px; word-break: break-all; }
+.toast .t-actions { display: flex; gap: 6px; margin-top: 7px; }
+.toast button { padding: 2px 8px; font-size: 11px; }
+
+/* --------------------------------------------------------------- tooltips */
+
+/* Replaces the native title="" bubble -- see app/tip.js for why. Fixed, not
+   absolute: coordinates come straight from clientX/clientY, so a scrolled
+   table does not need an offset correction. */
+#tip {
+  position: fixed;
+  left: 0;
+  top: 0;
+  display: none;
+  z-index: 95;
+  max-width: 420px;
+  padding: 6px 9px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: 4px;
+  background: var(--bg2);
+  color: var(--fg);
+  font-size: 12px;
+  line-height: 1.5;
+  /* Long single-line tips (a decoded URL) must wrap rather than run off-screen. */
+  white-space: normal;
+  overflow-wrap: anywhere;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, .45);
+  /* The box must never eat the hover it is describing. */
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .09s ease;
+}
+#tip.in { opacity: 1; }
+#tip .tip-head {
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+body[data-theme="light"] #tip { box-shadow: 0 6px 20px rgba(0, 0, 0, .18); }
+
+.update-box {
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 7px 9px;
+  margin: 6px 0;
+  background: var(--bg);
+  font-size: 12px;
+}
+.update-box .hint2 {
+  color: var(--fg3);
+  font-size: 11px;
+  margin-top: 3px;
+  word-break: break-all;
+}
+
+/* ---------------------------------------------------------------- 毕业装备面板
+
+   这个面板比其它抽屉宽（纵向长方形，一列部位从上往下排），所以它自己一档宽度。 */
+/* 面板宽度（第 20 轮按实测调）。
+ *
+ * 原来写死 min(680px, 96vw)。天赋页在那个宽度下高 2494 px —— 三棵天赋树宽度是
+ * 370 / 518 / 518，.tree-cols 是 flex-wrap，680 的内容区一行只放得下一棵，
+ * 于是竖着排成 2494。而 1920 的屏上面板右边空着一大片。
+ *
+ * 实测（同一个专精，量的是 #bis-body 的 scrollHeight）：
+ *   面板 680  → 页高 2494（一行一棵）
+ *   面板 922  → 页高 2449（1280 屏，勉强放两棵，几乎没省）
+ *   面板 984  → 页高 2103（1366 屏，370 + 518 并排）
+ *   面板 1160 → 页高 2086（1920 屏）
+ * 三棵全并排要 ~1440 的内容区，做不到 —— 所以这里能拿到的就是「少滚一屏」，
+ * 宽屏收益明显，1280 上基本没有。写清楚是免得下次有人以为还能再压。
+ *
+ * 上限 1160 而不是铺满：72vw 让角色表留一条在左边（对照角色那个下拉要用它），
+ * 而且和这个项目里另外两个面板一个量级（#trend 900、#vault 760）。
+ * 用 clamp 不用媒体查询：能放几棵树是个**连续**的关系，
+ * 断点会在 1279/1280 之间造出一个「宽 1 px 版面全变」的台阶。 */
+#bis { width: clamp(320px, 84vw, 1160px); }
+/* contain: content —— 面板每次点击都整块重建，而里面有三棵天赋树（各 ~33 个
+   绝对定位的节点）。没有它的话浏览器要把这一块的布局和绘制放在整页的上下文里算;
+   有了它，重建的影响被关在这个盒子内。和 #grid-wrap 上那句 contain: paint 同一个
+   道理（那边是 60 列的表格横向滚动）。 */
+#bis-body {
+  overflow-y: auto;
+  padding: 10px 14px 40px;
+  flex: 1;
+  contain: content;
+}
+
+#bis-body .bis-tabs {
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid var(--line);
+  margin: -4px 0 8px;
+}
+#bis-body .bis-tabs button.tab {
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  color: var(--fg2);
+  padding: 5px 12px;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+#bis-body .bis-tabs button.tab:hover { color: var(--fg); background: var(--bg3); }
+#bis-body .bis-tabs button.tab.on {
+  color: var(--fg);
+  border-bottom-color: var(--accent);
+  font-weight: 600;
+}
+
+/* ---- 职业 / 专精选择 */
+.bis-pick { margin-bottom: 8px; }
+.bis-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-bottom: 4px;
+}
+.bis-row button {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 3px 7px;
+  font-size: 11.5px;
+  cursor: pointer;
+  color: var(--fg2);
+}
+.bis-row button:hover { background: var(--bg3); }
+/* 职业按钮的描边/文字色由 JS 按职业色设置，这里只管形状。 */
+.bis-row button.cls { font-weight: 600; }
+.bis-row button.spec.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #0f1319;
+  font-weight: 600;
+}
+
+/* ---- 视角切换 + 对照角色 */
+.bis-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.bis-bar .seg { display: inline-flex; }
+.bis-bar .seg button {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  color: var(--fg2);
+  padding: 3px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.bis-bar .seg button:first-child { border-radius: 3px 0 0 3px; }
+.bis-bar .seg button:last-child { border-radius: 0 3px 3px 0; border-left: 0; }
+.bis-bar .seg button.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #0f1319;
+  font-weight: 600;
+}
+.bis-bar .pick { display: inline-flex; align-items: center; gap: 5px; }
+.bis-bar .pick label { color: var(--fg2); font-size: 11.5px; }
+
+/* ---- 专精概要 */
+.bis-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  padding: 7px 9px;
+  margin-bottom: 8px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+.bis-meta .mcell { display: inline-flex; align-items: baseline; gap: 5px; }
+.bis-meta .mcell label { color: var(--fg2); font-size: 11px; }
+.bis-meta .mcell b { font-size: 12.5px; }
+
+/* ---- 属性目标条 */
+.bis-stats { margin-bottom: 10px; }
+.bis-bars { display: flex; flex-direction: column; gap: 3px; }
+.bar-row { display: flex; align-items: center; gap: 7px; font-size: 11.5px; }
+.bar-row label { width: 34px; color: var(--fg2); flex: none; }
+.bar-row .track {
+  display: block;
+  flex: 1;
+  height: 9px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  overflow: hidden;
+  position: relative;
+}
+/* 条子本身是 span，不写 display 的话它是 inline —— inline 元素的 width /
+ * height 一律不生效，条子就永远是 0×0，只剩一个空壳外框。
+ * 外面那个 .track 侥幸有尺寸，是因为它在 flex 容器里被 flex:1 撑成了 flex item；
+ * 里面这个 .fill 没有那个运气，所以必须自己声明。 */
+.bar-row .track .fill { display: block; height: 100%; opacity: .75; }
+.bar-row b { width: 46px; text-align: right; color: var(--fg2); flex: none; font-weight: 600; }
+
+/* ---- 部位列表：角色栈（第 21 轮，用户定的「像魔兽世界角色栏一样排列」）
+
+   原来是一列 16 个部位竖着排：实战分布视角 145~225 行、最深的一格 29 行，整页约
+   8 屏，而面板宽 1160px 右边空着一大片 —— 信息很多但一眼看不到几条。
+   现在照游戏角色栏摆：左列 6 格（头 颈 肩 背 胸 腕）+ 右列 8 格（手 腰 腿 脚
+   戒1 戒2 饰1 饰2）+ 武器一行。左列短两格（这份数据没有衬衣 / 战袍），那块空地
+   放「装等对比」和「属性」两块汇总，也就是游戏里角色模型的位置。
+
+   每格两行：第一行「你身上那件 + 装等差距」，第二行「首选 / 最热那件 + 插槽 · 轨道」。
+   完整分布还在 DOM 里（.slot-list），默认收起来，点格子头展开。 */
+.bis-slots { display: flex; flex-direction: column; gap: 7px; }
+.bis-slots.doll {
+  display: grid;
+  /* 两列等宽。1fr 1fr 而不是 auto：格子里名字长短差很多，auto 会让两列宽度
+     跟着最长那个名字跳，左右就对不齐了。 */
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  align-items: start;
+}
+.doll-col { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+/* 武器那一行跨两列，并排放主手 / 副手 —— 和游戏里一样在最下面。 */
+.doll-row.weapons {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  min-width: 0;
+}
+/* 窄窗口（半屏、小笔记本）退回一列，否则两列各 150px，名字全省略号。 */
+@media (max-width: 760px) {
+  .bis-slots.doll, .doll-row.weapons { grid-template-columns: 1fr; }
+}
+/* 汇总块放在左列底下时，去掉它自己的外边距，跟格子对齐。 */
+.doll-col .bis-sum { margin: 0; }
+
+/* ---- 「下面的树画哪一套」那一排（第 21 轮）。
+   和 .tree-pick（英雄树选择条）一个形状，免得同一页上两排按钮长得不一样。 */
+.tree-src { display: flex; align-items: center; gap: 8px; margin: 10px 0 4px; flex-wrap: wrap; }
+.tree-src .lb { font-size: 11px; color: var(--fg2); }
+.tree-src .note { font-size: 11px; color: var(--warn); }
+
+/* ---- 每格第二行：首选 / 最热那一件 */
+.slot-top {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 4px 8px;
+  font-size: 11.5px;
+  min-width: 0;
+}
+.slot-top .star { color: var(--accent); flex: none; }
+.slot-top .use { color: var(--fg2); flex: none; min-width: 34px; }
+.slot-top b {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.slot-top .sub { color: var(--fg2); flex: none; }
+/* 摘要行里的小图标。装备行里那个是 30px，这里 20px —— 一行只有 ~22px 高。 */
+.slot-top .icon.sm { width: 20px; height: 20px; flex: none; line-height: 0; }
+.slot-top .icon.sm img { width: 20px; height: 20px; border-radius: 3px; display: block; }
+.slot-top .tag { font-size: 10px; padding: 0 5px; border-radius: 8px; border: 1px solid var(--line); color: var(--fg2); flex: none; }
+
+/* ---- 完整分布：默认收起来，点格子头展开。
+   **行少的格子（.flat）不折**：guide 一格最多 4 行（首选 + 替代），折起来只会把
+   替代项藏掉；rio 里的瘦格子（副手这类 2~5 行）同理。 */
+.slot-list { display: none; border-top: 1px solid var(--line); }
+.slot.open .slot-list, .slot.flat .slot-list { display: block; }
+.slot.flat .slot-head { cursor: default; }
+/* 展开时给格子一个标记，免得「点了没反应」的错觉（分布可能很长，要滚才看得到）。 */
+.slot.open { box-shadow: 0 0 0 1px var(--accent) inset; }
+.slot {
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--bg);
+  overflow: hidden;
+}
+/* 「我身上这件」挂在 slot-head 里的 span 上，不是 .slot 本身 —— 写成 .slot.mine
+   是个永远匹配不上的死规则，已经改掉。 */
+.slot-head .mine {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--fg2);
+  max-width: 46%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.slot-head .mine.ok { color: var(--good); }
+.slot-head .mine.empty { color: var(--fg3); font-style: italic; }
+.slot-head {
+  display: flex;
+  align-items: baseline;
+  /* 点格子头展开 / 收起完整分布（第 21 轮）。换行是必需的：一格只有半个面板宽，
+     而这一行有部位名 + 样本量 + 你身上那件 + 装等差距四样东西。 */
+  cursor: pointer;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 4px 8px;
+  background: var(--bg3);
+  border-bottom: 1px solid var(--line);
+}
+.slot-head b { font-size: 12px; }
+.slot-head .sub { color: var(--fg2); font-size: 11px; }
+.slot-head .tag {
+  margin-left: auto;
+  font-size: 10.5px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  color: var(--fg2);
+}
+.slot-head .tag.ok { color: var(--good); border-color: var(--good); }
+.slot-head .tag.no { color: var(--warn); border-color: var(--warn); }
+/* 覆盖率徽章紧跟在部位名后面，所以要去掉上面那条 margin-left: auto ——
+   两个元素都写 auto 的话剩余空间会被平分，「我身上这件」就不再贴右了。 */
+.slot-head .tag.cov { margin-left: 0; font-size: 10px; }
+
+/* 装等差距徽章。跟在「我身上这件」后面，所以也不能吃 margin-left: auto。
+   三种状态三个颜色：落后用警告色（这是要行动的信号），持平和领先用淡色 ——
+   领先不是好消息也不是坏消息（款式不对，属性搭配可能不一样），不该染成绿色。 */
+.slot-head .tag.gap { margin-left: 6px; font-size: 10px; }
+.slot-head .tag.gap.behind { color: var(--warn); border-color: var(--warn); }
+.slot-head .tag.gap.ahead { color: var(--fg2); }
+.slot-head .tag.gap.even { color: var(--fg3); }
+
+/* ---- 单件装备 */
+.item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-top: 1px solid var(--line);
+}
+.item:first-child { border-top: 0; }
+.item.have { background: var(--reward); }
+/* 使用率最高的那一件。左边一道竖线，不改底色 —— 底色留给 .have，
+   两个同时命中时才看得出区别。 */
+.item.top { box-shadow: inset 2px 0 0 var(--accent); }
+.item.top .im .n { font-weight: 600; }
+.item .icon {
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border-radius: 3px;
+  border: 1px solid var(--line);
+  object-fit: cover;
+}
+/* 图标文件是 56×56，缩到 30 显示。图标本身是 <img>，外面那个 .icon 是 span，
+   所以边框走外层、尺寸两层都要给，否则加载完成前会撑出一格空白。 */
+.item .icon img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  border-radius: 2px;
+}
+.chip img { vertical-align: -3px; margin-right: 3px; border-radius: 2px; }
+/* 没有图标数据时的占位块：底色 = 来源分类色，中间一个字。
+   作用域放在 .icon 上而不是 .item .icon：格子头那条摘要行的图标容器
+   是 icon sm，图片加载失败同样要换成占位块。 */
+.icon.ph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: #0f1319;
+}
+.item .im { flex: 1; min-width: 0; }
+.item .im .n {
+  display: block;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.item .im .sub2 { display: block; color: var(--fg2); font-size: 11px; }
+/* 装等的来源在 guide 视角里有两种（GearInsight 实测最高 / raider.io 榜上均值）。
+   均值那一档画成虚下划线：提示里写着它是什么，但界面上也该有个「这个数不一样」
+   的记号，不然两种数混在一列里看着是同一种。 */
+.item .im .sub2.iv-rio { border-bottom: 1px dashed var(--line); display: inline-block; }
+.item .im .sub2.iv-none { color: var(--fg3); font-style: italic; }
+.item .im .stats { color: var(--fg3); font-size: 10.5px; }
+.item .usage { flex: none; width: 92px; }
+/* 同 .bar-row .track：这两个也是 span，不声明 display 就都是 0×0（实测）。 */
+.item .usage .track {
+  display: block;
+  height: 6px;
+  background: var(--bg3);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.item .usage .track .fill { display: block; height: 100%; background: var(--accent); opacity: .7; }
+.item .usage .n { display: block; font-size: 10.5px; color: var(--fg2); text-align: right; }
+/* guide 视角：这一列放名次徽章而不是使用率条。宽度沿用 .usage 的 92px，
+ * 所以三个视角切换时右侧那一列不会左右跳。 */
+.item .usage.rank { display: flex; justify-content: flex-end; align-items: center; }
+.item .tag.bis { color: var(--good, #4caf50); border-color: var(--good, #4caf50); }
+.item .tag.alt { color: var(--fg3); }
+/* 部位标题上的「首选 N ・替代 M」。跟 .tag.cov 同一族，但它不是百分比，
+ * 所以不套 .no 那个「覆盖率太低」的警告色。 */
+.slot-head .tag.cov.mr { color: var(--fg2); }
+/* 来源徽章（团本 / 钥石 / 套装转换…）的底样式。
+ *
+ * 这条以前是**漏的**：只写了 .tag.use 和 .tag.trk，没写 .item .tag 本身。
+ * .slot-head .tag 是另一个祖先，管不到这里，所以来源徽章的 border-width 是 0，
+ * 而 bis.js 里 badge.style.borderColor = catColor(cat) 只设了颜色 ——
+ * 等于给一条不存在的边框上色，徽章一直是裸文字。
+ *
+ * flex/white-space 也必须在这里：来源标签最长的是「奇点声望任务」6 个字，
+ * 不写 flex: none 它会被压缩，不写 nowrap 它会折行把整行撑高。
+ */
+.item .tag {
+  flex: none;
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  color: var(--fg2);
+  white-space: nowrap;
+}
+/* 「使用」= 主动使用类饰品，和来源徽章一个外形，只是文字固定。 */
+.item .tag.use { color: var(--fg2); }
+/* 升级轨道（「英雄 6/6」）。故意比来源标签淡一档：它是补充信息，
+   不该跟来源分类抢注意力。 */
+.item .tag.trk { color: var(--fg3); }
+
+/* ---- 宝石 / 附魔 / 消耗品 */
+.bis-extras { margin-top: 12px; }
+.ench-row { display: flex; align-items: baseline; gap: 8px; font-size: 11.5px; padding: 2px 0; }
+.ench-row label { width: 48px; color: var(--fg2); flex: none; }
+.ench-row .ench { flex: 1; }
+.ench-row .n { color: var(--fg2); }
+
+/* ---- 天赋页 */
+.bis-warn {
+  border: 1px solid var(--warn);
+  border-radius: 4px;
+  padding: 7px 9px;
+  margin-bottom: 10px;
+  background: var(--bg);
+  font-size: 12px;
+}
+.bis-warn b { color: var(--warn); }
+.bis-warn pre.fmt {
+  margin: 6px 0 0;
+  padding: 7px 8px;
+  background: var(--bg3);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  font-size: 10.5px;
+  line-height: 1.45;
+  overflow-x: auto;
+  color: var(--fg2);
+}
+.bis-bstats { margin-bottom: 10px; }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0; }
+.chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 2px 7px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg);
+  font-size: 11px;
+}
+.chip .n { color: var(--fg2); }
+table.bis-tbl { border-collapse: collapse; width: 100%; font-size: 11.5px; }
+table.bis-tbl th, table.bis-tbl td {
+  text-align: left;
+  padding: 3px 7px;
+  border-bottom: 1px solid var(--line);
+}
+table.bis-tbl th { color: var(--fg2); font-weight: 600; }
+.bis-encs { margin-top: 10px; }
+.bis-tree { margin-top: 10px; }
+
+/* 天赋导入串。串是 base64，长 70~120 字符（实测中位数 102），所以用等宽字体、
+   允许换行 —— 和备份箱那个 .vault-text 一个道理，只是这里的串短得多，
+   不需要 pre + 横向滚动，折行看全比拖动更省事。 */
+.bis-loadout {
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 7px 9px;
+  margin-top: 10px;
+  background: var(--bg);
+}
+/* guide 那一套自己的导入串块。外观和下面 raider.io 那块一样，但**是两个类** ——
+   bis-loadout 被测试按「每次渲染恰好一个」数着，共用会让计数翻倍。 */
+.mr-loadout {
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 7px 9px;
+  margin-top: 10px;
+  background: var(--bg);
+}
+
+.lo-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.lo-head .n { color: var(--fg3); font-size: 11px; }
+/* 「和上面的方案不是同一套」。这一块（raider.io 的可导入串）就摆在 guide 那套
+   树的正下方，不标一句的话读起来像是「上面那套的导入串」—— 而两者是两套不同的
+   天赋。用警告色而不是灰色：这是要避免误解，不是补充说明。 */
+.lo-head .lo-warn {
+  font-size: 10px;
+  padding: 0 5px;
+  border: 1px solid var(--warn);
+  border-radius: 3px;
+  color: var(--warn);
+  white-space: nowrap;
+}
+
+/* 团本 / 大秘境（第 20 轮）。和 .lo-pick 分开一个类，是因为它俩层级不同：
+ * 先选哪一类数据，再在那一类里选第几串。挨着放但中间留一道分隔线，
+ * 免得看成同一排七八个按钮。 */
+.lo-kind {
+  display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0 0;
+  padding-bottom: 6px; border-bottom: 1px solid var(--line);
+}
+.lo-pick { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0; }
+/* guide 那块的串框。外观和 .lo-text 一样，但**是两个类** ——
+   lo-text 被测试按「每次渲染恰好一个」数着。 */
+.mr-text,
+.lo-text {
+  width: 100%;
+  resize: vertical;
+  margin-top: 2px;
+  background: var(--bg2);
+  color: var(--fg2);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 5px 7px;
+  font-family: Consolas, "Cascadia Mono", monospace;
+  font-size: 11px;
+  /* 串里没有空格，anywhere 才会在字符中间断行；normal 会让它整串溢出。 */
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}
+.lo-act { display: flex; align-items: center; gap: 8px; margin-top: 5px; }
+.lo-act .n { color: var(--fg3); font-size: 11px; }
+
+/* 「guide 这套不给导入串」那句说明。
+   这里一度是一块和 .bis-loadout 一样的串框（显示 + 复制）。量过版本号之后
+   整块删了：guide 的串版本号是 130，游戏只认 2，粘进去必然被拒 ——
+   留一句话指向下面 raider.io 那块能导入的串，比留一个按钮诚实。 */
+.mr-nostr {
+  margin: 10px 0 0;
+  padding: 6px 9px;
+  border-left: 2px solid var(--line);
+  color: var(--fg3);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+/* guide 的方案列表。名字是页面上原样的英文长句（实测最长 62 字符，
+   中位 34），横排小按钮会挤成两行半读不出来，所以竖排一行一套。 */
+.mr-builds { display: flex; flex-direction: column; gap: 4px; margin: 8px 0; }
+.mrb {
+  display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+  text-align: left;
+  padding: 5px 8px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--fg2);
+  cursor: pointer;
+  font-size: 12px;
+}
+.mrb:hover { border-color: var(--accent); }
+.mrb.on { border-color: var(--accent); background: var(--bg3); color: var(--fg); }
+.mrb .nm { flex: 1 1 auto; }
+.mrb .mt { display: flex; gap: 6px; flex-wrap: wrap; flex: 0 0 auto; }
+.mrb .mt em { font-style: normal; color: var(--fg3); font-size: 11px; }
+.mrb .mt em.hero { color: var(--accent); }
+/* 「通用 N 处」：同一条串在 guide 页面上挂在 N 个小节下面。比点数更弱一档。 */
+.mrb .mt em.many { color: var(--fg3); opacity: .8; }
+
+/* 场景标签（单体 / AOE / 顺劈 / 多目标）。**可选** —— 实测 167 套方案里只有
+   51 套有，因为 guide 只有一部分专精按场景分天赋。
+   四个场景四个颜色，不是为了好看：用户在列表里找的就是「哪套是 AOE 的」，
+   靠颜色扫比读字快。单体用暖色（集中），AOE / 多目标用冷色（分散）。 */
+.mrb .mt em.scen, .note-row em.scen {
+  font-style: normal; font-size: 10px;
+  padding: 0 4px; border-radius: 3px;
+  border: 1px solid currentColor;
+  margin-left: 4px;
+}
+em.scen.st { color: var(--warn); }
+em.scen.aoe { color: var(--accent); }
+em.scen.cleave { color: var(--good); }
+em.scen.multi { color: var(--accent); opacity: .8; }
+
+/* 出手顺序 / 各首领·副本说明。正文是**英文原文**（首领名和技能名长在句子里，
+   本机没有官方中文译名，编一个会让人照着游戏里不存在的名字去找）。
+   所以这两块按「引文」排版：左边一道线，正文行高松一档，读长英文句子才不累。 */
+.mr-prio, .mr-boss { margin-top: 10px; }
+.mr-prio summary .ttl, .mr-boss summary .ttl { font-weight: 600; }
+.note-row {
+  padding: 5px 0 5px 9px;
+  border-left: 2px solid var(--line);
+  margin: 5px 0;
+}
+.note-row b { display: block; font-size: 12px; color: var(--fg); }
+.note-row p.en {
+  margin: 2px 0 0;
+  font-size: 11.5px;
+  line-height: 1.65;
+  color: var(--fg2);
+}
+
+/* 天赋树。节点是绝对定位的方块，坐标由 app/bis.js 按网格算好写进 style，
+   这里只管长相。方块宽 62px 是量出来的：3447 个天赋名里 2322 个正好 4 个字，
+   而缩成 2 个字会有 496 个重名（「强化」能指两个不同天赋），所以必须放全名。 */
+.tree-pick { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin: 6px 0; }
+.tree-pick .lb { color: var(--fg2); font-size: 11px; margin-right: 2px; }
+
+.tree-cols { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-start; }
+.tree-grid { flex: 0 0 auto; }
+.tree-grid-head {
+  display: flex; align-items: baseline; gap: 6px;
+  margin: 0 0 4px; font-size: 12px;
+}
+.tree-grid-head .n { color: var(--fg2); font-size: 11px; }
+
+.tree-canvas {
+  position: relative;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+
+/* 连线：一个高 2px 的条，绕左端旋转到两点之间的角度。 */
+.tree-edge {
+  position: absolute;
+  height: 2px;
+  background: var(--line);
+  transform-origin: 0 50%;
+  pointer-events: none;
+}
+.tree-edge.on { background: var(--accent); opacity: .55; }
+
+/* 62×50：图标 24 + 名字 22 + 上下内边距 2 刚好放下。
+   高度是 tools\run-tests.js 的几何断言**读这里**取的（NODE_BOX），
+   不是它自己写死的 —— 改这一行会连带改掉那组断言的期望值。
+   同时 app/bis.js 的 CELL_H 要跟着走，否则行距不够、方块会上下叠。 */
+.tnode {
+  position: absolute;
+  width: 62px; height: 50px;
+  box-sizing: border-box;
+  padding: 1px 2px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: var(--bg2);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  color: var(--fg3);
+  cursor: default;
+  overflow: hidden;
+}
+/* 天赋图标。游戏里天赋是靠图标认的，纯文字的树跟游戏里对不上。 */
+.tnode .ti {
+  width: 24px; height: 24px;
+  border-radius: 2px;
+  display: block; flex: 0 0 auto;
+  /* 没点的天赋压暗，和游戏里一致；点了的恢复原色。 */
+  filter: grayscale(1) brightness(.55);
+}
+.tnode.on .ti { filter: none; }
+.tnode .nm {
+  font-size: 10px; line-height: 1.1;
+  text-align: center;
+  max-height: 22px; overflow: hidden;
+  word-break: break-all;
+}
+/* 点数徽章挪到右下角。放在流里会把总高顶到 58px、超出 50px 的框。 */
+.tnode .r {
+  position: absolute; right: 2px; bottom: 0;
+  font-size: 9px; color: var(--fg3); line-height: 1.1;
+  background: var(--bg2); border-radius: 2px; padding: 0 1px;
+}
+.tnode.on {
+  background: var(--bg3);
+  border-color: var(--accent);
+  color: var(--fg);
+}
+.tnode.on .r { color: var(--accent); }
+/* 二选一的节点用虚线边，和「点了/没点」是两个维度，不能都用颜色表示。 */
+.tnode.ch { border-style: dashed; }
+.bis-sum { margin: 0 0 7px; font-size: 12px; }
+.bis-sum.gap-sum { color: var(--fg2); }
+.bis-sum.gap-sum b { color: var(--fg); }
+/* 汇总行里两边的平均装等。你的用中性色，推荐的用强调色 —— 一眼能看出
+   「要往哪个数走」。不给「你」上警告色：落后本身不是错误状态。 */
+.bis-sum.gap-sum b.iv-mine { color: var(--fg); }
+.bis-sum.gap-sum b.iv-want { color: var(--accent); }
+/* 「属性只有一边」那句说明。比装等汇总更弱一档：它是解释，不是读数。 */
+.bis-sum.stat-note { color: var(--fg3); }
+.bis-sum.stat-note b { color: var(--fg2); }
+/* 差距徽章现在带两个装等（「289 → 331　差 42」），比原来宽，所以别再挤压它。 */
+.slot-head .tag.gap { white-space: nowrap; }
+.bis-sum .warn { color: var(--warn); font-weight: 600; }
+.bis-foot { margin-top: 14px; color: var(--fg3); font-size: 11px; line-height: 1.6; }
+/* 脚注下面那个「更新这些数据」入口（details，默认收起）。 */
+.bis-upd { margin-top: 8px; }
+.bis-upd .row-buttons { margin: 6px 0 2px; }
+
+/* 树列分两行（第 20 轮）：英雄自己一行，职业 + 专精一行。
+ * 见 app/bis.js 里 renderMrTree 那段注释 —— 让三棵一起 wrap 会排出
+ * 「英雄 + 职业」一行、「专精」孤零零一行：两棵大小差一倍的凑一行，
+ * 而同样大的那棵单独一行，看着像排版坏了。
+ * 行间距用 margin 不用父级的 gap：.bis-tree 里还有别的东西（点数说明那一行），
+ * 统一 gap 会把那些也顶开。 */
+.tree-cols.main-row { margin-top: 14px; }

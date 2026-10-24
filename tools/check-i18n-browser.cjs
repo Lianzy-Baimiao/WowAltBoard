@@ -127,7 +127,7 @@ const { chromium } = require('playwright');
     await page.waitForSelector('.bis-slots');
     await report('毕业装备');
     await page.locator('.bis-tabs button').nth(1).click();
-    await page.waitForFunction(() => window.AE_TALENTS && window.AE_TALENT_TREE && window.AE_guide && window.AE_WCL);
+    await page.waitForFunction(() => window.AE_TALENTS && window.AE_TALENT_TREE && window.AE_SIMC && window.AE_WCL);
     await page.waitForTimeout(800);
     await report('天赋页签');
 

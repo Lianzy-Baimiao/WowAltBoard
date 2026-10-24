@@ -1,11 +1,11 @@
 'use strict';
 // Optional Edge/Playwright visual contract, independent of the data-repair tests.
-// Compares the same bundled data under v1.17.3 CSS and current CSS. No private data/network.
+// Compares the same bundled data under the v1.17.3 CSS (frozen in tools/bis-visual-baseline.css)
+// and the current CSS. No private data/network.
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const os = require('node:os');
 const assert = require('node:assert/strict');
-const { execFileSync } = require('node:child_process');
 const { pathToFileURL } = require('node:url');
 const { chromium } = require('playwright');
 
@@ -14,8 +14,10 @@ const { chromium } = require('playwright');
   const base = path.resolve(os.tmpdir());
   const dir = await fs.mkdtemp(path.join(base, 'wow-bis-visual-'));
   const screenshots = await fs.mkdtemp(path.join(base, 'wow-bis-screenshots-'));
+  // The v1.17.3 stylesheet is frozen into tools/bis-visual-baseline.css rather than read
+  // from the git tag, so this check does not depend on which release tags still exist.
   const styles = {
-    before: execFileSync('git', ['show', 'v1.17.3:app/style.css'], { cwd: root, encoding: 'utf8', maxBuffer: 2 ** 22 }),
+    before: await fs.readFile(path.join(__dirname, 'bis-visual-baseline.css'), 'utf8'),
     after: await fs.readFile(path.join(root, 'app/style.css'), 'utf8')
   };
   let browser;
@@ -138,13 +140,13 @@ const { chromium } = require('playwright');
           await page.locator('.lo-pick button').nth(1).click();
           assert.ok(await page.locator('.lo-pick button').nth(1).evaluate(e => e.classList.contains('on')));
           assert.notEqual(await page.locator('.lo-text').inputValue(), firstString);
-          // A non-first guide can still be selected; the copied string remains read-only.
-          const guides = page.locator('.mrb');
+          // A non-first profile can still be selected; the copied string remains read-only.
+          const guides = page.locator('.simb');
           if (await guides.count() > 1) {
             await guides.nth(1).click();
             assert.ok(await guides.nth(1).evaluate(e => e.classList.contains('on')));
           }
-          for (const field of await page.locator('.lo-text, .mr-text').all()) {
+          for (const field of await page.locator('.lo-text, .sim-text').all()) {
             assert.equal(await field.getAttribute('readonly'), '');
           }
           assert.deepEqual(errors, []);

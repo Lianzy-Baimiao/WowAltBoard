@@ -8,7 +8,7 @@ const assert = require('node:assert/strict');
 const { pathToFileURL } = require('node:url');
 const { chromium } = require('playwright');
 
-const groups = ['.bis-tabs', '.bis-row', '.bis-bar .seg', '.lo-kind', '.lo-pick', '.tree-src', '.tree-pick', '.mr-builds'];
+const groups = ['.bis-tabs', '.bis-row', '.bis-bar .seg', '.lo-kind', '.lo-pick', '.tree-src', '.tree-pick', '.sim-builds'];
 const skinProperties = ['backgroundColor', 'borderTopWidth', 'borderRightWidth', 'borderBottomWidth', 'borderLeftWidth', 'borderRadius', 'boxShadow', 'fontSize', 'fontWeight', 'lineHeight', 'paddingLeft', 'paddingRight'];
 async function inspectChoices(page) {
   await page.mouse.move(0, 0);
@@ -53,7 +53,7 @@ async function inspectChoices(page) {
     }
   }
   assert.notDeepEqual(reference.true, reference.false);
-  const actions = await page.locator('#bis .lo-copy, #bis .mr-copy, #bis .bis-upd button').evaluateAll(bs =>
+  const actions = await page.locator('#bis .lo-copy, #bis .sim-copy, #bis .bis-upd button').evaluateAll(bs =>
     bs.map(b => ({ choice: b.classList.contains('bis-choice'), pressed: b.hasAttribute('aria-pressed') })));
   assert.ok(actions.length >= 3);
   assert.ok(actions.every(b => !b.choice && !b.pressed), 'actions must not look/act like choices');
@@ -105,20 +105,20 @@ async function inspectChoices(page) {
         return {
           treeStartsAt: Math.round(document.querySelector('.tree-canvas').getBoundingClientRect().top - host.getBoundingClientRect().top + host.scrollTop),
           contentHeight: host.scrollHeight, viewportHeight: host.clientHeight,
-          importBoxes: host.querySelectorAll('.lo-text, .mr-text').length
+          importBoxes: host.querySelectorAll('.lo-text, .sim-text').length
         };
       });
       if (skin === 'default') await page.screenshot({ path: path.join(screenshots, `${theme}-talents.png`) });
       // Hover uses one visual language too; active controls keep the selected marker on hover.
       const hovered = [];
-      for (const selector of ['.bis-tabs', '.bis-row', '.lo-kind', '.lo-pick', '.tree-src', '.mr-builds']) {
+      for (const selector of ['.bis-tabs', '.bis-row', '.lo-kind', '.lo-pick', '.tree-src', '.sim-builds']) {
         const target = page.locator(selector + ' .bis-choice:not(.on)').first();
         await target.hover();
         await target.evaluate(e => Promise.all(e.getAnimations().map(a => a.finished)));
         hovered.push(await target.evaluate((b, props) => Object.fromEntries(props.map(p => [p, getComputedStyle(b)[p]])), skinProperties));
       }
       hovered.forEach(s => assert.deepEqual(s, hovered[0], 'same unselected hover skin'));
-      for (const selector of ['.bis-tabs', '.bis-row', '.lo-kind', '.lo-pick', '.tree-src', '.mr-builds']) {
+      for (const selector of ['.bis-tabs', '.bis-row', '.lo-kind', '.lo-pick', '.tree-src', '.sim-builds']) {
         await page.mouse.move(0, 0);
         const active = page.locator(selector + ' .bis-choice.on').first();
         await active.evaluate(e => Promise.all(e.getAnimations().map(a => a.finished)));
@@ -128,11 +128,11 @@ async function inspectChoices(page) {
         assert.deepEqual(await active.evaluate((b, props) => Object.fromEntries(props.map(p => [p, getComputedStyle(b)[p]])), skinProperties), selectedSkin, 'hover must retain selected marker');
       }
       await page.keyboard.press('Tab');
-      const nextGuide = page.locator('.mrb').nth(1);
+      const nextGuide = page.locator('.simb').nth(1);
       await nextGuide.focus();
       assert.equal(await nextGuide.evaluate(b => getComputedStyle(b).outlineStyle), 'solid');
       await nextGuide.press('Space');
-      assert.equal(await page.locator('.mrb').nth(1).getAttribute('aria-pressed'), 'true');
+      assert.equal(await page.locator('.simb').nth(1).getAttribute('aria-pressed'), 'true');
       const focusLostOnSwitch = await page.evaluate(() => !document.activeElement.closest('#bis .bis-choice'));
       for (const g of await inspectChoices(page)) covered.add(g);
       // Semantic state tracks actual string selection, not merely paint.
@@ -142,8 +142,8 @@ async function inspectChoices(page) {
       assert.notEqual(await page.locator('.lo-text').inputValue(), first);
       await page.locator('.tree-src button').nth(1).click();
       assert.equal(await page.locator('.tree-src button').nth(1).getAttribute('aria-pressed'), 'true');
-      // Exercise the plugin route with real bundled builds. Only the guide availability is changed in this fixture.
-      await page.evaluate(() => { window.AE_guide.specs[270].views = {}; });
+      // Exercise the plugin route with real bundled builds: Mistweaver has no SimC profile
+      // (SimC does not simulate healing), so it takes that route without changing any data.
       await page.locator('.bis-row .cls').getByText('武僧', { exact: true }).click();
       await page.locator('.spec[data-tip^="MONK/MISTWEAVER"]').click();
       await page.waitForSelector('.tree-pick .bis-choice');

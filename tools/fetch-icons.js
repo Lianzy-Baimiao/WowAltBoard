@@ -120,26 +120,24 @@ function collectIds() {
     });
   }
 
-  // guide 那份产物（app/guide-data.js）里有一批**只在 guide 出现**的物品
-  // （实测 357 件里 36 件不在 rio 池里，多是附魔和可刷替代件）。它们的中文名已经
-  // 由生成器从 DB2 补上了，但**图标名 DB2 里没有** —— 所以这批要走 wowhead
-  // 查图标名，跟 BisData 那批同一条路，进 ids。
+  // SimC 那份产物（app/simc-data.js）里有一批**只在 SimC 配置里出现**的物品和宝石
+  // （MID2 实测 157 件里 15 件不在 rio 池里）。它们的中文名由生成器从 DB2 补上了，
+  // 但**图标名 DB2 里没有** —— 所以这批要走 wowhead 查图标名，跟 BisData 那批同一条路，进 ids。
   //
-  // 不这么做的后果是实测过的：面板「最佳推荐」视角里出现占位块（渲染检查报
-  // 「出现 3 个占位块」）。
-  var mrFile = path.join(ROOT, 'app', 'guide-data.js');
-  var mrNeed = 0;
-  if (fs.existsSync(mrFile)) {
-    var mg = { AE: {} };
-    mg.window = mg;
-    new Function('global', 'window', fs.readFileSync(mrFile, 'utf8')).call(mg, mg, mg);
-    var MR = mg.AE_guide;
-    if (!MR || !MR.items) throw new Error('app/guide-data.js 没有赋值 AE_guide 或缺 items');
-    Object.keys(MR.items).forEach(function (id) {
-      var it = MR.items[id];
+  // 不这么做的后果是实测过的（上一个数据源那次）：面板上出现占位块。
+  var simFile = path.join(ROOT, 'app', 'simc-data.js');
+  var simNeed = 0;
+  if (fs.existsSync(simFile)) {
+    var sg = { AE: {} };
+    sg.window = sg;
+    new Function('global', 'window', fs.readFileSync(simFile, 'utf8')).call(sg, sg, sg);
+    var SC = sg.AE_SIMC;
+    if (!SC || !SC.items) throw new Error('app/simc-data.js 没有赋值 AE_SIMC 或缺 items');
+    Object.keys(SC.items).forEach(function (id) {
+      var it = SC.items[id];
       if (it && it.i) { rioNames[it.i] = 1; return; }   // 自带图标名的直接下图
       ids[id] = 1;                                       // 没有图标名的去 wowhead 查
-      mrNeed++;
+      simNeed++;
     });
   }
 
@@ -152,7 +150,7 @@ function collectIds() {
     ownIcon: ownIcon,
     rioNames: Object.keys(rioNames),
     extraNames: Object.keys(extra),
-    mrNeed: mrNeed
+    simNeed: simNeed
   };
 }
 

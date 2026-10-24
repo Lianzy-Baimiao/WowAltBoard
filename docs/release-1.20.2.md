@@ -13,7 +13,6 @@
 
 - 天赋树已从 raidbots 与暴雪 DB2 重新下载并生成，与 v1.20.1 自带的逐字节一致。
 - raider.io 装备分布、Warcraft Logs 团本天赋仍是 2026-10-21 的数据。
-- guide 编辑推荐仍是 2026-10-01 的快照：更新数据.bat 按来源访问政策不抓取 guide。
 
 ### 升级
 
@@ -39,7 +38,6 @@
 
 - Talent trees were re-downloaded from raidbots and Blizzard DB2 and regenerated; the result is byte-identical to the copy bundled with v1.20.1.
 - raider.io gear distributions and Warcraft Logs raid talents remain the 2026-10-21 data.
-- guide editor picks remain the 2026-10-01 snapshot: per the source's access policy, 更新数据.bat does not fetch guide.
 
 ### Upgrading
 

@@ -1,7 +1,7 @@
 /*
  * WowAltBoard - tools/verify-wcl-data.js
  *
- * app/wcl-data.js 的**可执行格式定义**。和 verify-rio-data.js / verify-guide-data.js
+ * app/wcl-data.js 的**可执行格式定义**。和 verify-rio-data.js / verify-simc-data.js
  * 同一个位置：价值在「换团本重抓时能拦住不合格的新产物」，所以平时必须一直是绿的。
  *
  * 这份数据的判据比另外两家强一档，因为**串本身就带着答案**：
@@ -29,7 +29,7 @@ var win = {};
 new Function('window', fs.readFileSync(dataPath, 'utf8'))(win); // eslint-disable-line no-new-func
 var W = win.AE_WCL;
 
-// 面板那份解码器 + 树。加载方式抄 verify-guide-data.js：
+// 面板那份解码器 + 树。加载方式和 verify-simc-data.js 一样：
 // talent-decode.js 挂的是 window.AE.TalentDecode，不是 window.AE_TALENT_DECODE，
 // 而且它要 window 自引用（g.window = g）才能拿到 AE 这个命名空间。
 var DEC = null, TREE = null;
