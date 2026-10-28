@@ -66,9 +66,13 @@ body[data-theme="light"] {
   --mplus-high: #7b3fb4;
   --mplus-peak: #9a6700;
 }
-body[data-theme="light"][data-skin="jade"]   { --bg2: #ffffff; --bg3: #eaf3ee; --line: #cddbd3; --row-hover: #e2efe8; }
-body[data-theme="light"][data-skin="amber"]  { --bg2: #ffffff; --bg3: #f5efe4; --line: #ded2be; --row-hover: #f1e8d8; }
-body[data-theme="light"][data-skin="violet"] { --bg2: #ffffff; --bg3: #f0ecf8; --line: #d6cdea; --row-hover: #e9e3f6; }
+/* --bg and --accent too: body[data-theme="light"] above sets both on <body>,
+   which beats the per-skin values render.js puts on <html>, so every light skin
+   used to come out slate blue on slate grey. Accents are the skin hue darkened
+   to >= 4.5:1 against white; --bg is the skin's own light value (AE.SKINS). */
+body[data-theme="light"][data-skin="jade"]   { --bg: #f2f8f5; --accent: #127a55; --bg2: #ffffff; --bg3: #eaf3ee; --line: #cddbd3; --row-hover: #e2efe8; }
+body[data-theme="light"][data-skin="amber"]  { --bg: #faf6ef; --accent: #a35a00; --bg2: #ffffff; --bg3: #f5efe4; --line: #ded2be; --row-hover: #f1e8d8; }
+body[data-theme="light"][data-skin="violet"] { --bg: #f7f5fc; --accent: #6d3fd1; --bg2: #ffffff; --bg3: #f0ecf8; --line: #d6cdea; --row-hover: #e9e3f6; }
 
 * { box-sizing: border-box; }
 

@@ -18,7 +18,7 @@
   ============================================================================
 -->
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta id="application-version" name="application-version" content="1.21.0">
+<meta id="application-version" name="application-version" content="1.22.0">
 <title>WowAltBoard</title>
 <!-- Chromium uses the page favicon as the --app= window's own icon, which is
      what the taskbar button and the title bar show. Without one, that window
@@ -78,7 +78,7 @@
       <span class="split" id="export-split">
         <button type="button" id="btn-xlsx" title="导出为 Excel 工作簿（.xlsx）">导出 Excel</button>
         <button type="button" id="btn-export-more" class="split-more" title="其它导出方式"
-                aria-haspopup="menu" aria-expanded="false">▾</button>
+                aria-label="其它导出方式" aria-haspopup="menu" aria-expanded="false">▾</button>
         <div class="menu" id="export-menu" role="menu" hidden>
           <button type="button" id="btn-csv" role="menuitem">导出 CSV</button>
           <button type="button" id="btn-print" role="menuitem">打印 / PDF</button>
@@ -105,7 +105,6 @@
   </div>
 
   <section class="overview" aria-label="当前筛选概览">
-    <div class="overview-intro"><span class="eyebrow">角色总览</span><h2>每个角色，进度尽在掌握</h2><p>以下统计跟随当前筛选 · 数据来自本地插件存档</p></div>
     <div class="overview-stat"><span>显示角色</span><strong id="overview-count">—</strong><small id="overview-total">当前筛选</small></div>
     <div class="overview-stat reward-stat"><span>宝库待领取</span><strong id="overview-rewards">—</strong><small>有奖励可领取的角色</small></div>
     <div class="overview-stat"><span>本周大秘境</span><strong id="overview-runs">—</strong><small>已完成次数合计</small></div>
@@ -113,9 +112,9 @@
   </section>
 
   <div class="board-toolbar">
-    <div class="board-heading"><h2>角色看板</h2><span>横向对比 · 点击角色查看详情</span></div>
+    <div class="board-heading"><h2>角色看板</h2><span>点击角色查看详情 · 点击表头排序 · 拖动表头调整顺序</span></div>
     <div class="board-filters">
-      <label class="board-search"><span aria-hidden="true">⌕</span><input type="search" id="board-search" placeholder="搜索角色、服务器、职业或账号" aria-label="搜索角色、服务器、职业、公会或账号"><kbd aria-hidden="true">/</kbd></label>
+      <label class="board-search"><span class="board-search-icon" aria-hidden="true"></span><input type="search" id="board-search" placeholder="搜索角色、服务器、职业或账号" aria-label="搜索角色、服务器、职业、公会或账号"><kbd aria-hidden="true">/</kbd></label>
     </div>
   </div>
   <div id="grid-wrap" tabindex="0" role="region" aria-label="角色数据表，可横向滚动查看更多列">
@@ -130,10 +129,10 @@
     <button type="button" id="empty-open-filter">打开筛选设置</button>
   </div>
 
+  <!-- The how-to line moved up into the board heading; the footer is now just
+       the caption for the table above it. -->
   <footer>
     <span id="footer-info"></span>
-    <span class="spacer"></span>
-    <span>点击任意角色查看详情　·　点击表头排序</span>
   </footer>
 
 </div>

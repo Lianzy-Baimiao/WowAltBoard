@@ -144,6 +144,7 @@
     var s = state.settings;
     var parts = [];
     var visiblePerGroup = {};
+    var lastVisible = [];   // [group, last visible column id] in display order
 
     state.columns.forEach(function (c) {
       var hidden = s.hiddenGroups[c.group] || s.hiddenColumns[c.id];
@@ -151,8 +152,22 @@
         parts.push('[data-col="' + cssEscape(c.id) + '"]{display:none}');
       } else {
         visiblePerGroup[c.group] = (visiblePerGroup[c.group] || 0) + 1;
+        var tail = lastVisible[lastVisible.length - 1];
+        if (tail && tail[0] === c.group) tail[1] = c.id;
+        else lastVisible.push([c.group, c.id]);
       }
     });
+
+    // One vertical rule where each group ends (dashboard.css draws no column
+    // rules). It goes on the LAST visible column, so hiding a column moves the
+    // line rather than losing it. Colouring the existing transparent right
+    // border keeps every cell width as it was. Screen only: print keeps its grid.
+    var rules = [];
+    lastVisible.slice(0, -1).forEach(function (g) {
+      rules.push('#grid [data-col="' + cssEscape(g[1]) + '"]{border-right-color:var(--line)}');
+      rules.push('#grid tr.group-band th[data-group="' + cssEscape(g[0]) + '"]{border-right-color:var(--line)}');
+    });
+    if (rules.length) parts.push('@media screen{' + rules.join('') + '}');
 
     // The group band spans its group's columns, so its colSpan must track the
     // VISIBLE count. display:none removes a cell from the row entirely, so a
@@ -182,11 +197,16 @@
 
     var shown = 0;
     state.rows.forEach(function (r) {
-      if (isVisible(r.ch)) { r.tr.style.display = ''; shown++; }
-      else { r.tr.style.display = 'none'; }
+      var on = isVisible(r.ch);
+      r.tr.style.display = on ? '' : 'none';
+      // The class lets the zebra stripes count visible rows only (dashboard.css).
+      r.tr.classList.toggle('row-hidden', !on);
+      if (on) shown++;
     });
 
     state.styleEl.textContent = parts.join('\n');
+    // After the rules above, so the frozen column is measured as it is shown.
+    pinBandLabels(sid);
 
     /*
      * 筛选全空时的空态。表头还在、表体全空的表格看不出「筛选空了」和「坏了」
@@ -231,6 +251,29 @@
     if (!id) return;
     var nodes = doc.querySelectorAll('#grid [data-col="' + cssEscape(id) + '"]');
     for (var i = 0; i < nodes.length; i++) nodes[i].classList.toggle('sticky-col', on);
+  }
+
+  /**
+   * Group labels pin just right of the frozen column while their group scrolls
+   * past (dashboard.css). The old fixed `left: 140px` left a gap after a 79px
+   * name column and pushed 基础 to the middle of its own band. The group that
+   * owns the frozen column pins at its own edge instead, above that column.
+   * The width is measured, not read from the <col>: the table sizes columns
+   * from content, so the 130px there is not what is drawn.
+   */
+  function pinBandLabels(sid) {
+    var col = sid ? colById(sid) : null;
+    var bands = doc.querySelectorAll('#thead tr.group-band th[data-group]');
+    for (var i = 0; i < bands.length; i++) {
+      bands[i].classList.toggle('band-lead', !!col && bands[i].getAttribute('data-group') === col.group);
+    }
+    var grid = doc.getElementById('grid');
+    var head = sid ? doc.querySelector('#thead th.sticky-col') : null;
+    var w = head && head.offsetWidth;
+    if (grid && w && w !== state.frozenWidth) {
+      grid.style.setProperty('--frozen-w', w + 'px');
+      state.frozenWidth = w;
+    }
   }
 
   function renderFooter(shown) {
@@ -496,6 +539,15 @@
     var s = state.settings;
     var root = doc.documentElement;
 
+    // A theme or skin change repaints everything at once. Without this the
+    // buttons (which carry a hover transition) faded for 150 ms after the rest
+    // of the page had already switched, so they flashed the old colours.
+    // dashboard.css turns transitions off under .theme-switching; reading
+    // offsetHeight applies the new colours while it is on.
+    var changed = doc.body.getAttribute('data-theme') !== s.theme ||
+                  doc.body.getAttribute('data-skin') !== s.skin;
+    if (changed && root.classList) root.classList.add('theme-switching');
+
     doc.body.setAttribute('data-theme', s.theme);
     doc.body.setAttribute('data-skin', s.skin);
 
@@ -518,6 +570,12 @@
     root.style.setProperty('--ui-size', (size + 1) + 'px');
 
     applyThemeColor();
+
+    if (changed && root.classList) {
+      void doc.body.offsetHeight;
+      var raf = global.requestAnimationFrame || function (fn) { return global.setTimeout(fn, 16); };
+      raf(function () { root.classList.remove('theme-switching'); });
+    }
   }
 
   /**

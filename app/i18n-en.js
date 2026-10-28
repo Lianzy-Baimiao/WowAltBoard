@@ -17,7 +17,6 @@
   global.AE_I18N_EN = {
 
     // ------------------------------------------------------ index.html static
-    '以下统计跟随当前筛选 · 数据来自本地插件存档': 'Stats follow the current filter · Data comes from local addon saves',
     '关闭': 'Close',
     '关闭提示': 'Dismiss',
     '其它导出方式': 'Other export options',
@@ -52,18 +51,15 @@
     '本周大秘境': 'Mythic+ this week',
     '本周完成本数': 'Runs completed this week',
     '桌面版：手动扫描游戏存档，成功后刷新看板。游戏中请先 /reload；F5 仅重新载入页面。': 'Desktop only: rescan game saves, then refresh the board. Run /reload in game first; F5 only reloads the page.',
-    '横向对比 · 点击角色查看详情': 'Compare side by side · Click a character for details',
-    '每个角色，进度尽在掌握': 'Every character, every bit of progress',
+    '点击角色查看详情 · 点击表头排序 · 拖动表头调整顺序': 'Click a character for details · Click a header to sort · Drag a header to reorder',
     '毕业装备': 'Best gear',
     '注意': 'Notice',
     '浅色': 'Light',
     '深色': 'Dark',
-    '点击任意角色查看详情　·　点击表头排序': 'Click any character for details　·　Click a header to sort',
     '看板工具': 'Board tools',
     '自动': 'Auto',
     '藏宝图': 'Treasure map',
     '装等': 'Item level',
-    '角色总览': 'Character overview',
     '角色数据表，可横向滚动查看更多列': 'Character data table; scroll horizontally for more columns',
     '角色看板': 'Character board',
     '设置': 'Settings',

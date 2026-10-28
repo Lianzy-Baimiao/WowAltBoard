@@ -19,6 +19,10 @@
     text('overview-count', characters.length);
     text('overview-total', tn('共 {n} 个角色', { n: total }));
     text('overview-rewards', rewards);
+    // The card turns green only when there is something to collect.
+    var rewardEl = doc.getElementById('overview-rewards');
+    var rewardCard = rewardEl && rewardEl.parentNode;
+    if (rewardCard && rewardCard.classList) rewardCard.classList.toggle('is-active', rewards > 0);
     text('overview-runs', runs);
     text('overview-rating', characters.length ? Math.round(rating).toLocaleString(locale()) : '—');
     var search = doc.getElementById('board-search');
@@ -44,6 +48,17 @@
     } catch (e) { /* Browser mode and UI must remain usable if the bridge fails. */ }
   };
   AE.wireDashboard = function () {
+    // The frozen column casts its edge shadow only while rows slide under it.
+    var wrap = doc.getElementById('grid-wrap');
+    if (wrap && wrap.addEventListener) {
+      var scrolled = false;
+      var sync = function () {
+        var on = wrap.scrollLeft > 0;
+        if (on !== scrolled) { scrolled = on; wrap.classList.toggle('scrolled-x', on); }
+      };
+      wrap.addEventListener('scroll', sync, { passive: true });
+      sync();
+    }
     var search = doc.getElementById('board-search');
     if (!search) return;
     search.value = AE.state.settings.search;

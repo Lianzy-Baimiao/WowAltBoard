@@ -269,15 +269,21 @@
 
     var s = AE.state.settings;
     order.forEach(function (k) {
-      var tr = el('tr');
+      // `row`, not `tr`: a local `tr` shadowed the tr() translator above, so the
+      // first week missing a character threw "tr is not a function" and the
+      // whole trend panel showed an error instead of a table.
+      var row = el('tr');
       var latest = null;
       for (var wi = weeks.length - 1; wi >= 0; wi--) {
         if (weeks[wi].characters[k]) { latest = weeks[wi].characters[k]; break; }
       }
       var nameTd = el('td', null, latest ? latest.name : k);
-      if (latest && s.classColors) nameTd.style.color = L.classColor(latest.classFile);
+      if (latest && s.classColors) {
+        nameTd.style.setProperty('--class-color', L.classColor(latest.classFile));
+        nameTd.classList.add('cls-color');
+      }
       nameTd.title = latest ? (latest.name + ' - ' + latest.realm) : k;
-      tr.appendChild(nameTd);
+      row.appendChild(nameTd);
 
       var prevVal = null;
       weeks.forEach(function (w) {
@@ -287,7 +293,7 @@
           td.className += ' empty';
           td.textContent = '·';
           td.title = tr('这一周该数据源里没有这个角色');
-          tr.appendChild(td);
+          row.appendChild(td);
           return;
         }
         if (active.text) {
@@ -299,9 +305,12 @@
           if (dd) td.appendChild(dd);
           prevVal = v;
         }
-        tr.appendChild(td);
+        // A week with nothing to show gets the same quiet dot as a missing week;
+        // a bright "·" next to a dim one looked like two different things.
+        if (td.textContent === '·') td.className += ' empty';
+        row.appendChild(td);
       });
-      table.appendChild(tr);
+      table.appendChild(row);
     });
 
     body.appendChild(table);

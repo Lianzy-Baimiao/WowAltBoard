@@ -448,8 +448,10 @@
           AE.refresh();
         },
         tn('{realm} · {level} 级', { realm: ch.realm, level: ch.level }));
+      // Through --class-color like the table, so priest white stays readable on
+      // the light theme (dashboard.css clamps the lightness per theme).
       var dot = lab.querySelector('span');
-      if (dot) dot.style.color = ch.classColor;
+      if (dot) { dot.style.setProperty('--class-color', ch.classColor); dot.classList.add('cls-color'); }
       charSec.appendChild(lab);
     });
     panel.appendChild(charSec);
@@ -974,7 +976,9 @@
 
     var title = doc.getElementById('drawer-title');
     title.textContent = ch.name;
-    title.style.color = s.classColors ? ch.classColor : '';
+    // Through --class-color so dashboard.css can keep it readable on either theme.
+    title.style.setProperty('--class-color', ch.classColor);
+    title.classList.toggle('cls-color', !!s.classColors);
     doc.getElementById('drawer-sub').textContent =
       tn('{realm}　·　{level} 级 {race}{cls}　·　{source}', {
         realm: ch.realm, level: ch.level, race: ch.raceName, cls: ch.className,

@@ -52,6 +52,14 @@
 
   function dash(td) { td.className += ' empty'; td.textContent = '·'; }
 
+  // Class colour as a variable plus a class, not an inline color: dashboard.css
+  // clamps the lightness per theme (priest white is invisible on the light theme).
+  function classTint(node, ch, ctx) {
+    if (!ctx.settings.classColors) return;
+    node.style.setProperty('--class-color', ch.classColor);
+    node.classList.add('cls-color');
+  }
+
   /** Thousands separator, for gold and currency totals. */
   function group3(n) {
     return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
@@ -99,7 +107,7 @@
         sort: function (ch) { return ch.name; },
         render: function (td, ch, ctx) {
           var wrap = el('span', 'char-name', ch.name);
-          if (ctx.settings.classColors) wrap.style.color = ch.classColor;
+          classTint(wrap, ch, ctx);
           td.appendChild(wrap);
           if (ch.seasonMismatch) {
             var b = el('span', 'badge warn', '旧赛季');
@@ -172,7 +180,7 @@
         sort: function (ch) { return ch.className; },
         render: function (td, ch, ctx) {
           td.textContent = ch.className;
-          if (ctx.settings.classColors) td.style.color = ch.classColor;
+          classTint(td, ch, ctx);
         }
       },
       {
