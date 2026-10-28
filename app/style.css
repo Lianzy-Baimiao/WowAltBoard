@@ -43,6 +43,9 @@ body[data-skin="jade"]   { --bg2: #141d19; --bg3: #1a2620; --line: #294036; --ro
 body[data-skin="amber"]  { --bg2: #1f1a13; --bg3: #2a2318; --line: #423526; --row-hover: #2f2718; --reward: #2f2c17; }
 body[data-skin="violet"] { --bg2: #1c1829; --bg3: #262038; --line: #3b3357; --row-hover: #2a2440; --reward: #262f22; }
 
+/* Light text tokens are set by measurement (tools/check-light-theme.cjs): each reaches
+   4.5:1 on the darkest light surface it is drawn on (bg3, tinted tags, zebra rows).
+   The earlier --fg3 #8b94a2 was 2.6:1 there, --good / --warn / --todo 3.6-3.8:1. */
 body[data-theme="light"] {
   color-scheme: light;
   --bg: #f6f7f9;
@@ -50,13 +53,13 @@ body[data-theme="light"] {
   --bg3: #eef0f4;
   --line: #d6dae1;
   --fg: #1d2430;
-  --fg2: #5a6472;
-  --fg3: #8b94a2;
-  --accent: #1f6fd0;
-  --good: #1f8b45;
-  --warn: #a86a10;
+  --fg2: #4f5866;
+  --fg3: #636b78;
+  --accent: #1668c9;
+  --good: #007a36;
+  --warn: #985e00;
   --bad: #c0392b;
-  --todo: #7a838f;
+  --todo: #68707c;
   --alliance: #1f5fbf;
   --horde: #b03030;
   --row-hover: #e8ecf2;
@@ -70,8 +73,8 @@ body[data-theme="light"] {
    which beats the per-skin values render.js puts on <html>, so every light skin
    used to come out slate blue on slate grey. Accents are the skin hue darkened
    to >= 4.5:1 against white; --bg is the skin's own light value (AE.SKINS). */
-body[data-theme="light"][data-skin="jade"]   { --bg: #f2f8f5; --accent: #127a55; --bg2: #ffffff; --bg3: #eaf3ee; --line: #cddbd3; --row-hover: #e2efe8; }
-body[data-theme="light"][data-skin="amber"]  { --bg: #faf6ef; --accent: #a35a00; --bg2: #ffffff; --bg3: #f5efe4; --line: #ded2be; --row-hover: #f1e8d8; }
+body[data-theme="light"][data-skin="jade"]   { --bg: #f2f8f5; --accent: #0e7853; --bg2: #ffffff; --bg3: #eaf3ee; --line: #cddbd3; --row-hover: #e2efe8; }
+body[data-theme="light"][data-skin="amber"]  { --bg: #faf6ef; --accent: #9e5700; --bg2: #ffffff; --bg3: #f5efe4; --line: #ded2be; --row-hover: #f1e8d8; }
 body[data-theme="light"][data-skin="violet"] { --bg: #f7f5fc; --accent: #6d3fd1; --bg2: #ffffff; --bg3: #f0ecf8; --line: #d6cdea; --row-hover: #e9e3f6; }
 
 * { box-sizing: border-box; }
@@ -741,6 +744,21 @@ table.mini-table td.overtime { color: var(--bad); }
      40 个小号的看板只印得出第一页装得下的十几行，纸上还没有任何「还有后续」的提示。 */
   html, body { background: #fff; color: #000; height: auto; overflow: visible; }
   #app { height: auto; overflow: visible; }
+  /* Paper is white whatever theme was on screen. Printing from the dark theme used to
+     keep its light-grey / pastel text (measured 1.3-3:1 on paper), so print always uses
+     the light tokens. !important beats the skin selectors and the inline --accent / --bg. */
+  html body, html body[data-theme][data-skin] {
+    color-scheme: light;
+    --bg: #ffffff !important; --bg2: #ffffff !important; --bg3: #f2f3f5 !important;
+    --line: #c9ced6 !important; --fg: #1d2430 !important; --fg2: #4f5866 !important; --fg3: #636b78 !important;
+    --accent: #1668c9 !important; --good: #007a36 !important; --warn: #985e00 !important; --bad: #c0392b !important;
+    --todo: #68707c !important; --alliance: #1f5fbf !important; --horde: #b03030 !important;
+    --row-hover: #ffffff !important; --reward: #ffffff !important;
+    --mplus-low: #1565c0 !important; --mplus-mid: #087f8c !important; --mplus-high: #7b3fb4 !important; --mplus-peak: #9a6700 !important;
+  }
+  /* The score after a key level is dimmed with opacity on screen; on paper it fell below 3:1. */
+  td.mp-level-low .sub, td.mp-level-mid .sub, td.mp-level-high .sub, td.mp-level-peak .sub { opacity: 1; }
+  td.armor-0, td.armor-1, td.armor-2, td.armor-3 { color: var(--fg2); }
 }
 
 /* -------------------------------------------------------------- 备份箱 vault */
@@ -1127,8 +1145,10 @@ body[data-theme="light"] #tip { box-shadow: 0 6px 20px rgba(0, 0, 0, .18); }
 #bis .bis-choice:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 /* 职业名直接用职业色；浅色底混入前景色，避免牧师等浅色字消失。 */
 #bis .bis-choice.cls { color: color-mix(in srgb, var(--class-color) 65%, var(--fg)); }
+/* Light: the class's own light-theme colour (AE.Labels.classColorsLight). Mixing 35%
+   of the raw colour into the dark text turned every class into a muddy navy. */
 body[data-theme="light"] #bis .bis-choice.cls {
-  color: color-mix(in srgb, var(--class-color) 35%, var(--fg));
+  color: var(--class-color-light, color-mix(in srgb, var(--class-color) 35%, var(--fg)));
 }
 #bis .bis-choice.simb { justify-content: flex-start; padding-block: 7px; }
 

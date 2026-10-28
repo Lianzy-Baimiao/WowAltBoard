@@ -52,11 +52,11 @@
 
   function dash(td) { td.className += ' empty'; td.textContent = '·'; }
 
-  // Class colour as a variable plus a class, not an inline color: dashboard.css
-  // clamps the lightness per theme (priest white is invisible on the light theme).
+  // Class colour as variables plus a class, not an inline color: dashboard.css picks
+  // the dark or the light-theme colour (priest white is invisible on the light theme).
   function classTint(node, ch, ctx) {
     if (!ctx.settings.classColors) return;
-    node.style.setProperty('--class-color', ch.classColor);
+    L.paintClassColor(node, ch.classColor);
     node.classList.add('cls-color');
   }
 
@@ -250,7 +250,7 @@
           if (!ks) { dash(td); td.title = tr('本周尚未获得钥石，或已过周重置'); return; }
           var meta = ctx.model.tables.dungeonById[ks.cmID];
           var lv = el('b', null, '+' + ks.level);
-          if (ks.color && /^[0-9a-f]{8}$/i.test(ks.color)) lv.style.color = '#' + ks.color.slice(2);
+          if (ks.color && /^[0-9a-f]{8}$/i.test(ks.color)) L.paintGameColor(lv, '#' + ks.color.slice(2));
           td.appendChild(lv);
           td.appendChild(document.createTextNode(' ' + dungeonHeader(ks.cmID, meta, ctx)));
           td.title = L.dungeonLabel(ks.cmID, meta, ctx.settings.dungeonNameOverrides, ctx.model.dungeonNames) +

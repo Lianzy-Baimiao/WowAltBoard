@@ -279,7 +279,7 @@
       }
       var nameTd = el('td', null, latest ? latest.name : k);
       if (latest && s.classColors) {
-        nameTd.style.setProperty('--class-color', L.classColor(latest.classFile));
+        L.paintClassColor(nameTd, latest.classFile);
         nameTd.classList.add('cls-color');
       }
       nameTd.title = latest ? (latest.name + ' - ' + latest.realm) : k;

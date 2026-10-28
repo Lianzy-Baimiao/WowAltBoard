@@ -312,11 +312,21 @@
 @supports (color: oklch(from red l c h)) {
   @media screen {
     body:not([data-theme="light"]) .cls-color { color: oklch(from var(--class-color) max(l, 0.68) c h); }
-    /* Chroma is capped too: monk green at full chroma is outside sRGB at this
-       lightness, and clipping it back made it lighter than the cap (4.1:1). */
-    body[data-theme="light"] .cls-color { color: oklch(from var(--class-color) min(l, 0.52) min(c, 0.16) h); }
   }
 }
+/* Light theme and paper: each class's own light partner (AE.Labels.classColorsLight),
+   bold. The earlier min(l, 0.52) min(c, 0.16) clamp hit every class with the same
+   formula: readable, but paladin came out plum, rogue olive, and every class duller. */
+/* 700, not 600: YaHei UI has no semibold face, and the thicker bold strokes are what
+   make a 12px name read as its colour at all. */
+@media screen { body[data-theme="light"] .cls-color { color: var(--class-color-light, var(--class-color)); font-weight: 700; } }
+@media print { .cls-color { color: var(--class-color-light, var(--class-color)); font-weight: 700; } }
+/* Game colours (item quality, stat, source, keystone; AE.Labels.paintGameColor): the
+   inline style reads var(--gc-now, <dark colour>), so the dark theme is unchanged and
+   these two rules swap in the light partner. Every node that reads --gc-now is itself
+   .game-color, so it always resolves its own --gc-light, never an inherited one. */
+@media screen { body[data-theme="light"] .game-color { --gc-now: var(--gc-light); } }
+@media print { .game-color { --gc-now: var(--gc-light); } }
 
 @media screen {
   /* Toolbar and table are one card: the toolbar is its top edge. */
@@ -448,6 +458,7 @@
   /* A reward to collect also gets a green edge, so it reads without the tint. */
   #grid tbody tr.has-reward td.sticky-col::before { content: ""; position: absolute; left: 0; top: 5px; bottom: 5px; width: 3px; border-radius: 0 2px 2px 0; background: var(--good); }
   #grid .char-name { font-weight: 600; }
+  body[data-theme="light"] #grid .char-name.cls-color { font-weight: 700; }
 
   /* Quiet the cells that carry no information. */
   #grid td.empty { color: color-mix(in srgb, var(--fg3) 45%, transparent); }
@@ -464,7 +475,9 @@
   .badge { padding: 0 5px; border-radius: 4px; font-weight: 600; }
   .badge.warn { background: color-mix(in srgb, var(--warn) 18%, transparent); color: var(--warn); }
   .badge.bad { background: color-mix(in srgb, var(--bad) 18%, transparent); color: var(--bad); }
-  body[data-theme="light"] .badge.warn { background: color-mix(in srgb, var(--warn) 13%, transparent); }
+  /* Opaque, mixed from white: a translucent tint got darker on the sunken data-source
+     rows and left the text at 4.2-4.4:1. */
+  body[data-theme="light"] .badge.warn { background: color-mix(in srgb, var(--warn) 10%, var(--bg2)); }
 
   #empty-hint { margin: 24px auto; padding: 22px 26px; border: 1px dashed var(--line); border-radius: var(--radius); background: var(--bg2); }
   #empty-open-filter { padding: 6px 14px; border-color: color-mix(in srgb, var(--accent) 45%, transparent); background: color-mix(in srgb, var(--accent) 12%, var(--bg2)); color: var(--accent); font-weight: 600; }
@@ -576,6 +589,11 @@
   .delta { display: inline-block; margin-left: 5px; padding: 0 4px; border-radius: 4px; font-size: 10.5px; line-height: 16px; font-weight: 600; }
   .delta.up { background: color-mix(in srgb, var(--good) 14%, transparent); }
   .delta.down { background: color-mix(in srgb, var(--bad) 14%, transparent); }
+  /* On white a 14% tint took the green text just under 4.5:1. */
+  body[data-theme="light"] .delta.up, body[data-theme="light"] .delta.down { background-color: color-mix(in srgb, currentColor 9%, transparent); }
+  /* The best-gear slot header is bg3; your own item there is a game colour, measured
+     at 3.9:1 on it. A lighter header in the light theme keeps it at 4:1 or better. */
+  body[data-theme="light"] #bis .slot-head { background: color-mix(in srgb, var(--bg3) 60%, var(--bg2)); }
   .vault-slot { padding: 2px 0 2px 10px; border-left-color: var(--hairline); }
   .boss, .prey { border-color: var(--hairline); border-radius: 999px; padding: 1px 8px; }
   .boss.killed, .prey.done { border-color: color-mix(in srgb, var(--good) 45%, transparent); background: color-mix(in srgb, var(--good) 10%, transparent); }

@@ -127,6 +127,8 @@ $dropFromPkg = @(
     'tools\bis-visual-baseline.css', # frozen v1.17.3 stylesheet that check-bis-visual.cjs compares against
     'tools\check-bis-tabs.cjs', # optional shared tab skin/selection browser regression
     'tools\check-bis-usability.cjs', # optional tree-copy, compact layout and source-status checks
+    'tools\check-light-theme.cjs', # optional Playwright contrast audit of light theme and print
+    'tools\theme-fixture.js',    # fictional 13-class save data that check-light-theme.cjs renders
     'tools\check-update-panel.js', # saved update result and latest-release link regression
     'tools\check-lazyload.js',   # walks the panel's lazy-load chain in a clean env; needs dom-stub.js
     'tools\check-scan-bagsync.js', # builds 0/1/2-account fake WoW trees; scanner regression test

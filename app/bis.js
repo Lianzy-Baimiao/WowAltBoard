@@ -994,7 +994,7 @@
         render();
       });
       // 职业色只用于色标，按钮本身使用统一的选中样式（浅色主题也可读）。
-      b.style.setProperty('--class-color', L.classColor(cls));
+      L.paintClassColor(b, cls);
       classRow.appendChild(b);
     });
     wrap.appendChild(classRow);
@@ -1478,7 +1478,7 @@
       var track = el('span', 'track');
       var fill = el('span', 'fill');
       fill.style.width = Math.min(100, (t[k] / total) * 100) + '%';
-      fill.style.background = statColor(k);
+      L.paintGameColor(fill, statColor(k), 'fill');
       track.appendChild(fill);
       row.appendChild(track);
       row.appendChild(el('b', null, pct(t[k])));
@@ -1503,7 +1503,7 @@
   function statColor(k) {
     var B = bis();
     var m = B.statMeta && B.statMeta[k];
-    if (!m || !m.color) return 'var(--acc)';
+    if (!m || !m.color) return 'var(--accent)';   // was var(--acc), which does not exist
     var c = m.color;
     function b(x) { return Math.round(Math.max(0, Math.min(1, x || 0)) * 255); }
     return 'rgb(' + b(c.r) + ',' + b(c.g) + ',' + b(c.b) + ')';
@@ -1600,7 +1600,7 @@
       m.appendChild(doc.createTextNode(hit ? '✓ ' : '· '));
       var nm = el('span', null, mine.name || tr('(未知)'));
       if (mine.quality != null && L.qualityColors[mine.quality]) {
-        nm.style.color = L.qualityColors[mine.quality];
+        L.paintGameColor(nm, L.qualityColors[mine.quality]);
       }
       m.appendChild(nm);
       if (mine.itemLevel) m.appendChild(el('span', 'sub', ' ' + mine.itemLevel));
@@ -1701,7 +1701,7 @@
       }
       line.appendChild(el('span', 'use', badge));
       var nmT = el('b', null, tName);
-      if (tRi && tRi.q && L.qualityColors[tRi.q]) nmT.style.color = L.qualityColors[tRi.q];
+      if (tRi && tRi.q && L.qualityColors[tRi.q]) L.paintGameColor(nmT, L.qualityColors[tRi.q]);
       line.appendChild(nmT);
       if (top[1]) line.appendChild(el('span', 'sub', String(top[1])));
       // 插槽 / 轨道这两个徽章跟着首选那件走（用户要求格子里要能看到）。
@@ -1819,7 +1819,7 @@
       icon.appendChild(img);
     } else {
       icon.classList.add('ph');
-      icon.style.borderColor = catColor(cat);
+      L.paintGameColor(icon, catColor(cat), 'border');
       icon.textContent = ts(CAT_GLYPH[cat] || '?');
     }
     row.appendChild(icon);
@@ -1836,7 +1836,7 @@
     // 被染成灰色 —— 灰色在魔兽的颜色语言里等于卖店垃圾。
     // 装备行不存在真正的 0 级品质，所以拿 0 当缺失是安全的。
     var q = (ri && ri.q) ? ri.q : itemQuality(itemId);
-    if (q != null && L.qualityColors[q]) name.style.color = L.qualityColors[q];
+    if (q != null && L.qualityColors[q]) L.paintGameColor(name, L.qualityColors[q]);
     main.appendChild(name);
 
     // 插槽标记。**用 gmax，不是 sock**（第 20 轮的事故）：
@@ -1897,7 +1897,7 @@
       var sp = el('span', 'stats');
       Object.keys(it.st).forEach(function (k) {
         var t = el('span', null, tr(B.statNames[k] || k) + ' ' + it.st[k]);
-        t.style.color = statColor(k);
+        L.paintGameColor(t, statColor(k));
         sp.appendChild(t);
       });
       main.appendChild(sp);
@@ -1914,8 +1914,8 @@
     // 所以这里不能编一个「其他」出来 —— 那会让人以为查过了。写「?」并在提示里说清。
     if (!isRio && !isSim) {
       var badge = el('span', 'tag', B.sourceCategories[cat] || cat || '?');
-      badge.style.borderColor = catColor(cat);
-      badge.style.color = catColor(cat);
+      L.paintGameColor(badge, catColor(cat), 'border');
+      L.paintGameColor(badge, catColor(cat));
       badge.setAttribute('data-tip', srcText || tr('来源未知'));
       row.appendChild(badge);
     }
@@ -1993,7 +1993,7 @@
       if (gi) g.appendChild(gi);
       var gn = el('b', null, gm.n || tn('宝石 {id}', { id: id }));
       var q = gm.q || itemQuality(id);
-      if (q && L.qualityColors[q]) gn.style.color = L.qualityColors[q];
+      if (q && L.qualityColors[q]) L.paintGameColor(gn, L.qualityColors[q]);
       g.appendChild(gn);
       if (gc[id] > 1) g.appendChild(el('span', 'n', '×' + gc[id]));
       g.setAttribute('data-tip', tn('宝石 itemID {id}', { id: id }));
@@ -2046,7 +2046,7 @@
         if (gi) c.appendChild(gi);
         var gn = el('b', null, row[1] || tn('宝石 {id}', { id: row[0] }));
         var gq = itemQuality(row[0]);
-        if (gq != null && L.qualityColors[gq]) gn.style.color = L.qualityColors[gq];
+        if (gq != null && L.qualityColors[gq]) L.paintGameColor(gn, L.qualityColors[gq]);
         c.appendChild(gn);
         c.appendChild(el('span', 'n', pct(row[2])));
         c.setAttribute('data-tip', tn('itemID {id}　使用率 {pct}', { id: row[0], pct: pct(row[2]) }));
@@ -2074,7 +2074,7 @@
           if (ei) c.appendChild(ei);
           var en2 = el('b', null, en[1] || tn('附魔 {id}', { id: en[0] }));
           var eq = en[3] ? itemQuality(en[3]) : null;
-          if (eq != null && L.qualityColors[eq]) en2.style.color = L.qualityColors[eq];
+          if (eq != null && L.qualityColors[eq]) L.paintGameColor(en2, L.qualityColors[eq]);
           c.appendChild(en2);
           c.appendChild(el('span', 'n', pct(en[2])));
           c.setAttribute('data-tip', tn('附魔 ID {id}{scroll}　使用率 {pct}', {
@@ -2111,11 +2111,11 @@
           if (ci) chip.appendChild(ci);
           var cn = el('b', null, it.n);
           var cq = itemQuality(it.id);
-          if (cq != null && L.qualityColors[cq]) cn.style.color = L.qualityColors[cq];
+          if (cq != null && L.qualityColors[cq]) L.paintGameColor(cn, L.qualityColors[cq]);
           chip.appendChild(cn);
           if (it.stat) {
             var st = el('span', 'n', tr(B.statNames[it.stat] || it.stat));
-            st.style.color = statColor(it.stat);
+            L.paintGameColor(st, statColor(it.stat));
             chip.appendChild(st);
           }
           chip.setAttribute('data-tip', 'itemID ' + it.id

@@ -295,6 +295,182 @@
       return bad.length === 0 || '还在显示英文: ' + bad.join('，');
     });
 
+    // -------------------------------------------------------- 亮色主题配色
+    //
+    // 职业色、物品品质色这些都是游戏给深色界面配的：牧师和白色品质是纯白，
+    // 绿色品质 #1EFF00 在白底上只有 1.4:1。亮色主题和打印换成 labels.js 里的
+    // 另一套（classColorsLight / gameColorsLight / darkenForLight）。
+    //
+    // 对比度和色相在这里**自己算**，不借 labels.js 的函数 —— 借了就是拿被测的
+    // 那份实现去量它自己，算错了两边照样一致。
+
+    function lin8(hex, i) {
+      var v = parseInt(hex.substr(i, 2), 16) / 255;
+      return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+    }
+    /** WCAG 对比度，对白底。 */
+    function onWhite(hex) {
+      var y = 0.2126 * lin8(hex, 1) + 0.7152 * lin8(hex, 3) + 0.0722 * lin8(hex, 5);
+      return 1.05 / (y + 0.05);
+    }
+    /** OKLab：{L, a, b, C 彩度, h 色相角}。 */
+    function oklab(hex) {
+      var r = lin8(hex, 1), g = lin8(hex, 3), b = lin8(hex, 5);
+      var l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b);
+      var m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b);
+      var s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b);
+      var o = {
+        L: 0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * s,
+        a: 1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s,
+        b: 0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s
+      };
+      o.C = Math.sqrt(o.a * o.a + o.b * o.b);
+      o.h = Math.atan2(o.b, o.a) * 180 / Math.PI;
+      return o;
+    }
+    function hueGap(x, y) {
+      var d = Math.abs(oklab(x).h - oklab(y).h) % 360;
+      return d > 180 ? 360 - d : d;
+    }
+    function isHex(v) { return /^#[0-9a-f]{6}$/i.test(String(v)); }
+
+    t('亮色职业色：13 个职业都有，白底上至少 4:1', function () {
+      if (!L || !L.classColorsLight) return 'labels.js 没加载亮色职业色';
+      // 量的是最后写进页面的那个 #rrggbb。第一版有 4 个职业是取整之前算的 4:1，
+      // 取整之后只剩 3.98–3.99。
+      var bad = [];
+      Object.keys(L.classColors).forEach(function (c) {
+        var v = L.classColorsLight[c];
+        if (!isHex(v)) bad.push(c + ' 没有亮色（' + v + '）');
+        else if (onWhite(v) < 4) bad.push(c + ' ' + v + ' 只有 ' + onWhite(v).toFixed(2) + ':1');
+      });
+      return bad.length === 0 || bad.join('; ');
+    });
+
+    t('亮色职业色：色相跟着职业走，13 个互相分得开', function () {
+      if (!L || !L.classColorsLight) return 'labels.js 没加载亮色职业色';
+      // 盗贼的黄故意往金色偏了 15°，同色相压暗会变成橄榄绿；所以上限给 20°。
+      // 牧师是纯白，没有色相可保留，不比。
+      var bad = [];
+      var keys = Object.keys(L.classColors).filter(function (c) { return isHex(L.classColorsLight[c]); });
+      keys.forEach(function (c) {
+        if (oklab(L.classColors[c]).C < 0.02) return;
+        var d = hueGap(L.classColors[c], L.classColorsLight[c]);
+        if (d > 20) bad.push(c + ' 色相偏了 ' + d.toFixed(0) + '°');
+      });
+      // 两两之间的 OKLab 距离。0.02 大约是刚能分辨，0.05 是一眼能分开。
+      for (var i = 0; i < keys.length; i++) {
+        for (var j = i + 1; j < keys.length; j++) {
+          var p = oklab(L.classColorsLight[keys[i]]), q = oklab(L.classColorsLight[keys[j]]);
+          var dE = Math.sqrt(Math.pow(p.L - q.L, 2) + Math.pow(p.a - q.a, 2) + Math.pow(p.b - q.b, 2));
+          if (dE < 0.05) bad.push(keys[i] + ' 和 ' + keys[j] + ' 太像（ΔE ' + dE.toFixed(3) + '）');
+        }
+      }
+      return bad.length === 0 || bad.join('; ');
+    });
+
+    t('亮色职业色：只压暗到够用，本来够深的原样保留', function () {
+      if (!L || !L.classColorsLight) return 'labels.js 没加载亮色职业色';
+      // v1.22.0 的亮色主题把每个职业色一律钳到同一个亮度和彩度：13 个全挤在
+      // 4.9–6.0:1，圣骑士的粉成了暗紫红，盗贼的金成了橄榄绿，本来就够深的死骑 /
+      // 恶魔猎手 / 萨满也被压暗、压灰。用户看到的「职业颜色都失真」就是这个。
+      // 战士、唤魔师故意再深一档（和盗贼、武僧拉开），所以上限是 5:1。
+      var bad = [];
+      Object.keys(L.classColors).forEach(function (c) {
+        var dark = L.classColors[c], v = L.classColorsLight[c];
+        if (!isHex(v)) return;
+        if (onWhite(dark) >= 4) {
+          if (v.toLowerCase() !== dark.toLowerCase()) bad.push(c + ' 本来就有 ' + onWhite(dark).toFixed(2) + ':1，却改成了 ' + v);
+        } else if (onWhite(v) > 5) {
+          bad.push(c + ' 压到了 ' + onWhite(v).toFixed(2) + ':1，比需要的深');
+        }
+      });
+      return bad.length === 0 || bad.join('; ');
+    });
+
+    t('亮色游戏色：品质 / 属性 / 来源色白底上至少 4.5:1，色相不变', function () {
+      if (!L || !L.gameColorsLight) return 'labels.js 没加载亮色游戏色';
+      // 白色品质换成正文色 var(--fg)，那是主题自己的颜色，不在这里量。
+      // 两种金色（神器、来源「世界」）往橙色偏了约 10°，同色相会发绿；上限 15°。
+      var G = L.gameColorsLight, bad = [];
+      Object.keys(G).forEach(function (dark) {
+        var v = G[dark];
+        if (dark === '#ffffff' && v === 'var(--fg)') return;
+        if (!isHex(v)) { bad.push(dark + ' → ' + v + ' 不是颜色'); return; }
+        if (onWhite(v) < 4.5) bad.push(dark + ' → ' + v + ' 只有 ' + onWhite(v).toFixed(2) + ':1');
+        if (oklab(dark).C >= 0.02 && hueGap(dark, v) > 15) bad.push(dark + ' → ' + v + ' 色相偏了 ' + hueGap(dark, v).toFixed(0) + '°');
+      });
+      // 品质是游戏写死的那 9 个，每个都该有表里的值，不该落到兜底计算。
+      Object.keys(L.qualityColors).forEach(function (q) {
+        if (!G[L.qualityColors[q].toLowerCase()]) bad.push('品质 ' + q + ' 不在表里');
+      });
+      return bad.length === 0 || bad.join('; ');
+    });
+
+    t('亮色兜底：表里没有的颜色也压到够用，够深的不动', function () {
+      if (!L || !L.darkenForLight) return 'labels.js 没加载 darkenForLight';
+      // 第一版在取整之前比对比度：16³ 网格 × 两档目标共 8192 次，281 次取整后差一丝（4.47–4.49），
+      // 而且亮度本来就低于 0.2 的深色（比如纯黑）会被换成一个固定的灰。
+      var bad = [], steps = ['00', '33', '66', '99', 'cc', 'ff'], samples = [];
+      steps.forEach(function (r) { steps.forEach(function (g) { steps.forEach(function (b) {
+        samples.push('#' + r + g + b);
+      }); }); });
+      samples.push('#00cc99', '#0088bb', '#00ffcc', '#88aadd', '#fff468', '#e6cc80');
+      samples.forEach(function (c) {
+        [4.5, 4].forEach(function (want) {
+          var v = L.darkenForLight(c, want);
+          if (!isHex(v)) { bad.push(c + ' → ' + v); return; }
+          if (onWhite(c) >= want) {
+            if (v !== c) bad.push(c + ' 本来就够 ' + want + ':1，却改成了 ' + v);
+          } else if (onWhite(v) < want) {
+            bad.push(c + ' → ' + v + ' 只有 ' + onWhite(v).toFixed(3) + '，要 ' + want);
+          } else if (onWhite(v) > want + 0.15) {
+            bad.push(c + ' → ' + v + ' 压过头了（' + onWhite(v).toFixed(2) + '）');
+          }
+        });
+      });
+      // 不是 #hex 的原样返回：var(...)、关键字。rgb() 和 3 位 hex 要先认出来再查表。
+      if (L.lightGameColor('var(--fg2)') !== 'var(--fg2)') bad.push('var(--fg2) 被改了');
+      if (L.lightGameColor('rgb(255,51,51)') !== L.gameColorsLight['#ff3333']) bad.push('rgb(255,51,51) 没查到暴击色');
+      if (L.lightGameColor('#FFF') !== 'var(--fg)') bad.push('#FFF 没认成白色品质');
+      return bad.length === 0 || (bad.length > 6 ? bad.length + ' 处，例如 ' : '') + bad.slice(0, 6).join('; ');
+    });
+
+    t('上色函数：深色主题拿到的还是原来那个颜色', function () {
+      if (!L || !L.paintGameColor || !L.paintClassColor) return 'labels.js 没加载上色函数';
+      // 深色主题不设 --gc-now，var(--gc-now, 原色) 就落回原色 —— 和改之前逐字一样。
+      // 亮色 / 打印把 --gc-now 指向 --gc-light（dashboard.css）。
+      function fake() {
+        var n = { props: {}, cls: {} };
+        n.style = { setProperty: function (k, v) { n.props[k] = v; } };
+        n.classList = { add: function (c) { n.cls[c] = 1; } };
+        return n;
+      }
+      var bad = [], n = fake();
+      L.paintGameColor(n, '#1EFF00');
+      if (n.style.color !== 'var(--gc-now, #1EFF00)') bad.push('文字色写成了 ' + n.style.color);
+      if (n.props['--gc-light'] !== L.gameColorsLight['#1eff00']) bad.push('--gc-light = ' + n.props['--gc-light']);
+      if (!n.cls['game-color'] || !n.cls['game-text']) bad.push('文字缺 class：' + Object.keys(n.cls));
+      n = fake();
+      L.paintGameColor(n, '#a335ee', 'border');
+      if (n.style.borderColor !== 'var(--gc-now, #a335ee)' || n.style.color || n.cls['game-text']) bad.push('边框那种碰了文字色');
+      n = fake();
+      L.paintGameColor(n, 'var(--fg2)', 'fill');
+      if (n.style.background !== 'var(--gc-now, var(--fg2))' || n.props['--gc-light'] !== 'var(--fg2)') bad.push('var() 填充被改了');
+      // 职业色：传职业文件名和传它的深色 hex，结果一样（model.js 存的是 hex）。
+      var a = fake(), b = fake();
+      L.paintClassColor(a, 'MAGE');
+      L.paintClassColor(b, L.classColors.MAGE);
+      if (a.props['--class-color'] !== L.classColors.MAGE || a.props['--class-color-light'] !== L.classColorsLight.MAGE) bad.push('MAGE：' + JSON.stringify(a.props));
+      if (JSON.stringify(a.props) !== JSON.stringify(b.props)) bad.push('传名字和传 hex 不一样');
+      // 表里没有的新职业：深色用默认灰，亮色由它压暗而来，不能把职业名本身写成颜色。
+      var c = fake();
+      L.paintClassColor(c, 'NEWCLASS');
+      var lt = c.props['--class-color-light'];
+      if (!isHex(lt) || onWhite(lt) < 4) bad.push('未知职业的亮色是 ' + lt);
+      return bad.length === 0 || bad.join('; ');
+    });
+
     // ------------------------------------------------------------ 天赋编码
 
     t('天赋差异编码：还原一套手工造的数据', function () {

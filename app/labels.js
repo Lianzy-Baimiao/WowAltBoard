@@ -73,6 +73,50 @@
     return L.classColors[String(classFile || '').toUpperCase()] || '#B9C4D4';
   };
 
+  // Light-theme partners, used on white surfaces (light theme and print). Each keeps
+  // its class's OKLCH hue and as much chroma as fits, darkened only until it reaches
+  // 4:1 on white (>= 3.5:1 on zebra and reward rows), and is drawn bold. A fixed
+  // lightness clamp turned paladin plum and rogue olive and dulled every class; these
+  // stay pink and gold. Warrior / evoker are a step darker to keep them apart from
+  // rogue / monk. Priest's white has no hue to keep, so it becomes a cool grey.
+  L.classColorsLight = {
+    DEATHKNIGHT: '#c41e3a',
+    DEMONHUNTER: '#a330c9',
+    DRUID:       '#cb6000',
+    EVOKER:      '#227e73',
+    HUNTER:      '#688922',
+    MAGE:        '#008aa7',
+    MONK:        '#009159',
+    PALADIN:     '#c15e8c',
+    PRIEST:      '#797f8b',
+    ROGUE:       '#9c7b00',
+    SHAMAN:      '#0070dd',
+    WARLOCK:     '#7474d8',
+    WARRIOR:     '#936744'
+  };
+
+  /** Light-theme partner of a class colour; accepts a class file or its dark hex. */
+  L.lightClassColor = function (classFileOrHex) {
+    var key = String(classFileOrHex || '').toUpperCase();
+    if (L.classColorsLight[key]) return L.classColorsLight[key];
+    for (var c in L.classColors) {
+      if (L.classColors[c].toUpperCase() === key) return L.classColorsLight[c];
+    }
+    // A class this table does not know yet: darken what the dark theme shows for it.
+    return L.darkenForLight(toHex(classFileOrHex) ? classFileOrHex : L.classColor(classFileOrHex), 4.0);
+  };
+
+  /**
+   * Give a node a class colour: --class-color (dark theme, unchanged) and
+   * --class-color-light (light theme / print). The caller adds .cls-color, so a
+   * "class colours off" setting keeps working as before.
+   */
+  L.paintClassColor = function (node, classFileOrHex) {
+    var dark = /^#/.test(String(classFileOrHex)) ? classFileOrHex : L.classColor(classFileOrHex);
+    node.style.setProperty('--class-color', dark);
+    node.style.setProperty('--class-color-light', L.lightClassColor(classFileOrHex));
+  };
+
   // -------------------------------------------------------------- class zhCN
   // classFile -> zhCN. Same rule as L.dungeonZh / L.raidZh: every row below was
   // copied out of this machine's own AlterEgo SavedVariables, where each
@@ -196,6 +240,111 @@
     6: '#E6CC80',  // artifact
     7: '#00CCFF',  // heirloom
     8: '#00CCFF'   // wow token
+  };
+
+  // ------------------------------------------- game colours on light surfaces
+  // Item quality, stat, source and keystone colours are the game's, made for its
+  // dark UI: common is pure white, uncommon #1EFF00 is 1.4:1 on white. Light theme
+  // and print use these partners instead: same OKLCH hue, darkened only to 4.5:1 on
+  // white (>= 4:1 on the tinted surfaces), so green stays green and orange orange.
+  // The two golds lean about 10 degrees toward orange; at their own hue they go olive.
+  // Keyed by the dark colour, lower case; values computed, not eyeballed.
+  L.gameColorsLight = {
+    '#9d9d9d': '#767676',   // poor
+    '#ffffff': 'var(--fg)', // common: plain text colour
+    '#1eff00': '#0b8a00',   // uncommon, source "crafted"
+    '#0070dd': '#0070dd',   // rare (already 4.8:1)
+    '#a335ee': '#a335ee',   // epic, source "M+", keystone (4.9:1)
+    '#ff8000': '#bb5c00',   // legendary, source "raid", high keystone
+    '#e6cc80': '#947026',   // artifact
+    '#00ccff': '#0081a2',   // heirloom, source "tier"
+    '#ffd100': '#9a6f00',   // source "world"
+    '#ff3333': '#eb1220',   // crit
+    '#33cc33': '#008a08',   // haste
+    '#3366ff': '#3366ff',   // mastery (4.7:1)
+    '#cc9933': '#9a6e00'    // versatility
+  };
+
+  /** '#rgb' / '#rrggbb' / 'rgb(r,g,b)' -> '#rrggbb' (lower case), else ''. */
+  function toHex(c) {
+    var s = String(c || '').trim().toLowerCase(), m;
+    if ((m = /^#([0-9a-f]{3})$/.exec(s))) return '#' + m[1].replace(/./g, '$&$&');
+    if (/^#[0-9a-f]{6}$/.test(s)) return s;
+    if ((m = /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/.exec(s))) {
+      return '#' + [m[1], m[2], m[3]].map(function (v) { return ('0' + Math.min(255, +v).toString(16)).slice(-2); }).join('');
+    }
+    return '';
+  }
+
+  /** '#rrggbb' -> linear-light [r, g, b], each 0..1. */
+  function linearRgb(hex) {
+    return [1, 3, 5].map(function (i) {
+      var v = parseInt(hex.substr(i, 2), 16) / 255;
+      return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+    });
+  }
+
+  /** WCAG contrast of a '#rrggbb' colour against white. */
+  function contrastOnWhite(hex) {
+    var c = linearRgb(hex);
+    return 1.05 / (0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2] + 0.05);
+  }
+
+  /**
+   * Fallback for a colour not in the tables: the same OKLab hue and chroma, lightness
+   * lowered until it reaches `target` contrast on white. Out-of-gamut channels clip.
+   * Contrast is measured on the rounded '#rrggbb' that comes back, so the result never
+   * lands a hair under the target; a colour that already passes is returned as is.
+   */
+  L.darkenForLight = function (color, target) {
+    var hex = toHex(color);
+    if (!hex) return color;
+    var want = target || 4.5;
+    if (contrastOnWhite(hex) >= want) return hex;
+    var lin = linearRgb(hex);
+    var l = Math.cbrt(0.4122214708 * lin[0] + 0.5363325363 * lin[1] + 0.0514459929 * lin[2]);
+    var m = Math.cbrt(0.2119034982 * lin[0] + 0.6806995451 * lin[1] + 0.1073969566 * lin[2]);
+    var s = Math.cbrt(0.0883024619 * lin[0] + 0.2817188376 * lin[1] + 0.6299787005 * lin[2]);
+    var L0 = 0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * s;
+    var a = 1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s;
+    var b = 0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s;
+    for (var Lk = L0 - 0.002; Lk > 0; Lk -= 0.002) {
+      var ll = Math.pow(Lk + 0.3963377774 * a + 0.2158037573 * b, 3);
+      var mm = Math.pow(Lk - 0.1055613458 * a - 0.0638541728 * b, 3);
+      var ss = Math.pow(Lk - 0.0894841775 * a - 1.2914855480 * b, 3);
+      var out = '#' + [4.0767416621 * ll - 3.3077115913 * mm + 0.2309699292 * ss,
+                       -1.2684380046 * ll + 2.6097574011 * mm - 0.3413193965 * ss,
+                       -0.0041960863 * ll - 0.7034186147 * mm + 1.7076147010 * ss]
+        .map(function (v) {
+          v = Math.max(0, Math.min(1, v));
+          var e = v <= 0.0031308 ? 12.92 * v : 1.055 * Math.pow(v, 1 / 2.4) - 0.055;
+          return ('0' + Math.round(e * 255).toString(16)).slice(-2);
+        }).join('');
+      if (contrastOnWhite(out) >= want) return out;
+    }
+    return '#4f5866';
+  };
+
+  /** Light-theme partner of a game colour (quality / stat / source / keystone). */
+  L.lightGameColor = function (color) {
+    var hex = toHex(color);
+    if (!hex) return color;              // already a var(...) or a keyword
+    return L.gameColorsLight[hex] || L.darkenForLight(hex, 4.5);
+  };
+
+  /**
+   * Colour a node with a game colour. The dark theme gets exactly the inline value it
+   * had before; light theme and print switch --gc-now to the light partner
+   * (dashboard.css / style.css). kind: 'text' | 'border' | 'fill'.
+   */
+  L.paintGameColor = function (node, color, kind) {
+    node.style.setProperty('--gc', color);
+    node.style.setProperty('--gc-light', L.lightGameColor(color));
+    node.classList.add('game-color');
+    var v = 'var(--gc-now, ' + color + ')';
+    if (kind === 'border') node.style.borderColor = v;
+    else if (kind === 'fill') node.style.background = v;
+    else { node.style.color = v; node.classList.add('game-text'); }
   };
 
   // ------------------------------------------------------------ dungeon zhCN
