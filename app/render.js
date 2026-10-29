@@ -147,7 +147,9 @@
     var lastVisible = [];   // [group, last visible column id] in display order
 
     state.columns.forEach(function (c) {
-      var hidden = s.hiddenGroups[c.group] || s.hiddenColumns[c.id];
+      // c.empty: the column exists for its checkbox but has nothing to show this
+      // week (漫游团本 with no lockout) -- hidden without touching the setting.
+      var hidden = s.hiddenGroups[c.group] || s.hiddenColumns[c.id] || c.empty;
       if (hidden) {
         parts.push('[data-col="' + cssEscape(c.id) + '"]{display:none}');
       } else {
@@ -242,7 +244,7 @@
     var s = state.settings;
     for (var i = 0; i < state.columns.length; i++) {
       var c = state.columns[i];
-      if (!s.hiddenGroups[c.group] && !s.hiddenColumns[c.id]) return c.id;
+      if (!s.hiddenGroups[c.group] && !s.hiddenColumns[c.id] && !c.empty) return c.id;
     }
     return null;
   }

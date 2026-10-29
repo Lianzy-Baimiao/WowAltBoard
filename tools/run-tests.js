@@ -3781,8 +3781,8 @@ VERIFIERS.forEach(function (v) {
     var synth = S.buildModel({ scannedAt: 1791417600, sources: [{ id: 's1', account: 'a', lua:
       'AlterEgoDB = { ["global"] = { ["characters"] = { ["g1"] = { ["lastUpdate"] = 1791331200, '
       + '["info"] = { ["name"] = "甲", ["realm"] = "服", ["level"] = 90 }, ["raids"] = { ["savedInstances"] = { '
-      + '{ ["instanceID"] = 603, ["difficultyID"] = 33, ["isRaid"] = true, ["locked"] = true, ["name"] = "奥杜尔", '
-      + '["difficultyName"] = "时空漫游", ["numEncounters"] = 16, ["encounterProgress"] = 5, ["reset"] = 1, '
+      + '{ ["instanceID"] = 3004, ["difficultyID"] = 15, ["isRaid"] = true, ["locked"] = true, ["name"] = "烈毒之渊", '
+      + '["difficultyName"] = "英雄", ["numEncounters"] = 8, ["encounterProgress"] = 3, ["reset"] = 1, '
       + '["expires"] = 1791590400 } } } } } } }' }], addonTables: (g.AE_DATA || {}).addonTables });
     var synthCols = S.buildColumns(synth);
     for (var j = 0; j < synthCols.length; j++) {
@@ -3836,6 +3836,32 @@ VERIFIERS.forEach(function (v) {
       problems.push('口径与文案：真实数据里有 ' + mismatch + ' 格「界面和导出不一致」');
     }
     raidStale = stale; raidLive = live;
+  }
+  // 固定的「漫游团本」列（columns.js twRaidColumn）：本周有没有漫游锁定，格子和导出
+  // 要给同一个答案；而且这一列任何时候都在（设置里的勾选框不跟着轮换消失）。
+  var twCol = null;
+  for (var ti = 0; ti < cols.length; ti++) if (cols[ti].id === 'twRaid') twCol = cols[ti];
+  checks++;
+  if (!twCol) {
+    problems.push('口径与文案：没有固定的「漫游团本」列 —— 没人打的那周设置里连勾选框都没有');
+  } else if (S.exportCellForTest) {
+    [true, false].forEach(function (active) {
+      var fakeTw = { raids: { byKey: { '603/33': {
+        progress: 5, total: 16, active: active, locked: true, difficultyID: 33, instanceID: 603,
+        name: '奥杜尔', difficultyName: '时空漫游', encounters: [{ name: '首领甲', killed: true }]
+      } } } };
+      var tdTw = newTd();
+      twCol.render(tdTw, fakeTw, ctx);
+      var cellTw = S.exportCellForTest(twCol, fakeTw, ctx);
+      checks++;
+      if ((String(tdTw.textContent) === '·') !== (cellTw.v === '' || cellTw.v == null)) {
+        problems.push('口径与文案：漫游团本 active=' + active + ' 时格子画「' + tdTw.textContent + '」而导出给「' + cellTw.v + '」');
+      }
+      checks++;
+      if (String(tdTw.textContent) !== (active ? '5/16' : '·')) {
+        problems.push('口径与文案：漫游团本 active=' + active + ' 的格子该画「' + (active ? '5/16' : '·') + '」，实际「' + tdTw.textContent + '」');
+      }
+    });
   }
 
   // ---- ② 宝库提示：「还需」后面必须是**差额**。
@@ -4197,6 +4223,32 @@ VERIFIERS.forEach(function (v) {
     problems.push('主表易用性：AE.render 在桩里崩了 —— ' + e.message);
     g.AE.state.settings = prevSettings;
     return;
+  }
+
+  // ⓪ 固定的「漫游团本」列：本周谁都没打时它在（设置里的勾选框还在），但表格上
+  //    藏起来，也不该当冻结列；本周有锁定才显示。用的是 render.js 真写出来的规则。
+  var twHidden = function () {
+    var css = (g.AE.state.styleEl && g.AE.state.styleEl.textContent) || '';
+    return css.indexOf('[data-col="twRaid"]{display:none}') >= 0;
+  };
+  var hasTwCol = g.AE.state.columns.some(function (c) { return c.id === 'twRaid'; });
+  var anyTw = (model.columns.twRaids || []).length > 0;
+  if (!hasTwCol) problems.push('主表易用性：主表里没有固定的「漫游团本」列');
+  else if (twHidden() === anyTw) {
+    problems.push('主表易用性：本周' + (anyTw ? '有' : '没有') + '漫游锁定，「漫游团本」列却'
+      + (anyTw ? '藏起来了' : '还显示着'));
+  }
+  if (hasTwCol && !anyTw && g.AE.state.columns.length) {
+    // 再造一份本周有人打了的：同一列要显示出来。
+    var twModel = g.AE.buildModel({ scannedAt: 1791417600, sources: [{ id: 's1', account: 'a', lua:
+      'AlterEgoDB = { ["global"] = { ["characters"] = { ["g1"] = { ["lastUpdate"] = 1791331200, '
+      + '["info"] = { ["name"] = "甲", ["realm"] = "服", ["level"] = 90 }, ["raids"] = { ["savedInstances"] = { '
+      + '{ ["instanceID"] = 603, ["difficultyID"] = 33, ["isRaid"] = true, ["locked"] = true, ["name"] = "奥杜尔", '
+      + '["difficultyName"] = "时空漫游", ["numEncounters"] = 16, ["encounterProgress"] = 5, ["reset"] = 1, '
+      + '["expires"] = 1791590400 } } } } } } }' }], addonTables: (g.AE_DATA || {}).addonTables });
+    g.AE.render(twModel, st);
+    if (twHidden()) problems.push('主表易用性：本周有号打了漫游团本，「漫游团本」列还是藏着');
+    g.AE.render(model, st);
   }
 
   // ① 搜索按账号名 / 别名能找到人

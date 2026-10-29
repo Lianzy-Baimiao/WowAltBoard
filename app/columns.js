@@ -522,31 +522,90 @@
         headTitle: function () {
           return tn('{name} - {diff}\n共 {n} 个首领', {
             name: rc.name, diff: rc.difficultyName, n: rc.total
-          }) + (rc.difficultyID === 33
-            ? '\n' + tr('漫游团本每周轮换：哪个号本周打了，这一列就出现；周重置后锁定到期，这一列自己消失。')
-            : '');
+          });
         },
         sort: function (ch) {
           var r = ch.raids.byKey[rc.key];
           return r && r.active ? r.progress : -1;
         },
         render: function (td, ch) {
-          var r = ch.raids.byKey[rc.key];
           // 过期残留当成「本周没打」。存档里的锁定快照只在角色上线时更新，
           // 所以上个周期的 8/8 会一直躺在里面。只看 progress 就会把它画成
           // 本周打满了。
-          if (!r || !r.active) return dash(td);
-          td.textContent = r.progress + '/' + r.total;
-          if (r.progress >= r.total && r.total > 0) td.className += ' full';
-          else if (r.progress > 0) td.className += ' partial';
-          var lines = [r.name + ' - ' + r.difficultyName];
-          r.encounters.forEach(function (e) {
-            lines.push((e.killed ? '✔ ' : '· ') + e.name);
-          });
-          td.title = lines.join('\n');
+          var r = ch.raids.byKey[rc.key];
+          lockoutCell(td, r && r.active ? r : null);
         }
       };
     });
+  }
+
+  function lockoutCell(td, r) {
+    if (!r) return dash(td);
+    td.textContent = r.progress + '/' + r.total;
+    if (r.progress >= r.total && r.total > 0) td.className += ' full';
+    else if (r.progress > 0) td.className += ' partial';
+    var lines = [r.name + ' - ' + r.difficultyName];
+    r.encounters.forEach(function (e) {
+      lines.push((e.killed ? '✔ ' : '· ') + e.name);
+    });
+    td.title = lines.join('\n');
+  }
+
+  /**
+   * This character's timewalking raid lockout for this week, or null. Prefers the
+   * raids in model.columns.twRaids order (the one most characters ran comes first).
+   */
+  AE.twLockout = function (ch, model) {
+    var tws = (model && model.columns.twRaids) || [];
+    for (var i = 0; i < tws.length; i++) {
+      var r = ch.raids.byKey[tws[i].key];
+      if (r && r.active) return r;
+    }
+    for (var k in ch.raids.byKey) {
+      var x = ch.raids.byKey[k];
+      if (x.active && x.difficultyID === 33) return x;
+    }
+    return null;
+  };
+
+  /**
+   * 漫游团本：一个固定的列，不按团本建。漫游团本每周轮换，按团本建列的话列 id
+   * 每周都变，勾选和拖好的位置活不过一次轮换，没人打的那周连勾选框都没有。
+   * 这一列在设置里一直在；表格上只在本周有号打了漫游团本时出现（empty 为
+   * false），表头写本周那个团本。
+   */
+  function twRaidColumn(model) {
+    var tws = model.columns.twRaids || [];
+    var top = tws[0] || null;
+    return {
+      id: 'twRaid',
+      group: 'raid',
+      width: 62,
+      align: 'center',
+      empty: !top,
+      label: function (ctx) {
+        if (!top) return tr('漫游团本');
+        if (ctx.settings.headerMode === 'full') return top.name + ' ' + tr('漫');
+        if (ctx.settings.headerMode === 'en') return top.abbr + ' TW';
+        return (ctx.model.raidShortNames[top.instanceID] || top.abbr) + tr('漫');
+      },
+      pickLabel: function () {
+        return top ? tn('漫游团本：{name}', { name: top.name }) : tr('漫游团本：本周没人打');
+      },
+      headTitle: function () {
+        var head = top
+          ? tn('{name} - {diff}\n共 {n} 个首领', { name: top.name, diff: tr('时空漫游'), n: top.total })
+          : tr('漫游团本');
+        return head + '\n' + tr('漫游团本每周轮换：本周有任何一个号打了漫游团本，这一列就出现，表头写本周那个团本；周重置后锁定到期，这一列自己藏起来，下周有人打了再出现。');
+      },
+      sort: function (ch) {
+        var r = AE.twLockout(ch, model);
+        return r ? r.progress : -1;
+      },
+      render: function (td, ch) {
+        lockoutCell(td, AE.twLockout(ch, model));
+      }
+    };
   }
 
   // Single-character difficulty markers keep a 60-column table readable.
@@ -888,6 +947,7 @@
       .concat(vaultColumns())
       .concat(delveColumns(model))
       .concat(raidColumns(model))
+      .concat([twRaidColumn(model)])
       .concat(currencyColumns(model))
       .concat(professionColumns(model))
       .concat(preyColumns())

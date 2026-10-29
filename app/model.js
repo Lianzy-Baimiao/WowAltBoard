@@ -668,12 +668,30 @@
     // addon's raid order then by difficulty.
     // 只有本周还锁着的记录才配拥有一列。团本列是**从锁定记录派生**的，
     // 所以把过期残留挡在这里，整列就不会出现 —— 比在渲染时画个「·」干净。
-    var raidKeySet = {};
+    // 时空漫游（difficultyID 33）不按团本建列：漫游团本每周轮换，按团本建列的话
+    // 列 id 每周都变，勾选和拖好的位置活不过一次轮换，没人打的那周连勾选框都
+    // 没有。它们收进 twRaids，由一个固定的「漫游团本」列显示（columns.js）。
+    var raidKeySet = {}, twByKey = {};
     characters.forEach(function (ch) {
       Object.keys(ch.raids.byKey).forEach(function (k) {
         var r = ch.raids.byKey[k];
-        if (r && r.active) raidKeySet[k] = r;
+        if (!r || !r.active) return;
+        if (r.difficultyID === 33) {
+          var tw = twByKey[k] || (twByKey[k] = { key: k, instanceID: r.instanceID, name: r.name, total: r.total, count: 0 });
+          tw.count++;
+        } else {
+          raidKeySet[k] = r;
+        }
       });
+    });
+    // 一周通常只有一个；万一同时有几个，跑的号最多的排前面，表头用它。
+    var twRaids = Object.keys(twByKey).map(function (k) { return twByKey[k]; }).sort(function (a, b) {
+      return b.count - a.count || a.instanceID - b.instanceID;
+    });
+    twRaids.forEach(function (tw) {
+      var meta = tables.raidByInstance[tw.instanceID];
+      tw.name = L.raidLabel(tw.instanceID, tw.name, meta ? meta.name : '', meta ? meta.abbr : '', learnedRaidNames);
+      tw.abbr = meta ? meta.abbr : ('#' + tw.instanceID);
     });
     var raidKeys = Object.keys(raidKeySet).sort(function (a, b) {
       var ra = raidKeySet[a], rb = raidKeySet[b];
@@ -781,6 +799,7 @@
     return {
       dungeonIds: dungeonIds,
       raidColumns: raidColumns,
+      twRaids: twRaids,
       currencyIds: currencyIds,
       delveCurrencyIds: delveCurrencyIds,
       currencyMeta: currencyMeta,
@@ -1185,7 +1204,7 @@
     var dungeonNames = harvestDungeonNames(characters, tables, learnedNames);
     var season = harvestSeasonName(characters, tables, activeSeason);
     var dungeonShortNames = buildShortNames(columns.dungeonIds, tables, dungeonNames, nameOverrides);
-    var raidShortNames = buildRaidShortNames(columns.raidColumns);
+    var raidShortNames = buildRaidShortNames(columns.raidColumns.concat(columns.twRaids));
 
     // Realms, for the filter tree. Note some "realms" are cross-realm zone names
     // (e.g. CN史诗地下城) -- we list what the data says and let the user decide.

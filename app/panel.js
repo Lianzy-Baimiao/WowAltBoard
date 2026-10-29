@@ -533,7 +533,9 @@
       groupCols.forEach(function (c) {
         // Translated before it is used for both the label and the filter index,
         // so English users can type the English column name into 找列.
-        var name = tr(AE.colLabel(c, st.ctx));
+        // pickLabel: a column whose board header changes with the data (漫游团本)
+        // says what it is here, so the checkbox reads the same every week.
+        var name = tr(c.pickLabel ? c.pickLabel(st.ctx) : AE.colLabel(c, st.ctx));
         var lab = check(name,
           function () { return !s.hiddenColumns[c.id]; },
           function (v) {
@@ -541,6 +543,7 @@
             else s.hiddenColumns[c.id] = true;
             AE.refresh();
           });
+        if (c.pickLabel) lab.title = AE.colHeadTitle(c, st.ctx);
         rows.push({ node: lab, name: String(name).toLowerCase() });
         sub.appendChild(lab);
       });

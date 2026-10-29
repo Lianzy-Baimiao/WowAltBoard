@@ -362,17 +362,17 @@
     // 存档里的锁定快照只在角色上线时更新，所以不上线的号永远停在旧值。
 
     /**
-     * 合成快照：甲本周打了奥杜尔（时空漫游）5/16；乙几周前锁了黑暗神殿（时空漫游）
-     * 之后再没上线 —— locked 还是 true，expires 早过了；丙本周什么都没打。
-     * 和本机数据无关，换一台机器、换一周照样跑得到。
+     * 合成快照：甲本周打了奥杜尔（时空漫游）5/16 和烈毒之渊（英雄）3/8；乙几周前锁了
+     * 黑暗神殿（时空漫游）之后再没上线 —— locked 还是 true，expires 早过了；丙本周
+     * 什么都没打。和本机数据无关，换一台机器、换一周照样跑得到。
      */
     function twSnapshot(scannedAt) {
       var DAY = 86400, now = 1791417600;
-      function lockout(id, name, prog, total, expires) {
+      function lockout(id, name, prog, total, expires, diff) {
         var bosses = [];
         for (var i = 1; i <= total; i++) bosses.push('{ ["bossName"] = "首领' + i + '", ["isKilled"] = ' + (i <= prog) + ' }');
-        return '{ ["instanceID"] = ' + id + ', ["difficultyID"] = 33, ["isRaid"] = true, ["locked"] = true, '
-          + '["name"] = "' + name + '", ["difficultyName"] = "时空漫游", ["numEncounters"] = ' + total + ', '
+        return '{ ["instanceID"] = ' + id + ', ["difficultyID"] = ' + (diff || 33) + ', ["isRaid"] = true, ["locked"] = true, '
+          + '["name"] = "' + name + '", ["difficultyName"] = "' + (diff ? '英雄' : '时空漫游') + '", ["numEncounters"] = ' + total + ', '
           + '["encounterProgress"] = ' + prog + ', ["reset"] = 1, ["expires"] = ' + expires + ', '
           + '["encounters"] = { ' + bosses.join(', ') + ' } }';
       }
@@ -381,7 +381,8 @@
           + '", ["realm"] = "服", ["level"] = 90 }, ["raids"] = { ["savedInstances"] = { ' + saved.join(', ') + ' } } }';
       }
       var lua = 'AlterEgoDB = { ["global"] = { ["characters"] = { '
-        + row('g1', '甲', now - DAY, [lockout(603, '奥杜尔', 5, 16, now + 2 * DAY)]) + ', '
+        + row('g1', '甲', now - DAY, [lockout(603, '奥杜尔', 5, 16, now + 2 * DAY),
+                                       lockout(3004, '烈毒之渊', 3, 8, now + 2 * DAY, 15)]) + ', '
         + row('g2', '乙', now - 40 * DAY, [lockout(564, '黑暗神殿', 9, 9, now - 33 * DAY)]) + ', '
         + row('g3', '丙', now - DAY, []) + ' } } }';
       return AE.buildModel({ scannedAt: scannedAt || now, sources: [{ id: 's1', account: 'a', lua: lua }],
@@ -409,19 +410,28 @@
       return missed.length === 0 || missed.length + ' 条本周还锁着却没算：' + missed.slice(0, 3).join('，');
     });
 
-    t('漫游团本列：有人本周打了就出现，到期就消失，久不上线的号留不住它', function () {
-      var mm = twSnapshot(), cols = mm.columns.raidColumns.map(function (c) { return c.key; });
-      if (cols.join() !== '603/33') return '列应只有奥杜尔漫游（603/33），实际：' + (cols.join() || '无');
+    t('漫游团本：一个固定的列，本周有人打了才显示，久不上线的号留不住它', function () {
+      // 时空漫游不按团本建列（列 id 每周都变，勾选活不过一次轮换），收进 twRaids，
+      // 由 columns.js 里固定的 twRaid 列显示。
+      var mm = twSnapshot();
+      var keys = mm.columns.raidColumns.map(function (c) { return c.key; });
+      if (keys.join() !== '3004/15') return '普通团本列应只有 3004/15（时空漫游不建列），实际：' + (keys.join() || '无');
+      var tws = mm.columns.twRaids.map(function (x) { return x.key + '×' + x.count; });
+      if (tws.join() !== '603/33×1') return '本周的漫游团本应只有奥杜尔（1 个号），实际：' + (tws.join() || '无');
       var by = {};
       mm.characters.forEach(function (c) { by[c.name] = c; });
-      var a = by['甲'] && by['甲'].raids.byKey['603/33'];
-      if (!a || !a.active || a.progress !== 5) return '甲本周的 5/16 没有算进本周';
       var b = by['乙'] && by['乙'].raids.byKey['564/33'];
       if (!b || b.active) return '乙那条早已到期的黑暗神殿还被当成本周';
-      if (!by['丙'] || by['丙'].raids.byKey['603/33']) return '丙不该有奥杜尔的锁定';
-      // 周重置之后（甲那条到期了）再扫一次：这一列要自己消失。
-      var after = twSnapshot(1791417600 + 4 * 86400).columns.raidColumns;
-      return after.length === 0 || '重置后还剩列：' + after.map(function (c) { return c.key; }).join();
+      if (!AE.buildColumns || !AE.twLockout) return 'columns.js 没加载';
+      var col = AE.buildColumns(mm).filter(function (c) { return c.id === 'twRaid'; })[0];
+      if (!col || col.empty) return '固定的漫游团本列没建出来，或本周有人打了它却是空的';
+      var la = AE.twLockout(by['甲'], mm);
+      if (!la || la.progress !== 5) return '甲的格子拿到的不是本周的奥杜尔 5/16';
+      if (AE.twLockout(by['乙'], mm) || AE.twLockout(by['丙'], mm)) return '乙 / 丙不该有本周的漫游团本';
+      // 周重置之后（甲那条到期了）再扫：列还在（设置里的勾选框不丢），表格上藏起来。
+      var colAfter = AE.buildColumns(twSnapshot(1791417600 + 4 * 86400)).filter(function (c) { return c.id === 'twRaid'; })[0];
+      if (!colAfter) return '周重置后固定列不见了 —— 设置里的勾选框会跟着消失';
+      return colAfter.empty === true || '周重置后谁都没打，这一列却没有藏起来';
     });
 
     t('团本列只从本周还锁着的记录派生', function () {
@@ -610,11 +620,17 @@
       var mm = m.columns.raidColumns.length ? m : twSnapshot();
       if (!mm.columns.raidColumns.length) return '没有团本列可验证';
       var bad = [];
-      mm.columns.raidColumns.forEach(function (rc) {
-        if (!L.hasCJK(rc.name)) bad.push(rc.instanceID + ' 全名=' + rc.name);
-        var short = mm.raidShortNames[rc.instanceID] || rc.abbr;
-        if (!L.hasCJK(short)) bad.push(rc.instanceID + ' 缩写=' + short);
-      });
+      function check(model, list) {
+        list.forEach(function (rc) {
+          if (!L.hasCJK(rc.name)) bad.push(rc.instanceID + ' 全名=' + rc.name);
+          var short = model.raidShortNames[rc.instanceID] || rc.abbr;
+          if (!L.hasCJK(short)) bad.push(rc.instanceID + ' 缩写=' + short);
+        });
+      }
+      check(mm, mm.columns.raidColumns);
+      // 漫游团本的表头也用这两个名字（columns.js twRaidColumn）；本周没人打就验合成快照。
+      var twm = m.columns.twRaids.length ? m : twSnapshot();
+      check(twm, twm.columns.twRaids);
       return bad.length === 0 || bad.join('; ');
     });
 

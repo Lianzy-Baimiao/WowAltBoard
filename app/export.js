@@ -283,7 +283,7 @@
     var ctx = st.ctx;
 
     var cols = st.columns.filter(function (c) {
-      return !s.hiddenGroups[c.group] && !s.hiddenColumns[c.id];
+      return !s.hiddenGroups[c.group] && !s.hiddenColumns[c.id] && !c.empty;
     });
 
     var headers = cols.map(function (c) {
@@ -404,6 +404,12 @@
       // 导出的 Excel / CSV 里却是个真数字。而导出正是拿去核对「哪个号本周还没
       // 清本」的地方，看不到界面可以对照，错得更贵。
       return r && r.active ? { v: r.progress, num: true } : { v: '', num: false };
+    }
+
+    if (col.id === 'twRaid') {
+      // Same lookup as the cell (AE.twLockout), so screen and sheet agree.
+      var tw = AE.twLockout(ch, ctx && ctx.model);
+      return tw ? { v: tw.progress, num: true } : { v: '', num: false };
     }
 
     if (col.id.indexOf('prey:') === 0) {
