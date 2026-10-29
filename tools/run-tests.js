@@ -3775,6 +3775,20 @@ VERIFIERS.forEach(function (v) {
   for (var i = 0; i < cols.length; i++) {
     if (String(cols[i].id).indexOf('raid:') === 0) { raidCol = cols[i]; break; }
   }
+  // 本周谁都没打团本时，真实数据里一列团本都没有（过期的锁定不再建列）。
+  // 那就用一份合成快照建一列：合成的两条照样跑，真实数据那一扫按实际有的列走。
+  if (!raidCol && S.buildModel && S.buildColumns) {
+    var synth = S.buildModel({ scannedAt: 1791417600, sources: [{ id: 's1', account: 'a', lua:
+      'AlterEgoDB = { ["global"] = { ["characters"] = { ["g1"] = { ["lastUpdate"] = 1791331200, '
+      + '["info"] = { ["name"] = "甲", ["realm"] = "服", ["level"] = 90 }, ["raids"] = { ["savedInstances"] = { '
+      + '{ ["instanceID"] = 603, ["difficultyID"] = 33, ["isRaid"] = true, ["locked"] = true, ["name"] = "奥杜尔", '
+      + '["difficultyName"] = "时空漫游", ["numEncounters"] = 16, ["encounterProgress"] = 5, ["reset"] = 1, '
+      + '["expires"] = 1791590400 } } } } } } }' }], addonTables: (g.AE_DATA || {}).addonTables });
+    var synthCols = S.buildColumns(synth);
+    for (var j = 0; j < synthCols.length; j++) {
+      if (String(synthCols[j].id).indexOf('raid:') === 0) { raidCol = synthCols[j]; break; }
+    }
+  }
   if (!raidCol || !S.exportCellForTest) {
     problems.push('口径与文案：拿不到团本列或 exportCellForTest，①在验空气');
   } else {

@@ -50,6 +50,10 @@ function character(i, weekShift) {
       worldActivityProgress: [{difficulty: 8, numPoints: 8, activityTierID: 1}]},
     currencies: [{id: 999001, currencyType: 'delveMap', name: '藏宝图', bagCount: i % 3, questCompleted: i % 2 === 0},
       {id: 999002, name: '纹章（演示）', currencyType: 'crest', quantity: 45 + i, maxQuantity: 90}],
+    // This week's timewalking raid for the first five characters, so a raid column exists.
+    raids: {savedInstances: i < 5 ? [{instanceID: 603, difficultyID: 33, isRaid: true, locked: true, name: '奥杜尔',
+      difficultyName: '时空漫游', numEncounters: 16, encounterProgress: 16 - i * 3, reset: 172800, expires: NOW + 172800,
+      encounters: Array.from({length: 16}, (_, k) => ({bossName: '首领' + (k + 1), isKilled: k < 16 - i * 3}))}] : []},
     equipment: SLOTS.map((slot, k) => {
       const q = QUALITY_CYCLE[(k + i) % QUALITY_CYCLE.length];
       return {itemSlotName: slot, itemName: '演示装备' + (k + 1), itemQuality: q, itemLevel: 320 + ((k + i) % 12),

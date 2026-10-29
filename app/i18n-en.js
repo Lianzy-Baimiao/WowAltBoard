@@ -143,6 +143,7 @@
     '{n} 个快照文件读取失败：{files}': function (v) { return (v.n === 1 ? '1 snapshot file' : v.n + ' snapshot files') + ' could not be read: ' + v.files; },
     '{name}\n背包中持有 {n} 张': function (v) { return v.name + '\n' + (v.n === 1 ? '1 in bags' : v.n + ' in bags'); },
     '{name} - {diff}\n共 {n} 个首领': function (v) { return v.name + ' - ' + v.diff + '\n' + (v.n === 1 ? '1 boss' : v.n + ' bosses'); },
+    '漫游团本每周轮换：哪个号本周打了，这一列就出现；周重置后锁定到期，这一列自己消失。': 'The timewalking raid rotates weekly: this column appears once any character has run it this week, and goes away by itself when the lockout ends at the weekly reset.',
     '大秘境 {m}，史诗 {my}，英雄 {h}\n合计 {total} 本': 'Mythic+ {m}, Mythic {my}, Heroic {h}\n{total} runs total',
     '第 {n} 档　{done} / {total}': 'Tier {n}　{done} / {total}',
     '　已解锁': '　Unlocked',

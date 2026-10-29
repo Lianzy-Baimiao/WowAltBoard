@@ -522,7 +522,9 @@
         headTitle: function () {
           return tn('{name} - {diff}\n共 {n} 个首领', {
             name: rc.name, diff: rc.difficultyName, n: rc.total
-          });
+          }) + (rc.difficultyID === 33
+            ? '\n' + tr('漫游团本每周轮换：哪个号本周打了，这一列就出现；周重置后锁定到期，这一列自己消失。')
+            : '');
         },
         sort: function (ch) {
           var r = ch.raids.byKey[rc.key];

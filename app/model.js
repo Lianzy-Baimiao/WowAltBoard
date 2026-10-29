@@ -268,11 +268,12 @@
     return { byId: byId, byType: byType, treasureMap: treasureMap };
   }
 
-  function mapRaids(raids) {
+  function mapRaids(raids, scannedAt) {
     var byKey = {};          // real raids (isRaid true)
     var dungeonLockouts = [];// heroic/mythic dungeon + timewalking lockouts
     AE.asArray((raids || {}).savedInstances).forEach(function (si) {
       if (!si || si.instanceID == null) return;
+      var expires = num(si.expires);
       var rec = {
         key: si.instanceID + '/' + num(si.difficultyID),
         instanceID: num(si.instanceID),
@@ -285,26 +286,29 @@
         progress: num(si.encounterProgress),
         total: num(si.numEncounters),
         locked: si.locked === true,
-        // 「本周有效」= 游戏自己还说它锁着。
+        // 「本周有效」= 游戏说它锁着，**并且**到扫描时还没到期。
         //
         // 插件存的是 GetSavedInstanceInfo 的整份快照，角色不上线就没人更新它，
         // 于是上个周期的记录会一直躺在存档里。表格原先只读 progress/total，
-        // 那些 locked=false 的残留照样被画成「8/8」还染成绿色 —— 看上去像是
-        // 这个号本周清了本。
+        // 那些残留照样被画成「8/8」还染成绿色 —— 看上去像是这个号本周清了本。
         //
-        // 判据取 locked，因为它是游戏在该角色最后一次上线时直接给的结论。
-        // expires 不能和本次数据文件的 scannedAt 比：角色存档可能几周没刷新，
-        // 此时 expires 已经过期但保存下来的 locked 仍为 true；两者代表的时点不同。
-        // model-tests 钉住 active 必须原样沿用 locked。
+        // 只看 locked 不够：插件周重置时只清宝库和钥石，不碰 savedInstances，
+        // 所以一个号锁着本下线，之后再不上线，它的 locked 就永远是 true。
+        // 本机 7 条 locked=true 里有 6 条在扫描前几周就已到期：两个 8 月 28 日
+        // 之后没上过线的号，让「奥杜尔 时空漫游」这一列在主表上挂了 7 周，
+        // 那周的漫游团本早就换了。（v1.16.4 曾把判据改成只看 locked。）
+        // expires 是锁定时算好的绝对时刻（插件写的是 time() + reset），这一刻之后
+        // 锁定就不在了，和角色上没上线无关，所以拿它和 scannedAt 比是对的。
+        // 没有 expires 的老记录（插件没写 reset）只能信 locked。
         //
         // 注意**不能**在这里就把非 active 记录丢掉：副本和团本的中文名正是从锁定
         // 记录里学来的（harvestRaidNames / harvestDungeonNames）。实测只留本周
         // 的话，能学到名字的副本从 17 个掉到 3 个，14 个名字会退回英文。
         // 所以记录全留，由列/格子/明细各自按 active 过滤。
-        active: si.locked === true,
+        active: si.locked === true && !(expires > 0 && scannedAt && expires <= scannedAt),
         extended: si.extended === true,
         reset: num(si.reset),
-        expires: num(si.expires),
+        expires: expires,
         encounters: AE.asArray(si.encounters).map(function (e) {
           return { name: str(e.bossName), killed: e.isKilled === true };
         })
@@ -474,7 +478,7 @@
       delves: mapDelves(c.vault),
       treasureMap: currencies.treasureMap,
       currencies: currencies,
-      raids: mapRaids(c.raids),
+      raids: mapRaids(c.raids, scannedAt),
       equipment: equipment,
       armorType: L.armorType(cls.file),
       armorFromGear: armorFromGear(equipment),
