@@ -994,7 +994,11 @@
         render();
       });
       // 职业色只用于色标，按钮本身使用统一的选中样式（浅色主题也可读）。
+      // 名字包一层 .cls-chip：深色主题下它不带样式；浅色主题下它是职业色色块。
       L.paintClassColor(b, cls);
+      var label = b.textContent;
+      b.textContent = '';
+      b.appendChild(el('span', 'cls-chip', label));
       classRow.appendChild(b);
     });
     wrap.appendChild(classRow);
@@ -1897,7 +1901,7 @@
       var sp = el('span', 'stats');
       Object.keys(it.st).forEach(function (k) {
         var t = el('span', null, tr(B.statNames[k] || k) + ' ' + it.st[k]);
-        L.paintGameColor(t, statColor(k));
+        L.paintGameColor(t, statColor(k), 'chip');
         sp.appendChild(t);
       });
       main.appendChild(sp);
@@ -1915,7 +1919,7 @@
     if (!isRio && !isSim) {
       var badge = el('span', 'tag', B.sourceCategories[cat] || cat || '?');
       L.paintGameColor(badge, catColor(cat), 'border');
-      L.paintGameColor(badge, catColor(cat));
+      L.paintGameColor(badge, catColor(cat), 'chip');
       badge.setAttribute('data-tip', srcText || tr('来源未知'));
       row.appendChild(badge);
     }
@@ -2115,7 +2119,7 @@
           chip.appendChild(cn);
           if (it.stat) {
             var st = el('span', 'n', tr(B.statNames[it.stat] || it.stat));
-            L.paintGameColor(st, statColor(it.stat));
+            L.paintGameColor(st, statColor(it.stat), 'chip');
             chip.appendChild(st);
           }
           chip.setAttribute('data-tip', 'itemID ' + it.id

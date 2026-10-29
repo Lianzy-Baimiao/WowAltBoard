@@ -1145,11 +1145,9 @@ body[data-theme="light"] #tip { box-shadow: 0 6px 20px rgba(0, 0, 0, .18); }
 #bis .bis-choice:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 /* 职业名直接用职业色；浅色底混入前景色，避免牧师等浅色字消失。 */
 #bis .bis-choice.cls { color: color-mix(in srgb, var(--class-color) 65%, var(--fg)); }
-/* Light: the class's own light-theme colour (AE.Labels.classColorsLight). Mixing 35%
-   of the raw colour into the dark text turned every class into a muddy navy. */
-body[data-theme="light"] #bis .bis-choice.cls {
-  color: var(--class-color-light, color-mix(in srgb, var(--class-color) 35%, var(--fg)));
-}
+/* Light: the label inside is a chip in the exact class colour (.cls-chip, dashboard.css).
+   Mixing 35% of the raw colour into the dark text turned every class a muddy navy. */
+body[data-theme="light"] #bis .bis-choice.cls { color: var(--fg); }
 #bis .bis-choice.simb { justify-content: flex-start; padding-block: 7px; }
 
 /* ---- 职业 / 专精选择 */

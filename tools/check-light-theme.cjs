@@ -4,16 +4,16 @@
 // Opens every screen in the light theme (all four skins), in print, and in dark, and
 // measures every visible text node against the background it actually sits on:
 // background layers are composited on a canvas, so color-mix() / alpha / oklch() all count.
-// Light and print also fail on any element painting a dark-UI game or class colour as
-// text, background or border (bars, icon borders, dots). Dark contrast is reported only;
-// dark fails if a light palette leaks into it.
+// Paper is white: printing drops backgrounds, except print-color-adjust: exact ones.
+// Light and print also check fidelity: a chip's fill is the exact class / game colour,
+// game-coloured text is the exact colour (never a darkened one), bars use the exact
+// colour, and no text is left in a dark-UI colour that is unreadable on white.
+// Dark contrast is reported only; dark fails if light-only styling leaks into it.
 // Thresholds, light theme and print:
-//   ordinary text              4.5:1 (large text 3:1)            WCAG AA
-//   class-coloured names       3.5:1 and bold (>= 600)           the hue is the class's identity
-//   other game colours         4.0:1 (item quality, stat, source, keystone)
-// The game colours are darkened only as far as these floors need, so a priest is still
-// grey-white and a rogue still gold rather than olive. Fixture: tools/theme-fixture.js
-// (fictional). WAB_THEME_DATA=real uses your own data/ (local QA only, never committed).
+//   ordinary text and chips    4.5:1 (large text 3:1)            WCAG AA
+//   game-coloured text         4.0:1 (rare / epic / mastery: their exact colours)
+// Fixture: tools/theme-fixture.js (fictional).
+// WAB_THEME_DATA=real uses your own data/ (local QA only, never committed).
 // WAB_THEME_DUMP=<file> also writes every node's colours, to diff a theme before/after.
 const fs = require('node:fs/promises'), path = require('node:path'), os = require('node:os');
 const {pathToFileURL} = require('node:url');
@@ -47,79 +47,91 @@ function auditInPage({scope, paper, screen}) {
       const s = getComputedStyle(e);
       if (s.display === 'none') { opacity = 0; break; }
       opacity *= +s.opacity;
-      if (!paper && alpha(s.backgroundColor) > 0) { layers.unshift(s.backgroundColor); if (alpha(s.backgroundColor) >= 1) break; }
+      const prints = !paper || (s.printColorAdjust || s.webkitPrintColorAdjust) === 'exact';
+      if (prints && alpha(s.backgroundColor) > 0) { layers.unshift(s.backgroundColor); if (alpha(s.backgroundColor) >= 1) break; }
     }
     if (opacity < 0.05) continue;
     const bg = paint(layers), raw = paint([...layers, cs.color]);
     const fg = raw.map((v, i) => Math.round(bg[i] + (v - bg[i]) * opacity));
     const size = parseFloat(cs.fontSize), weight = +cs.fontWeight, cr = ratio(fg, bg);
-    const cls = el.closest('.cls-color, #bis .bis-choice.cls'), game = el.closest('.game-text');
-    const need = cls ? 3.5 : game ? 4.0 : (size >= 24 || (size >= 18.66 && weight >= 700)) ? 3.0 : 4.5;
+    const game = el.closest('.game-text:not(.gc-chip)');
+    const need = game ? 4.0 : (size >= 24 || (size >= 18.66 && weight >= 700)) ? 3.0 : 4.5;
     const item = {screen, text: text.slice(0, 28), cr: +cr.toFixed(2), need, fg: hex(fg), bg: hex(bg), size, weight, path: where(el)};
     nodes.push(item);
-    if (cr < need || (cls && weight < 600)) out.push(item);
+    if (cr < need) out.push(item);
   }
   return {out, nodes};
 }
 
-// The dark theme must keep the colours it had before the light palettes existed: those
-// only switch on under the light theme or print. A visible game-coloured node with
-// --gc-now set, or a class-coloured name drawn in its light partner, is a leak.
+// The dark theme must keep the colours it had before the light styling existed: that
+// only switches on under the light theme or print. A visible game-coloured node with
+// --gc-now set, or a class / game chip with a fill, is a leak.
 function darkLeaks({scope}) {
   const root = document.querySelector(scope), out = [];
   const g = document.createElement('canvas').getContext('2d');
   const norm = c => { g.fillStyle = '#010203'; g.fillStyle = c; return g.fillStyle; };
   let game = 0, cls = 0;
   if (!root) return {out, game, cls};
-  for (const el of root.querySelectorAll('.game-color, .cls-color, #bis .bis-choice.cls')) {
+  const say = el => '«' + el.textContent.trim().slice(0, 20) + '»';
+  for (const el of root.querySelectorAll('.game-color, .cls-color, .cls-chip')) {
     const r = el.getBoundingClientRect(), cs = getComputedStyle(el);
     if (!r.width || !r.height) continue;
     if (el.matches('.game-color')) {
       game++;
-      if (cs.getPropertyValue('--gc-now').trim()) out.push('--gc-now is set on .' + [...el.classList].join('.'));
+      if (cs.getPropertyValue('--gc-now').trim()) out.push('--gc-now is set on ' + say(el));
+      if (el.matches('.gc-chip:not(.tag)') && norm(cs.backgroundColor) === norm(cs.getPropertyValue('--gc').trim())) out.push('game chip fill on ' + say(el));
     }
-    const light = cs.getPropertyValue('--class-color-light').trim(), dark = cs.getPropertyValue('--class-color').trim();
-    if (light && el.matches('.cls-color, .bis-choice.cls')) {
+    if (el.matches('.cls-color, .cls-chip')) {
       cls++;
-      if (norm(light) !== norm(dark) && norm(cs.color) === norm(light)) out.push('light class colour on «' + el.textContent.trim().slice(0, 20) + '»');
+      const fill = cs.getPropertyValue('--class-color').trim();
+      if (fill && norm(cs.backgroundColor) === norm(fill)) out.push('class chip fill on ' + say(el));
     }
   }
   return {out, game, cls};
 }
 
-// The non-text half, light theme and print: no visible element (or ::before / ::after)
-// may paint, as text, background or border, one of the game's own dark-UI colours that
-// is under its floor on white -- a stat bar, an icon border, a dot the text audit never
-// sees. Class and quality colours come from the game's tables, not from the light
-// palettes under test; stat and source colours are the keys of L.gameColorsLight, which
-// an older build does not have, so there only the first two are checked.
+// Light theme and print: the game's colours stay the game's colours. v1.22.0 / v1.22.1
+// darkened them into readable text and turned rogue yellow olive and mage blue teal.
+// Checked: every chip is filled with its exact class / game colour; coloured game text
+// that is not a chip is its exact colour; bars use the exact colour; and no text with a
+// direct text node is still drawn in a game colour that is unreadable on white.
 function lightLeaks({scope}) {
   const L = AE.Labels, g = document.createElement('canvas').getContext('2d');
   const norm = c => { g.fillStyle = '#010203'; g.fillStyle = c; return g.fillStyle; };
   const lin = v => { v /= 255; return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; };
   const onWhite = h => 1.05 / (0.2126 * lin(parseInt(h.slice(1, 3), 16)) + 0.7152 * lin(parseInt(h.slice(3, 5), 16)) + 0.0722 * lin(parseInt(h.slice(5, 7), 16)) + 0.05);
-  const raw = new Set(), out = [];
-  const add = (c, floor) => { const d = norm(c); if (/^#[0-9a-f]{6}$/.test(d) && d !== '#ffffff' && onWhite(d) < floor) raw.add(d); };
-  Object.values(L.classColors).forEach(c => add(c, 4));
-  [...Object.values(L.qualityColors), ...Object.keys(L.gameColorsLight || {})].forEach(c => add(c, 4.5));
+  const hues = h => { const v = [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)); return Math.max(...v) - Math.min(...v) >= 16; };
+  const raw = new Set(), out = [], seen = {chips: 0, texts: 0, fills: 0};
   const root = document.querySelector(scope);
-  let checked = 0;
-  if (!root) return {out, raw: raw.size, checked};
-  const tag = el => el.tagName.toLowerCase() + (el.id ? '#' + el.id : '') + [...el.classList].slice(0, 3).map(c => '.' + c).join('');
+  if (!root) return {out, raw: 0, ...seen};
+  const say = el => el.tagName.toLowerCase() + '«' + el.textContent.trim().slice(0, 16) + '»';
+  const addRaw = c => { const d = norm(c); if (/^#[0-9a-f]{6}$/.test(d) && hues(d) && onWhite(d) < 4.5) raw.add(d); };
+  Object.values(L.classColors).forEach(addRaw);
+  Object.values(L.qualityColors).forEach(addRaw);
+  for (const el of root.querySelectorAll('[style*="--gc"]')) addRaw(el.style.getPropertyValue('--gc'));
   for (const el of [root, ...root.querySelectorAll('*')]) {
-    const r = el.getBoundingClientRect();
-    if (!r.width || !r.height || getComputedStyle(el).visibility !== 'visible') continue;
-    checked++;
-    for (const pseudo of [null, '::before', '::after']) {
-      const cs = getComputedStyle(el, pseudo);
-      if (pseudo && (cs.content === 'none' || cs.display === 'none')) continue;
-      const props = [['text', cs.color], ['background', cs.backgroundColor]];
-      for (const s of ['Top', 'Right', 'Bottom', 'Left']) if (parseFloat(cs['border' + s + 'Width']) > 0 && cs['border' + s + 'Style'] !== 'none') props.push(['border', cs['border' + s + 'Color']]);
-      const hit = props.find(([, v]) => v && raw.has(norm(v)));
-      if (hit) out.push(hit[0] + ' ' + norm(hit[1]) + ' on ' + tag(el) + (pseudo || ''));
+    const r = el.getBoundingClientRect(), cs = getComputedStyle(el);
+    if (!r.width || !r.height || cs.visibility !== 'visible') continue;
+    const gc = el.style.getPropertyValue('--gc').trim();
+    if (el.matches('.cls-color, .cls-chip')) {
+      seen.chips++;
+      const want = norm(cs.getPropertyValue('--class-color').trim());
+      if (norm(cs.backgroundColor) !== want) out.push('class chip ' + say(el) + ' filled ' + norm(cs.backgroundColor) + ', not ' + want);
+    } else if (el.matches('.gc-chip')) {
+      seen.chips++;
+      if (norm(cs.backgroundColor) !== norm(gc)) out.push('game chip ' + say(el) + ' filled ' + norm(cs.backgroundColor) + ', not ' + norm(gc));
+    } else if (el.matches('.game-text') && /^#|^rgb/.test(gc) && hues(norm(gc))) {
+      seen.texts++;
+      if (norm(cs.color) !== norm(gc)) out.push('game text ' + say(el) + ' drawn ' + norm(cs.color) + ', not ' + norm(gc));
+    } else if (gc && !el.matches('.game-text')) {
+      seen.fills++;
+      const shown = el.style.background ? cs.backgroundColor : cs.borderTopColor;
+      if (norm(shown) !== norm(gc)) out.push('graphic ' + say(el) + ' painted ' + norm(shown) + ', not ' + norm(gc));
     }
+    const own = [...el.childNodes].some(n => n.nodeType === 3 && n.nodeValue.trim());
+    if (own && !el.matches('.cls-color, .cls-chip, .gc-chip') && raw.has(norm(cs.color))) out.push('unreadable game colour ' + norm(cs.color) + ' as text on ' + say(el));
   }
-  return {out, raw: raw.size, checked};
+  return {out, raw: raw.size, ...seen};
 }
 
 const closeAll = p => p.evaluate(() => { AE.closeAllPanels(); document.getElementById('export-menu').hidden = true; });
@@ -155,7 +167,8 @@ const PASSES = [['light', 'slate', ALL], ['light', 'violet', ALL], ['light', 'ja
   // `git archive` of the last release) to diff its WAB_THEME_DUMP against this one.
   const root = path.resolve(process.env.WAB_THEME_ROOT || path.join(__dirname, '..')), base = path.resolve(os.tmpdir());
   const dir = await fs.mkdtemp(path.join(base, 'wow-light-theme-'));
-  const report = {passes: [], failures: [], darkBelow: 0, darkLeaks: [], darkGame: 0, darkCls: 0, lightLeaks: [], lightChecked: 0, rawColours: 0}, dump = [];
+  const report = {passes: [], failures: [], darkBelow: 0, darkLeaks: [], darkGame: 0, darkCls: 0,
+    lightLeaks: [], chips: 0, texts: 0, fills: 0, rawColours: 0}, dump = [];
   let browser;
   try {
     await fs.copyFile(path.join(root, 'index.html'), path.join(dir, 'index.html'));
@@ -192,7 +205,8 @@ const PASSES = [['light', 'slate', ALL], ['light', 'violet', ALL], ['light', 'ja
         } else {
           fails += res.out.length; report.failures.push(...res.out);
           const ll = await page.evaluate(lightLeaks, {scope});
-          report.lightChecked += ll.checked; report.rawColours = ll.raw;
+          report.chips += ll.chips; report.texts += ll.texts; report.fills += ll.fills;
+          report.rawColours = Math.max(report.rawColours, ll.raw);
           report.lightLeaks.push(...ll.out.map(m => label + ': ' + m));
         }
       }
@@ -217,12 +231,15 @@ const PASSES = [['light', 'slate', ALL], ['light', 'violet', ALL], ['light', 'ja
     for (const m of report.lightLeaks.slice(0, 20)) console.log('light leak  ' + m);
     // Zero nodes checked would make "no leaks" meaningless.
     if (!report.darkGame || !report.darkCls) report.darkLeaks.push('dark pass checked ' + report.darkGame + ' game-coloured and ' + report.darkCls + ' class-coloured nodes');
-    if (!report.lightChecked || report.rawColours < 10) report.lightLeaks.push('light passes checked ' + report.lightChecked + ' elements against ' + report.rawColours + ' dark-UI colours');
+    if (!report.chips || !report.texts || !report.fills || report.rawColours < 10) {
+      report.lightLeaks.push('light passes checked ' + report.chips + ' chips, ' + report.texts + ' game texts, ' + report.fills + ' bars against ' + report.rawColours + ' unreadable game colours');
+    }
     console.log(JSON.stringify({passes: report.passes, failures: report.failures.length, distinct: Object.keys(groups).length,
       darkBelowThreshold: report.darkBelow, darkLeaks: report.darkLeaks.length, darkGameNodes: report.darkGame, darkClassNodes: report.darkCls,
-      lightLeaks: report.lightLeaks.length, lightElements: report.lightChecked, darkUiColours: report.rawColours, report: out}, null, 1));
+      lightLeaks: report.lightLeaks.length, chips: report.chips, gameTexts: report.texts, bars: report.fills, unreadableGameColours: report.rawColours, report: out}, null, 1));
     if (report.failures.length || report.darkLeaks.length || report.lightLeaks.length) process.exitCode = 1;
-    else console.log('Light theme: every text node meets its contrast floor and no element paints a dark-UI game or class colour (light x4 skins, print from dark and light); dark theme: '
+    else console.log('Light theme: every text node meets its contrast floor; ' + report.chips + ' chips, ' + report.texts + ' game texts and '
+      + report.fills + ' bars show the exact game colours (light x4 skins, print from dark and light); dark theme: '
       + report.darkGame + ' game-coloured + ' + report.darkCls + ' class-coloured nodes keep their dark colours; 0 page errors, 0 network requests');
   } finally {
     if (browser) await browser.close();

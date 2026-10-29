@@ -73,48 +73,35 @@
     return L.classColors[String(classFile || '').toUpperCase()] || '#B9C4D4';
   };
 
-  // Light-theme partners, used on white surfaces (light theme and print). Each keeps
-  // its class's OKLCH hue and as much chroma as fits, darkened only until it reaches
-  // 4:1 on white (>= 3.5:1 on zebra and reward rows), and is drawn bold. A fixed
-  // lightness clamp turned paladin plum and rogue olive and dulled every class; these
-  // stay pink and gold. Warrior / evoker are a step darker to keep them apart from
-  // rogue / monk. Priest's white has no hue to keep, so it becomes a cool grey.
-  L.classColorsLight = {
-    DEATHKNIGHT: '#c41e3a',
-    DEMONHUNTER: '#a330c9',
-    DRUID:       '#cb6000',
-    EVOKER:      '#227e73',
-    HUNTER:      '#688922',
-    MAGE:        '#008aa7',
-    MONK:        '#009159',
-    PALADIN:     '#c15e8c',
-    PRIEST:      '#797f8b',
-    ROGUE:       '#9c7b00',
-    SHAMAN:      '#0070dd',
-    WARLOCK:     '#7474d8',
-    WARRIOR:     '#936744'
-  };
+  // On light surfaces (light theme and print) a class name is a chip: the exact class
+  // colour as the fill, with near-black or white text. Most class colours are made for
+  // dark backgrounds, and darkening them into readable text changes the colour itself:
+  // v1.22.0 (one lightness clamp) and v1.22.1 (per-class darker partners) both turned
+  // rogue yellow into olive / mustard and mage light blue into teal. A fill keeps it.
 
-  /** Light-theme partner of a class colour; accepts a class file or its dark hex. */
-  L.lightClassColor = function (classFileOrHex) {
-    var key = String(classFileOrHex || '').toUpperCase();
-    if (L.classColorsLight[key]) return L.classColorsLight[key];
-    for (var c in L.classColors) {
-      if (L.classColors[c].toUpperCase() === key) return L.classColorsLight[c];
-    }
-    // A class this table does not know yet: darken what the dark theme shows for it.
-    return L.darkenForLight(toHex(classFileOrHex) ? classFileOrHex : L.classColor(classFileOrHex), 4.0);
+  var CHIP_INK_DARK = '#14161a';   // the dark theme's own background
+
+  /**
+   * Text colour for a chip filled with `color`: near-black or white, whichever has
+   * more contrast. Every class colour and every game colour reaches 4.5:1 this way.
+   */
+  L.chipInk = function (color) {
+    var hex = toHex(color);
+    if (!hex) return 'var(--fg)';
+    var c = linearRgb(hex), y = 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+    var ink = linearRgb(CHIP_INK_DARK), yInk = 0.2126 * ink[0] + 0.7152 * ink[1] + 0.0722 * ink[2];
+    return (y + 0.05) / (yInk + 0.05) >= 1.05 / (y + 0.05) ? CHIP_INK_DARK : '#ffffff';
   };
 
   /**
-   * Give a node a class colour: --class-color (dark theme, unchanged) and
-   * --class-color-light (light theme / print). The caller adds .cls-color, so a
-   * "class colours off" setting keeps working as before.
+   * Give a node a class colour: --class-color (the exact colour, used as text by the
+   * dark theme and as the chip fill on light surfaces) and --class-ink (chip text).
+   * The caller adds .cls-color, so a "class colours off" setting keeps working.
    */
   L.paintClassColor = function (node, classFileOrHex) {
     var dark = /^#/.test(String(classFileOrHex)) ? classFileOrHex : L.classColor(classFileOrHex);
     node.style.setProperty('--class-color', dark);
-    node.style.setProperty('--class-color-light', L.lightClassColor(classFileOrHex));
+    node.style.setProperty('--class-ink', L.chipInk(dark));
   };
 
   // -------------------------------------------------------------- class zhCN
@@ -244,26 +231,11 @@
 
   // ------------------------------------------- game colours on light surfaces
   // Item quality, stat, source and keystone colours are the game's, made for its
-  // dark UI: common is pure white, uncommon #1EFF00 is 1.4:1 on white. Light theme
-  // and print use these partners instead: same OKLCH hue, darkened only to 4.5:1 on
-  // white (>= 4:1 on the tinted surfaces), so green stays green and orange orange.
-  // The two golds lean about 10 degrees toward orange; at their own hue they go olive.
-  // Keyed by the dark colour, lower case; values computed, not eyeballed.
-  L.gameColorsLight = {
-    '#9d9d9d': '#767676',   // poor
-    '#ffffff': 'var(--fg)', // common: plain text colour
-    '#1eff00': '#0b8a00',   // uncommon, source "crafted"
-    '#0070dd': '#0070dd',   // rare (already 4.8:1)
-    '#a335ee': '#a335ee',   // epic, source "M+", keystone (4.9:1)
-    '#ff8000': '#bb5c00',   // legendary, source "raid", high keystone
-    '#e6cc80': '#947026',   // artifact
-    '#00ccff': '#0081a2',   // heirloom, source "tier"
-    '#ffd100': '#9a6f00',   // source "world"
-    '#ff3333': '#eb1220',   // crit
-    '#33cc33': '#008a08',   // haste
-    '#3366ff': '#3366ff',   // mastery (4.7:1)
-    '#cc9933': '#9a6e00'    // versatility
-  };
+  // dark UI: common is pure white, uncommon #1EFF00 is 1.4:1 on white. On light
+  // surfaces each one is still drawn in its exact colour: as text where that already
+  // reaches 4.5:1 on white (rare, epic, mastery), otherwise as a chip filled with it.
+  // Only the colourless ones change: white becomes the text colour and grey a darker
+  // grey, which is still what those colours mean.
 
   /** '#rgb' / '#rrggbb' / 'rgb(r,g,b)' -> '#rrggbb' (lower case), else ''. */
   function toHex(c) {
@@ -325,26 +297,45 @@
     return '#4f5866';
   };
 
-  /** Light-theme partner of a game colour (quality / stat / source / keystone). */
-  L.lightGameColor = function (color) {
+  /** White, black and greys: nothing for a chip to keep, they follow the theme. */
+  function colourless(hex) {
+    var v = [1, 3, 5].map(function (i) { return parseInt(hex.substr(i, 2), 16); });
+    return Math.max.apply(null, v) - Math.min.apply(null, v) < 16;
+  }
+
+  /**
+   * How a game colour is drawn as text on a light surface:
+   * {text: colour} or {chip: fill, ink: text colour}. The fill is always the exact
+   * colour; `forceChip` keeps a family (stats, keystones) all chips.
+   */
+  L.lightGameText = function (color, forceChip) {
     var hex = toHex(color);
-    if (!hex) return color;              // already a var(...) or a keyword
-    return L.gameColorsLight[hex] || L.darkenForLight(hex, 4.5);
+    if (!hex) return { text: color };            // already a var(...) or a keyword
+    if (colourless(hex)) {
+      if (hex === '#ffffff') return { text: 'var(--fg)' };
+      return forceChip ? { chip: hex, ink: L.chipInk(hex) } : { text: L.darkenForLight(hex, 4.5) };
+    }
+    if (!forceChip && contrastOnWhite(hex) >= 4.5) return { text: hex };
+    return { chip: hex, ink: L.chipInk(hex) };
   };
 
   /**
-   * Colour a node with a game colour. The dark theme gets exactly the inline value it
-   * had before; light theme and print switch --gc-now to the light partner
-   * (dashboard.css / style.css). kind: 'text' | 'border' | 'fill'.
+   * Colour a node with a game colour. The dark theme gets exactly the colour it had
+   * before; light theme and print switch --gc-now (dashboard.css). kind:
+   *   'text'   -- item / gem names: exact colour where readable, else a chip;
+   *   'chip'   -- short labels that should look alike (stats, keystones, sources);
+   *   'border' / 'fill' -- graphics, not text: the exact colour on every theme.
    */
   L.paintGameColor = function (node, color, kind) {
     node.style.setProperty('--gc', color);
-    node.style.setProperty('--gc-light', L.lightGameColor(color));
+    if (kind === 'border') { node.style.borderColor = color; return; }
+    if (kind === 'fill') { node.style.background = color; return; }
+    var light = L.lightGameText(color, kind === 'chip');
+    node.style.setProperty('--gc-light', light.chip ? light.ink : light.text);
     node.classList.add('game-color');
-    var v = 'var(--gc-now, ' + color + ')';
-    if (kind === 'border') node.style.borderColor = v;
-    else if (kind === 'fill') node.style.background = v;
-    else { node.style.color = v; node.classList.add('game-text'); }
+    node.classList.add('game-text');
+    if (light.chip) node.classList.add('gc-chip');
+    node.style.color = 'var(--gc-now, ' + color + ')';
   };
 
   // ------------------------------------------------------------ dungeon zhCN

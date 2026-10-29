@@ -277,11 +277,14 @@
       for (var wi = weeks.length - 1; wi >= 0; wi--) {
         if (weeks[wi].characters[k]) { latest = weeks[wi].characters[k]; break; }
       }
-      var nameTd = el('td', null, latest ? latest.name : k);
+      var nameTd = el('td');
+      // A span, not the cell: on light surfaces the class colour is a chip.
+      var nameText = el('span', null, latest ? latest.name : k);
       if (latest && s.classColors) {
-        L.paintClassColor(nameTd, latest.classFile);
-        nameTd.classList.add('cls-color');
+        L.paintClassColor(nameText, latest.classFile);
+        nameText.classList.add('cls-color');
       }
+      nameTd.appendChild(nameText);
       nameTd.title = latest ? (latest.name + ' - ' + latest.realm) : k;
       row.appendChild(nameTd);
 

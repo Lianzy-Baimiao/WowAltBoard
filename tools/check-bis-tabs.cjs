@@ -89,12 +89,26 @@ async function inspectChoices(page) {
       await page.waitForSelector('.bis-slots .item');
       await page.locator('#bis').evaluate(e => Promise.all(e.getAnimations().map(a => a.finished)));
       for (const g of await inspectChoices(page)) covered.add(g);
-      const dots = await page.locator('#bis .cls').evaluateAll(bs => bs.map(b => ({
-        color: getComputedStyle(b).color, dot: getComputedStyle(b, '::before').content,
-        inlineColor: b.style.color, inlineBackground: b.style.background
-      })));
+      // Dark: the class colour is the tab's text colour. Light: the label is a chip filled
+      // with the exact class colour (darkened text colours read as a different colour).
+      const dots = await page.locator('#bis .cls').evaluateAll(bs => bs.map(b => {
+        const chip = b.querySelector('.cls-chip'), g = document.createElement('canvas').getContext('2d');
+        const norm = c => { g.fillStyle = '#010203'; g.fillStyle = c; return g.fillStyle; };
+        return {
+          color: getComputedStyle(b).color, dot: getComputedStyle(b, '::before').content,
+          inlineColor: b.style.color, inlineBackground: b.style.background,
+          chipFill: chip ? norm(getComputedStyle(chip).backgroundColor) : null,
+          classColor: norm(getComputedStyle(b).getPropertyValue('--class-color').trim())
+        };
+      }));
       assert.equal(dots.length, 13);
-      assert.equal(new Set(dots.map(d => d.color)).size, 13, 'retain recognizable class colors');
+      if (theme === 'light') {
+        assert.ok(dots.every(d => d.chipFill === d.classColor), 'light tabs: chips filled with the exact class colour');
+        assert.equal(new Set(dots.map(d => d.chipFill)).size, 13, 'retain recognizable class colors');
+      } else {
+        assert.equal(new Set(dots.map(d => d.color)).size, 13, 'retain recognizable class colors');
+        assert.ok(dots.every(d => d.chipFill !== d.classColor), 'dark tabs: no chip fill');
+      }
       assert.ok(dots.every(d => !d.inlineColor && !d.inlineBackground && ['none', 'normal'].includes(d.dot)), 'class text, no dot');
       if (skin === 'default') await page.screenshot({ path: path.join(screenshots, `${theme}-equipment.png`) });
       await page.locator('.bis-tabs').getByRole('button', { name: '天赋', exact: true }).click();

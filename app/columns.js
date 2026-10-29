@@ -179,8 +179,9 @@
         id: 'class', group: 'base', label: '职业', width: 84, defaultHidden: true,
         sort: function (ch) { return ch.className; },
         render: function (td, ch, ctx) {
-          td.textContent = ch.className;
-          classTint(td, ch, ctx);
+          var name = el('span', null, ch.className);
+          classTint(name, ch, ctx);
+          td.appendChild(name);
         }
       },
       {
@@ -250,7 +251,7 @@
           if (!ks) { dash(td); td.title = tr('本周尚未获得钥石，或已过周重置'); return; }
           var meta = ctx.model.tables.dungeonById[ks.cmID];
           var lv = el('b', null, '+' + ks.level);
-          if (ks.color && /^[0-9a-f]{8}$/i.test(ks.color)) L.paintGameColor(lv, '#' + ks.color.slice(2));
+          if (ks.color && /^[0-9a-f]{8}$/i.test(ks.color)) L.paintGameColor(lv, '#' + ks.color.slice(2), 'chip');
           td.appendChild(lv);
           td.appendChild(document.createTextNode(' ' + dungeonHeader(ks.cmID, meta, ctx)));
           td.title = L.dungeonLabel(ks.cmID, meta, ctx.settings.dungeonNameOverrides, ctx.model.dungeonNames) +

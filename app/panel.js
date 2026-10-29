@@ -1178,10 +1178,13 @@
           empty.colSpan = 3;
           tr.appendChild(empty);
         } else {
-          var nameTd = el('td', null, it.name);
+          var nameTd = el('td');
+          // A span, not the cell: on light surfaces a pale quality colour is a chip.
+          var nameText = el('span', null, it.name);
           if (it.quality != null && L.qualityColors[it.quality]) {
-            L.paintGameColor(nameTd, L.qualityColors[it.quality]);
+            L.paintGameColor(nameText, L.qualityColors[it.quality]);
           }
+          nameTd.appendChild(nameText);
           tr.appendChild(nameTd);
           tr.appendChild(el('td', 'num', Math.round(it.itemLevel) || '·'));
           tr.appendChild(el('td', null, it.track

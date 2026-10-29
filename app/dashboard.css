@@ -314,19 +314,37 @@
     body:not([data-theme="light"]) .cls-color { color: oklch(from var(--class-color) max(l, 0.68) c h); }
   }
 }
-/* Light theme and paper: each class's own light partner (AE.Labels.classColorsLight),
-   bold. The earlier min(l, 0.52) min(c, 0.16) clamp hit every class with the same
-   formula: readable, but paladin came out plum, rogue olive, and every class duller. */
-/* 700, not 600: YaHei UI has no semibold face, and the thicker bold strokes are what
-   make a 12px name read as its colour at all. */
-@media screen { body[data-theme="light"] .cls-color { color: var(--class-color-light, var(--class-color)); font-weight: 700; } }
-@media print { .cls-color { color: var(--class-color-light, var(--class-color)); font-weight: 700; } }
-/* Game colours (item quality, stat, source, keystone; AE.Labels.paintGameColor): the
-   inline style reads var(--gc-now, <dark colour>), so the dark theme is unchanged and
-   these two rules swap in the light partner. Every node that reads --gc-now is itself
-   .game-color, so it always resolves its own --gc-light, never an inherited one. */
-@media screen { body[data-theme="light"] .game-color { --gc-now: var(--gc-light); } }
-@media print { .game-color { --gc-now: var(--gc-light); } }
+/* Light theme and paper: a class name is a chip filled with the exact class colour,
+   with near-black or white text (--class-ink, AE.Labels.chipInk). Darkening the colour
+   into readable text changes the colour itself: v1.22.0's lightness clamp and v1.22.1's
+   darker partners both turned rogue yellow olive and mage light blue teal.
+   Game colours (item quality, stat, source, keystone; AE.Labels.paintGameColor): the
+   inline style reads var(--gc-now, <dark colour>), so the dark theme is unchanged.
+   Here --gc-now becomes --gc-light: the exact colour where it is readable text, else
+   the chip's text colour, with .gc-chip filled with the exact colour (--gc). Every node
+   that reads --gc-now is itself .game-color, so it never inherits another's value.
+   print-color-adjust keeps the fills on paper even with background graphics off. */
+@media screen {
+  body[data-theme="light"] .cls-color, body[data-theme="light"] .cls-chip { color: var(--class-ink); background: var(--class-color); }
+  body[data-theme="light"] .game-color { --gc-now: var(--gc-light); }
+  body[data-theme="light"] .gc-chip { background: var(--gc); }
+  /* :where() keeps the shape at zero specificity, so a chip that is also a .tag
+     (source badges) keeps the tag's own padding, radius and coloured border. */
+  body[data-theme="light"] :where(.cls-color, .cls-chip, .gc-chip) {
+    padding: 1px 5px; border-radius: 4px; -webkit-box-decoration-break: clone; box-decoration-break: clone;
+  }
+  body[data-theme="light"] :is(.cls-color, .cls-chip, .gc-chip):not(.tag) { box-shadow: inset 0 0 0 1px rgba(20, 22, 26, .14); }
+}
+@media print {
+  .cls-color, .cls-chip { color: var(--class-ink); background: var(--class-color); }
+  .game-color { --gc-now: var(--gc-light); }
+  .gc-chip { background: var(--gc); }
+  :where(.cls-color, .cls-chip, .gc-chip) {
+    padding: 1px 5px; border-radius: 4px; -webkit-box-decoration-break: clone; box-decoration-break: clone;
+  }
+  :is(.cls-color, .cls-chip, .gc-chip):not(.tag) { box-shadow: inset 0 0 0 1px rgba(20, 22, 26, .14); }
+  :is(.cls-color, .cls-chip, .gc-chip) { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
 
 @media screen {
   /* Toolbar and table are one card: the toolbar is its top edge. */
@@ -458,7 +476,6 @@
   /* A reward to collect also gets a green edge, so it reads without the tint. */
   #grid tbody tr.has-reward td.sticky-col::before { content: ""; position: absolute; left: 0; top: 5px; bottom: 5px; width: 3px; border-radius: 0 2px 2px 0; background: var(--good); }
   #grid .char-name { font-weight: 600; }
-  body[data-theme="light"] #grid .char-name.cls-color { font-weight: 700; }
 
   /* Quiet the cells that carry no information. */
   #grid td.empty { color: color-mix(in srgb, var(--fg3) 45%, transparent); }
